@@ -5,10 +5,10 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "8mb",
     },
-    /** Evita incluir `public/portfolio-media` en bundles serverless (cientos de MB; las URLs son estáticas). */
-    outputFileTracingExcludes: {
-      "*": ["./public/portfolio-media/**/*"],
-    },
+  },
+  /** Evita incluir `public/portfolio-media` en bundles serverless (cientos de MB; las URLs son estáticas). */
+  outputFileTracingExcludes: {
+    "*": ["./public/portfolio-media/**/*"],
   },
   /** Evita 404 si alguien escribe /login/admin/... en lugar de /admin/... */
   async redirects() {
