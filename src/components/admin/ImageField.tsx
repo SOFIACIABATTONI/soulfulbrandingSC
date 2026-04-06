@@ -8,9 +8,23 @@ async function uploadFile(file: File, minWidth?: number, minHeight?: number): Pr
   if (minWidth) fd.set("minWidth", String(minWidth));
   if (minHeight) fd.set("minHeight", String(minHeight));
   const res = await fetch("/api/upload", { method: "POST", body: fd, credentials: "include" });
-  const j = (await res.json()) as { url?: string; error?: string };
-  if (!res.ok) throw new Error(j.error || "Error al subir");
-  return j.url ?? "";
+  const raw = await res.text();
+  let j: { url?: string; error?: string } | null = null;
+  try {
+    j = raw ? (JSON.parse(raw) as { url?: string; error?: string }) : null;
+  } catch {
+    j = null;
+  }
+  if (!res.ok) {
+    // Vercel can return non-JSON bodies (e.g. 413 payload too large).
+    const fallback =
+      res.status === 413
+        ? "El archivo es demasiado grande para Vercel. Usa una imagen más liviana (recomendado: < 4MB)."
+        : `Error al subir (HTTP ${res.status}).`;
+    throw new Error(j?.error || fallback);
+  }
+  if (!j?.url) throw new Error("Respuesta inválida del servidor al subir imagen.");
+  return j.url;
 }
 
 type Props = {
@@ -57,6 +71,7 @@ function checkImageConstraints(
 export function ImageField({ label, value, onChange, helpText, minWidth, minHeight, ratio }: Props) {
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const MAX_UPLOAD_MB = 4;
 
   return (
     <div className="space-y-1">
@@ -88,6 +103,10 @@ export function ImageField({ label, value, onChange, helpText, minWidth, minHeig
             setErr(null);
             setLoading(true);
             try {
+              if (f.size > MAX_UPLOAD_MB * 1024 * 1024) {
+                setErr(`Archivo demasiado pesado para Vercel (máx. recomendado ${MAX_UPLOAD_MB}MB).`);
+                return;
+              }
               const dims = await checkImageConstraints(f, minWidth, minHeight);
               if (!dims.ok) {
                 setErr(dims.error);
