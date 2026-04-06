@@ -1,9 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { SiteContentData, StageFormId } from "@/lib/site-content";
+import type { SiteContentData } from "@/lib/site-content";
 import { defaultSiteContent } from "@/lib/site-content";
 import { ImageField } from "@/components/admin/ImageField";
+
+function splitLines(value: string): string[] {
+  return value
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 export function ContentEditor() {
   const [data, setData] = useState<SiteContentData>(defaultSiteContent());
@@ -58,14 +65,6 @@ export function ContentEditor() {
 
       <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">Hero</h2>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={data.hero.showLogo !== false}
-            onChange={(e) => setData({ ...data, hero: { ...data.hero, showLogo: e.target.checked } })}
-          />
-          Mostrar logo soulful-branding.svg arriba
-        </label>
         <label className="block text-sm font-medium">Línea superior (opcional)</label>
         <input
           className="w-full rounded-md border border-neutral-300 px-3 py-2"
@@ -157,6 +156,9 @@ export function ContentEditor() {
 
       <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">About</h2>
+        <p className="text-xs text-neutral-500">
+          Estos campos impactan la sección About de home (mobile y desktop).
+        </p>
         <label className="block text-sm font-medium">Encabezado</label>
         <input
           className="w-full rounded-md border border-neutral-300 px-3 py-2"
@@ -183,25 +185,216 @@ export function ContentEditor() {
           value={data.about.readMoreLabel}
           onChange={(e) => setData({ ...data, about: { ...data.about, readMoreLabel: e.target.value } })}
         />
-        <ImageField label="Imagen" value={data.about.imageUrl} onChange={(url) => setData({ ...data, about: { ...data.about, imageUrl: url } })} />
+        <ImageField
+          label="Imagen"
+          value={data.about.imageUrl}
+          onChange={(url) => setData({ ...data, about: { ...data.about, imageUrl: url } })}
+          minWidth={900}
+          minHeight={1200}
+          ratio="3:4 (vertical)"
+        />
+      </section>
+
+      <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold">More About (página /about)</h2>
+        <p className="text-xs text-neutral-500">
+          Estos campos se ven al presionar “More About”, tanto en mobile como en desktop.
+        </p>
+
+        <label className="block text-sm font-medium">Intro (3 párrafos, uno por línea)</label>
+        <textarea
+          className="w-full rounded-md border border-neutral-300 px-3 py-2 font-mono text-sm"
+          rows={5}
+          value={(data.aboutMore?.introParagraphs ?? []).join("\n")}
+          onChange={(e) => setData({ ...data, aboutMore: { ...data.aboutMore, introParagraphs: splitLines(e.target.value) } })}
+        />
+
+        <label className="block text-sm font-medium">Texto “Since 2018…”</label>
+        <textarea
+          className="w-full rounded-md border border-neutral-300 px-3 py-2"
+          rows={4}
+          value={data.aboutMore?.sinceText ?? ""}
+          onChange={(e) => setData({ ...data, aboutMore: { ...data.aboutMore, sinceText: e.target.value } })}
+        />
+
+        <label className="block text-sm font-medium">Texto “Gracias a mi experiencia…”</label>
+        <textarea
+          className="w-full rounded-md border border-neutral-300 px-3 py-2"
+          rows={3}
+          value={data.aboutMore?.graciasText ?? ""}
+          onChange={(e) => setData({ ...data, aboutMore: { ...data.aboutMore, graciasText: e.target.value } })}
+        />
+
+        <label className="block text-sm font-medium">Texto de proceso (resaltado)</label>
+        <textarea
+          className="w-full rounded-md border border-neutral-300 px-3 py-2"
+          rows={3}
+          value={data.aboutMore?.processText ?? ""}
+          onChange={(e) => setData({ ...data, aboutMore: { ...data.aboutMore, processText: e.target.value } })}
+        />
+
+        <label className="block text-sm font-medium">Cierre — Intro</label>
+        <input
+          className="w-full rounded-md border border-neutral-300 px-3 py-2"
+          value={data.aboutMore?.closingIntro ?? ""}
+          onChange={(e) => setData({ ...data, aboutMore: { ...data.aboutMore, closingIntro: e.target.value } })}
+        />
+
+        <label className="block text-sm font-medium">Cierre — bullets (uno por línea)</label>
+        <textarea
+          className="w-full rounded-md border border-neutral-300 px-3 py-2 font-mono text-sm"
+          rows={4}
+          value={(data.aboutMore?.closingBullets ?? []).join("\n")}
+          onChange={(e) => setData({ ...data, aboutMore: { ...data.aboutMore, closingBullets: splitLines(e.target.value) } })}
+        />
+
+        <label className="block text-sm font-medium">Cierre — párrafo final</label>
+        <textarea
+          className="w-full rounded-md border border-neutral-300 px-3 py-2"
+          rows={4}
+          value={data.aboutMore?.closingOutro ?? ""}
+          onChange={(e) => setData({ ...data, aboutMore: { ...data.aboutMore, closingOutro: e.target.value } })}
+        />
+
+        <ImageField
+          label="Imagen retrato principal"
+          value={data.aboutMore?.imagePortraitUrl ?? ""}
+          onChange={(url) => setData({ ...data, aboutMore: { ...data.aboutMore, imagePortraitUrl: url } })}
+          minWidth={900}
+          minHeight={1200}
+          ratio="3:4 (vertical)"
+        />
+        <ImageField
+          label="Imagen libro"
+          value={data.aboutMore?.imageBookUrl ?? ""}
+          onChange={(url) => setData({ ...data, aboutMore: { ...data.aboutMore, imageBookUrl: url } })}
+          minWidth={900}
+          minHeight={900}
+          ratio="1:1"
+        />
+        <ImageField
+          label="Imagen expandida lateral"
+          value={data.aboutMore?.imageExpandedUrl ?? ""}
+          onChange={(url) => setData({ ...data, aboutMore: { ...data.aboutMore, imageExpandedUrl: url } })}
+          minWidth={900}
+          minHeight={1200}
+          ratio="3:4 o 2:3"
+        />
+        <ImageField
+          label="Imagen laptop (fila final móvil)"
+          value={data.aboutMore?.imageMainLaptopUrl ?? ""}
+          onChange={(url) => setData({ ...data, aboutMore: { ...data.aboutMore, imageMainLaptopUrl: url } })}
+          minWidth={900}
+          minHeight={1200}
+          ratio="3:4 (vertical)"
+        />
+        <ImageField
+          label="Imagen buda fucsia (móvil)"
+          value={data.aboutMore?.imageBuddhaUrl ?? ""}
+          onChange={(url) => setData({ ...data, aboutMore: { ...data.aboutMore, imageBuddhaUrl: url } })}
+          minWidth={500}
+          minHeight={500}
+          ratio="1:1"
+        />
+      </section>
+
+      <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold">Método (página /about)</h2>
+        <p className="text-xs text-neutral-500">
+          Sección “About y Método”. Estos textos aplican a ambos breakpoints; cambia solo el layout visual.
+        </p>
+        <label className="block text-sm font-medium">Etiqueta superior</label>
+        <input
+          className="w-full rounded-md border border-neutral-300 px-3 py-2"
+          value={data.method?.tagLabel ?? ""}
+          onChange={(e) => setData({ ...data, method: { ...data.method, tagLabel: e.target.value } })}
+        />
+        <label className="block text-sm font-medium">Título</label>
+        <input
+          className="w-full rounded-md border border-neutral-300 px-3 py-2"
+          value={data.method?.title ?? ""}
+          onChange={(e) => setData({ ...data, method: { ...data.method, title: e.target.value } })}
+        />
+        <label className="block text-sm font-medium">Intro párrafo 1</label>
+        <textarea
+          className="w-full rounded-md border border-neutral-300 px-3 py-2"
+          rows={3}
+          value={data.method?.introParagraph1 ?? ""}
+          onChange={(e) => setData({ ...data, method: { ...data.method, introParagraph1: e.target.value } })}
+        />
+        <label className="block text-sm font-medium">Línea destacada</label>
+        <input
+          className="w-full rounded-md border border-neutral-300 px-3 py-2"
+          value={data.method?.introHighlight ?? ""}
+          onChange={(e) => setData({ ...data, method: { ...data.method, introHighlight: e.target.value } })}
+        />
+        <label className="block text-sm font-medium">Intro párrafo 2</label>
+        <textarea
+          className="w-full rounded-md border border-neutral-300 px-3 py-2"
+          rows={3}
+          value={data.method?.introParagraph2 ?? ""}
+          onChange={(e) => setData({ ...data, method: { ...data.method, introParagraph2: e.target.value } })}
+        />
+        <label className="block text-sm font-medium">Intro de pilares</label>
+        <input
+          className="w-full rounded-md border border-neutral-300 px-3 py-2"
+          value={data.method?.pillarsIntro ?? ""}
+          onChange={(e) => setData({ ...data, method: { ...data.method, pillarsIntro: e.target.value } })}
+        />
+        <label className="block text-sm font-medium">Pilares (uno por línea)</label>
+        <textarea
+          className="w-full rounded-md border border-neutral-300 px-3 py-2 font-mono text-sm"
+          rows={4}
+          value={(data.method?.pillars ?? []).join("\n")}
+          onChange={(e) => setData({ ...data, method: { ...data.method, pillars: splitLines(e.target.value) } })}
+        />
+        <label className="block text-sm font-medium">Intro de transiciones</label>
+        <input
+          className="w-full rounded-md border border-neutral-300 px-3 py-2"
+          value={data.method?.transitionsIntro ?? ""}
+          onChange={(e) => setData({ ...data, method: { ...data.method, transitionsIntro: e.target.value } })}
+        />
+        <label className="block text-sm font-medium">Transiciones (una por línea)</label>
+        <textarea
+          className="w-full rounded-md border border-neutral-300 px-3 py-2 font-mono text-sm"
+          rows={4}
+          value={(data.method?.transitions ?? []).join("\n")}
+          onChange={(e) => setData({ ...data, method: { ...data.method, transitions: splitLines(e.target.value) } })}
+        />
+        <label className="block text-sm font-medium">Marca de agua final</label>
+        <input
+          className="w-full rounded-md border border-neutral-300 px-3 py-2"
+          value={data.method?.watermarkText ?? ""}
+          onChange={(e) => setData({ ...data, method: { ...data.method, watermarkText: e.target.value } })}
+        />
+        <ImageField
+          label="Imagen superior método"
+          value={data.method?.imageTopUrl ?? ""}
+          onChange={(url) => setData({ ...data, method: { ...data.method, imageTopUrl: url } })}
+          minWidth={900}
+          minHeight={1200}
+          ratio="3:4 (vertical)"
+        />
+        <ImageField
+          label="Imagen inferior método"
+          value={data.method?.imageBottomUrl ?? ""}
+          onChange={(url) => setData({ ...data, method: { ...data.method, imageBottomUrl: url } })}
+          minWidth={700}
+          minHeight={900}
+          ratio="3:4 (vertical)"
+        />
       </section>
 
       <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">Etapas</h2>
+        <p className="text-xs text-neutral-500">
+          Solo edición de contenido visible (texto + imagen).
+        </p>
         <label className="block text-sm font-medium">Titular</label>
         <input
           className="w-full rounded-md border border-neutral-300 px-3 py-2"
           value={data.stages.heading}
           onChange={(e) => setData({ ...data, stages: { ...data.stages, heading: e.target.value } })}
-        />
-        <label className="block text-sm font-medium">Índice activo (legacy; la home ya no lo usa)</label>
-        <input
-          type="number"
-          min={0}
-          max={10}
-          className="w-full rounded-md border border-neutral-300 px-3 py-2"
-          value={data.stages.activeIndex}
-          onChange={(e) => setData({ ...data, stages: { ...data.stages, activeIndex: Number(e.target.value) || 0 } })}
         />
         <ImageField label="Imagen lateral" value={data.stages.imageUrl} onChange={(url) => setData({ ...data, stages: { ...data.stages, imageUrl: url } })} />
         {data.stages.stages.map((s, i) => (
@@ -237,55 +430,15 @@ export function ContentEditor() {
                 setData({ ...data, stages: { ...data.stages, stages } });
               }}
             />
-            <label className="mt-2 block text-xs font-medium text-neutral-600">Formulario al pulsar + INFO</label>
-            <select
-              className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-              value={s.formId ?? "aplicacion-inicio"}
-              onChange={(e) => {
-                const stages = [...data.stages.stages];
-                stages[i] = { ...stages[i], formId: e.target.value as StageFormId };
-                setData({ ...data, stages: { ...data.stages, stages } });
-              }}
-            >
-              <option value="aplicacion-inicio">Aplicación — estoy comenzando</option>
-              <option value="contacto-evolucion">Contacto — necesito evolucionar</option>
-              <option value="aplicacion-expansion">Aplicación — busco expandirme</option>
-            </select>
-            <label className="mt-2 block text-xs font-medium text-neutral-600">Estilo tarjeta (mockup)</label>
-            <select
-              className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-              value={s.style ?? "yellow"}
-              onChange={(e) => {
-                const stages = [...data.stages.stages];
-                stages[i] = {
-                  ...stages[i],
-                  style: e.target.value as "yellow" | "navy" | "outlinePink",
-                };
-                setData({ ...data, stages: { ...data.stages, stages } });
-              }}
-            >
-              <option value="yellow">Amarillo (Estoy comenzando)</option>
-              <option value="navy">Navy (Necesito evolucionar)</option>
-              <option value="outlinePink">Blanco / rosa (Busco expandirme)</option>
-            </select>
-            <label className="mt-2 flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={s.showInfo !== false}
-                onChange={(e) => {
-                  const stages = [...data.stages.stages];
-                  stages[i] = { ...stages[i], showInfo: e.target.checked };
-                  setData({ ...data, stages: { ...data.stages, stages } });
-                }}
-              />
-              Mostrar botón + Info
-            </label>
           </div>
         ))}
       </section>
 
       <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">Servicios</h2>
+        <p className="text-xs text-neutral-500">
+          Solo edición de contenido visible (texto).
+        </p>
         <label className="block text-sm font-medium">Palabra de fondo</label>
         <input
           className="w-full rounded-md border border-neutral-300 px-3 py-2"
@@ -295,20 +448,6 @@ export function ContentEditor() {
         {data.services.items.map((item, i) => (
           <div key={i} className="rounded-md border border-neutral-100 p-3">
             <p className="text-xs font-semibold text-neutral-500">Servicio {i + 1}</p>
-            <label className="mt-2 flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={Boolean(item.featured)}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  const items = data.services.items.map((it, j) =>
-                    j === i ? { ...it, featured: checked } : { ...it, featured: checked ? false : it.featured },
-                  );
-                  setData({ ...data, services: { ...data.services, items } });
-                }}
-              />
-              Destacado (estilo oscuro)
-            </label>
             <input
               className="mt-2 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
               value={item.title}
@@ -334,6 +473,9 @@ export function ContentEditor() {
 
       <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">Contacto</h2>
+        <p className="text-xs text-neutral-500">
+          Textos e imágenes. Links de redes opcionales.
+        </p>
         <label className="block text-sm font-medium">Encabezado</label>
         <input
           className="w-full rounded-md border border-neutral-300 px-3 py-2"
@@ -397,33 +539,6 @@ export function ContentEditor() {
           }
         />
         <ImageField label="Imagen pie" value={data.contact.footerImageUrl} onChange={(url) => setData({ ...data, contact: { ...data.contact, footerImageUrl: url } })} />
-      </section>
-
-      <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold">Navegación</h2>
-        <p className="text-sm text-neutral-600">Etiqueta y enlace (usa rutas como /portfolio o anclas #about).</p>
-        {data.nav.map((item, i) => (
-          <div key={i} className="flex flex-col gap-2 sm:flex-row">
-            <input
-              className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
-              value={item.label}
-              onChange={(e) => {
-                const nav = [...data.nav];
-                nav[i] = { ...nav[i], label: e.target.value };
-                setData({ ...data, nav });
-              }}
-            />
-            <input
-              className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
-              value={item.href}
-              onChange={(e) => {
-                const nav = [...data.nav];
-                nav[i] = { ...nav[i], href: e.target.value };
-                setData({ ...data, nav });
-              }}
-            />
-          </div>
-        ))}
       </section>
 
       <div className="mt-10 flex flex-wrap items-center gap-4">

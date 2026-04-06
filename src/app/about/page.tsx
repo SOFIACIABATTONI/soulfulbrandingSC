@@ -13,7 +13,7 @@ export default async function AboutPage() {
     <>
       <SiteHeader nav={c.nav} />
       <main>
-        <AboutMorePage />
+        <AboutMorePage aboutMore={c.aboutMore} method={c.method} />
       </main>
     </>
   );

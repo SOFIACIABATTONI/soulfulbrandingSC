@@ -102,6 +102,34 @@ export interface SiteContentData {
     /** Párrafo largo en tipografía pequeña (mockup About) */
     finePrint: string;
   };
+  aboutMore: {
+    introParagraphs: string[];
+    sinceText: string;
+    graciasText: string;
+    processText: string;
+    closingIntro: string;
+    closingBullets: string[];
+    closingOutro: string;
+    imagePortraitUrl: string;
+    imageBookUrl: string;
+    imageExpandedUrl: string;
+    imageMainLaptopUrl: string;
+    imageBuddhaUrl: string;
+  };
+  method: {
+    tagLabel: string;
+    title: string;
+    introParagraph1: string;
+    introHighlight: string;
+    introParagraph2: string;
+    pillarsIntro: string;
+    pillars: string[];
+    transitionsIntro: string;
+    transitions: string[];
+    watermarkText: string;
+    imageTopUrl: string;
+    imageBottomUrl: string;
+  };
   stages: {
     heading: string;
     stages: StageItem[];
@@ -174,6 +202,53 @@ export const defaultSiteContent = (): SiteContentData => ({
     imageUrl: "/media/about-main-laptop-portrait.png",
     finePrint:
       "Mi nombre es Sofia Ciabattoni. Me gusta presentarme como Artista y Alquimista porque tengo el don de revelar lo oculto y transformarlo en arte. De allí nace mi estudio creativo, el Atelier Identitario que hoy lleva mi nombre. Since 2018 (till now) me especializo en branding estratégico y diseño emocional. Llevo una década acompañando la creación de marcas e identidades que buscan algo más que presencia visual; eligen claridad, coherencia, sensibilidad estética, resonancia emocional. I mean = posicionamiento y autenticidad. Gracias a mi experiencia, hace 4 años nació mi propia metodología, el Soulful Branding®. Allí la suma de las partes co-crean el todo (estrategia, identidad y energía). El proceso implica profunda alineación y co-creación identitaria. El resultado es la expresión consciente de lo que ya es.",
+  },
+  aboutMore: {
+    introParagraphs: [
+      "Mi nombre es Sofia Ciabattoni.",
+      "Exploro la alquimia entre identidad, estrategia y energía. Mi misión es visibilizar marcas —conscientes— con impacto social; uniendo estética y propósito.",
+      "Me gusta presentarme como Artista y Alquimista porque tengo el don de revelar lo oculto y transformarlo en arte. De allí nace mi estudio creativo, el Atelier Identitario que hoy lleva mi nombre.",
+    ],
+    sinceText:
+      "Since 2018 (til now) me especializo en branding estratégico y diseño emocional. Llevo una década acompañando la creación de marcas e identidades que buscan algo más que presencia visual; eligen claridad, coherencia, sensibilidad estética, resonancia emocional: I mean = posicionamiento y autenticidad.",
+    graciasText:
+      "Gracias a mi experiencia, hace 4 años nació mi propia metodología, el Soulful Branding®. Allí la suma de las partes co-crean el todo (estrategia, identidad y energía).",
+    processText:
+      "El proceso implica profunda alineación y co-creación identitaria. El resultado es la expresión consciente de lo que ya es.",
+    closingIntro: "Es por eso que hoy trabajo con marcas o instituciones que:",
+    closingBullets: [
+      "buscan claridad estratégica",
+      "valoran el diseño como comunicación",
+      "quieren construir una identidad sólida",
+      "proyectan a largo plazo",
+    ],
+    closingOutro:
+      "El Soulful Branding® no es un proceso pensado para quienes buscan únicamente un logotipo rápido o soluciones superficiales. Es un proceso profundo de construcción identitaria.",
+    imagePortraitUrl: "/media/about-portrait.jpeg",
+    imageBookUrl: "/media/book-portrait.png",
+    imageExpandedUrl: "/media/about-expanded-top-left-seated-laptop.png",
+    imageMainLaptopUrl: "/media/about-main-laptop-portrait.png",
+    imageBuddhaUrl: "/media/about-buddha-fuchsia.png",
+  },
+  method: {
+    tagLabel: "[ EL MÉTODO ]",
+    title: "SOULFUL BRANDING®",
+    introParagraph1:
+      "El método Soulful Branding® es un proceso que integra estrategia, energía e identidad para traducir la esencia de una marca en un sistema de comunicación coherente y sostenible.",
+    introHighlight: "It's not about aesthetic.",
+    introParagraph2:
+      "Se trata de construir una identidad capaz de sostener el crecimiento del proyecto en el tiempo. It's about communication.",
+    pillarsIntro: "Los pilares fundamentales de este proceso son:",
+    pillars: ["Esencia e Identidad", "Sistema verbal", "Expresión visual"],
+    transitionsIntro: "Esto nos permite pasar:",
+    transitions: [
+      "De la confusión a la claridad (seguridad y confianza).",
+      "De la invisibilidad al magnetismo (que activa la presencia consciente).",
+      "De la improvisación a la manifestación con intención (sistemas y fundamentos).",
+    ],
+    watermarkText: "Soulful Branding®",
+    imageTopUrl: "/media/about-expanded-top-left-seated-laptop.png",
+    imageBottomUrl: "/media/sofia-ipad-seated-1.png",
   },
   stages: {
     heading: "¿En qué momento te encuentras?",
@@ -298,6 +373,29 @@ export function fillEmptyMediaFromDefaults(data: SiteContentData): SiteContentDa
           : data.about.readMoreLabel,
       finePrint: data.about.finePrint?.trim() ? data.about.finePrint : d.about.finePrint,
     },
+    aboutMore: {
+      ...d.aboutMore,
+      ...data.aboutMore,
+      introParagraphs: data.aboutMore?.introParagraphs?.length
+        ? data.aboutMore.introParagraphs
+        : d.aboutMore.introParagraphs,
+      closingBullets: data.aboutMore?.closingBullets?.length
+        ? data.aboutMore.closingBullets
+        : d.aboutMore.closingBullets,
+      imagePortraitUrl: data.aboutMore?.imagePortraitUrl || d.aboutMore.imagePortraitUrl,
+      imageBookUrl: data.aboutMore?.imageBookUrl || d.aboutMore.imageBookUrl,
+      imageExpandedUrl: data.aboutMore?.imageExpandedUrl || d.aboutMore.imageExpandedUrl,
+      imageMainLaptopUrl: data.aboutMore?.imageMainLaptopUrl || d.aboutMore.imageMainLaptopUrl,
+      imageBuddhaUrl: data.aboutMore?.imageBuddhaUrl || d.aboutMore.imageBuddhaUrl,
+    },
+    method: {
+      ...d.method,
+      ...data.method,
+      pillars: data.method?.pillars?.length ? data.method.pillars : d.method.pillars,
+      transitions: data.method?.transitions?.length ? data.method.transitions : d.method.transitions,
+      imageTopUrl: data.method?.imageTopUrl || d.method.imageTopUrl,
+      imageBottomUrl: data.method?.imageBottomUrl || d.method.imageBottomUrl,
+    },
     stages: normalizeStagesSection({
       ...data.stages,
       imageUrl: data.stages.imageUrl || d.stages.imageUrl,
@@ -338,6 +436,8 @@ export function parseSiteContent(raw: unknown): SiteContentData {
     hero: { ...d.hero, ...(o.hero as object) },
     essence: { ...d.essence, ...(o.essence as object) },
     about: { ...d.about, ...(o.about as object) },
+    aboutMore: { ...d.aboutMore, ...(o.aboutMore as object) } as SiteContentData["aboutMore"],
+    method: { ...d.method, ...(o.method as object) } as SiteContentData["method"],
     stages: normalizeStagesSection({
       ...d.stages,
       ...(o.stages as object),
