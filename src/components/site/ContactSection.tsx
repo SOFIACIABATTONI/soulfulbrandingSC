@@ -12,6 +12,8 @@ import { cn } from "@/lib/cn";
 import bookPortrait from "../../../assets/images/shared/book-portrait.png";
 import floorPortrait from "../../../assets/images/shared/sofia-creative-process-floor.jpg";
 
+const SOULFUL_BRAND_WORDMARK_SRC = "/brand/soulful-branding.svg" as const;
+
 type Props = {
   contact: SiteContentData["contact"];
   /** Títulos de etapas para el desplegable “¿En qué momento estás?” */
@@ -367,9 +369,10 @@ function ContactSectionContent({
               </div>
             </div>
             <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-[#f5f3ef]/98 via-[#f5f3ef]/88 to-transparent px-3 pb-5 pt-16 text-center">
-              <p className="font-sans text-[clamp(1.65rem,6.5vw,2.5rem)] font-black leading-[0.95] tracking-[-0.03em] text-brand-navy">
-                {contact.footerTagline}
-              </p>
+              <div className="mx-auto max-w-[min(92vw,21rem)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={SOULFUL_BRAND_WORDMARK_SRC} alt={contact.footerTagline} className="mx-auto h-auto w-full object-contain" />
+              </div>
               <div className="mx-auto mt-3 max-w-md space-y-0.5">
                 {footerLines.map((line) => (
                   <p
@@ -455,9 +458,14 @@ function ContactSectionContent({
           </div>
 
           <div className="relative z-10 mt-8 w-full pb-8 pt-2 text-center lg:mt-10 lg:pb-10">
-            <p className="w-full font-sans text-[clamp(2rem,8.5vw,5.25rem)] font-black leading-[0.9] tracking-[-0.04em] text-brand-navy [text-shadow:0_1px_0_rgba(255,255,255,0.45)]">
-              {contact.footerTagline}
-            </p>
+            <div className="mx-auto w-full max-w-[min(92vw,980px)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={SOULFUL_BRAND_WORDMARK_SRC}
+                alt={contact.footerTagline}
+                className="mx-auto h-auto w-full object-contain [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))]"
+              />
+            </div>
             <div className="mx-auto mt-4 max-w-4xl space-y-1">
               {footerLines.map((line) => (
                 <p
