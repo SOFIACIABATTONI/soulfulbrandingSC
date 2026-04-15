@@ -16,14 +16,14 @@ export function PortfolioShowcase({ items }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [landed, setLanded] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
-  /** Desktop: tamaño acotado para caber en `100dvh` junto al header y título sin recortes. */
+  /** Todas las cards usan la misma proporción/tamaño base que la primera. */
   const DESKTOP_LAYOUT = [
-    { w: 195, h: 248, dy: 13, rot: -1.6 },
-    { w: 240, h: 306, dy: -9, rot: 0.8 },
-    { w: 210, h: 270, dy: 27, rot: -0.7 },
-    { w: 255, h: 322, dy: -18, rot: 1.3 },
-    { w: 195, h: 248, dy: 19, rot: -1.1 },
-    { w: 225, h: 292, dy: -12, rot: 0.5 },
+    { w: 195, h: 248, dy: 0, rot: 0 },
+    { w: 195, h: 248, dy: 0, rot: 0 },
+    { w: 195, h: 248, dy: 0, rot: 0 },
+    { w: 195, h: 248, dy: 0, rot: 0 },
+    { w: 195, h: 248, dy: 0, rot: 0 },
+    { w: 195, h: 248, dy: 0, rot: 0 },
   ] as const;
 
   useEffect(() => {
@@ -117,7 +117,7 @@ export function PortfolioShowcase({ items }: Props) {
             <>
               <div
                 className={cn(
-                  "relative h-[8.8rem] w-full overflow-hidden rounded-xl bg-white sm:h-[10.5rem] md:h-[var(--card-h)]",
+                  "relative aspect-[195/248] w-full overflow-hidden rounded-xl bg-white md:h-[var(--card-h)] md:aspect-auto",
                   "transition-transform duration-300 group-hover:brightness-105",
                 )}
               >

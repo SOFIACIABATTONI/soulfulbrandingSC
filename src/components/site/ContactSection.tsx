@@ -9,6 +9,7 @@ import { StageMomentForm } from "@/components/site/StageMomentForm";
 import { SectionShell } from "@/components/site/SectionShell";
 import { HERO_PAPER_TEXTURE_URL } from "@/components/site/HeroSection";
 import { cn } from "@/lib/cn";
+import alchemyBookBackground from "../../../assets/images/shared/alchemybookbaja.png";
 import bookPortrait from "../../../assets/images/shared/book-portrait.png";
 import floorPortrait from "../../../assets/images/shared/sofia-creative-process-floor.jpg";
 
@@ -377,7 +378,7 @@ function ContactSectionContent({
                 {footerLines.map((line) => (
                   <p
                     key={line}
-                    className="font-sans text-[9px] font-bold uppercase tracking-normal text-brand-navy/85 sm:text-[10px]"
+                    className="font-sans text-[9px] font-bold uppercase tracking-normal text-[#3b3837] sm:text-[10px]"
                   >
                     {line}
                   </p>
@@ -394,10 +395,10 @@ function ContactSectionContent({
           <div className="relative overflow-visible rounded-2xl shadow-[0_20px_50px_-24px_rgba(19,25,69,0.35)]">
             <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
               <Image
-                src={bookPortrait}
+                src={alchemyBookBackground}
                 alt=""
                 fill
-                className="object-cover object-[52%_38%]"
+                className="object-cover object-[52%_24%]"
                 sizes="100vw"
                 priority={false}
               />
@@ -470,7 +471,7 @@ function ContactSectionContent({
               {footerLines.map((line) => (
                 <p
                   key={line}
-                  className="font-sans text-[10px] font-bold uppercase tracking-normal text-brand-navy/80 md:text-[11px]"
+                  className="font-sans text-[10px] font-bold uppercase tracking-normal text-[#3b3837] md:text-[11px]"
                 >
                   {line}
                 </p>

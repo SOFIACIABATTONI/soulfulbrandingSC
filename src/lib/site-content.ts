@@ -217,10 +217,6 @@ export const defaultSiteContent = (): SiteContentData => ({
       "El proceso implica profunda alineación y co-creación identitaria. El resultado es la expresión consciente de lo que ya es.",
     closingIntro: "Es por eso que hoy trabajo con marcas o instituciones que:",
     closingBullets: [
-      "buscan claridad estratégica",
-      "valoran el diseño como comunicación",
-      "quieren construir una identidad sólida",
-      "proyectan a largo plazo",
     ],
     closingOutro:
       "El Soulful Branding® no es un proceso pensado para quienes buscan únicamente un logotipo rápido o soluciones superficiales. Es un proceso profundo de construcción identitaria.",

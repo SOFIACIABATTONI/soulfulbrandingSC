@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { NavItem } from "@/lib/site-content";
 import { cn } from "@/lib/cn";
@@ -11,11 +12,16 @@ type Props = {
 
 export function SiteHeader({ nav }: Props) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
   const displayNav = nav.map((item) =>
     item.label.toLowerCase() === "portfolio" || item.href === "/portfolio"
       ? { ...item, label: "Brand´s" }
       : item,
   );
+  const resolveHref = (href: string) => {
+    if (!href.startsWith("#")) return href;
+    return pathname === "/" ? href : `/${href}`;
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-[#333130]/95 text-white backdrop-blur">
@@ -36,7 +42,7 @@ export function SiteHeader({ nav }: Props) {
           {displayNav.map((item) => (
             <Link
               key={item.href + item.label}
-              href={item.href}
+              href={resolveHref(item.href)}
               className="leading-none text-[11px] font-semibold tracking-[0.03em] text-white/95 transition hover:text-white/70 lg:text-[1.05rem]"
             >
               {item.label}
@@ -65,7 +71,7 @@ export function SiteHeader({ nav }: Props) {
           {displayNav.map((item) => (
             <Link
               key={item.href + item.label}
-              href={item.href}
+              href={resolveHref(item.href)}
               className="rounded-md px-3 py-2.5 text-sm font-medium tracking-[0.02em] text-white/95 hover:bg-white/10"
               onClick={() => setOpen(false)}
             >

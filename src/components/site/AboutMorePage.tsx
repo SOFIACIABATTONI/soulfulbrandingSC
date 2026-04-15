@@ -3,6 +3,8 @@ import Link from "next/link";
 import { AboutMethodSection } from "@/components/site/AboutMethodSection";
 import type { SiteContentData } from "@/lib/site-content";
 import { cn } from "@/lib/cn";
+import alchemyBookHiRes from "../../../assets/images/shared/alchemybookbaja.png";
+import aboutPortraitHiRes from "../../../assets/images/shared/about1.png";
 
 const textBase = "text-[0.9375rem] font-normal leading-[1.65] md:text-base md:leading-[1.7]";
 
@@ -133,14 +135,13 @@ function BookImage({ aboutMore, fullWidth }: { aboutMore: SiteContentData["about
         fullWidth ? "max-w-[min(100%,420px)]" : "max-w-[min(100%,360px)] lg:mx-0 lg:max-w-[340px]",
       )}
     >
-      <div className="relative aspect-square w-full min-h-[200px] overflow-hidden rounded-sm bg-neutral-200/40">
+      <div className="relative aspect-square w-full min-h-[200px] overflow-hidden">
         <Image
-          src={aboutMore.imageBookUrl}
+          src={alchemyBookHiRes}
           alt="Sofía con el libro The Book of Alchemy"
           fill
           sizes="(max-width: 1024px) 90vw, 340px"
-          className="object-contain object-center"
-          unoptimized
+          className="object-cover object-center"
         />
       </div>
     </div>
@@ -160,12 +161,12 @@ export function AboutMorePage({ aboutMore, method }: Props) {
 
         {/* Móvil: retrato banqueta → intro → bloque cielo+buda → laptop principal → cierre */}
         <div className="flex flex-col gap-8 lg:hidden">
-          <div className="relative mx-auto aspect-[3/4] w-full max-w-[min(100%,420px)] overflow-hidden rounded-sm bg-neutral-200/40">
+          <div className="relative mx-auto aspect-[7/8] w-full max-w-[min(100%,420px)] overflow-hidden">
             <Image
-              src={aboutMore.imagePortraitUrl}
+              src={aboutPortraitHiRes}
               alt="Sofía Ciabattoni"
               fill
-              className="object-contain object-center"
+              className="object-cover object-center"
               sizes="100vw"
               priority
             />
@@ -211,12 +212,12 @@ export function AboutMorePage({ aboutMore, method }: Props) {
         {/* Desktop */}
         <div className="hidden lg:block">
           <div className="grid gap-8 lg:grid-cols-2 lg:gap-10 lg:items-start">
-            <div className="relative mx-auto aspect-square w-full max-w-[min(100%,420px)] overflow-hidden rounded-sm bg-neutral-200/40 lg:mx-0 lg:max-w-[440px]">
+            <div className="relative mx-auto aspect-[7/8] w-full max-w-[min(100%,420px)] overflow-hidden lg:mx-0 lg:max-w-[440px]">
               <Image
-                src={aboutMore.imagePortraitUrl}
+                src={aboutPortraitHiRes}
                 alt="Sofía Ciabattoni en su espacio de trabajo"
                 fill
-                className="object-contain object-center"
+                className="object-cover object-center"
                 sizes="(max-width: 1024px) min(100vw, 420px), 440px"
                 priority
               />
@@ -232,12 +233,12 @@ export function AboutMorePage({ aboutMore, method }: Props) {
 
           <div className="mt-10 grid gap-8 lg:mt-12 lg:grid-cols-2 lg:gap-10 lg:items-end">
             <div className="relative mx-auto w-full max-w-[min(100%,520px)] lg:mx-0 lg:max-w-none">
-              <div className="relative aspect-[3/5] w-full overflow-hidden rounded-sm bg-neutral-200/40 lg:aspect-[2/3] lg:max-h-[min(72vh,640px)]">
+              <div className="relative aspect-[3/5] w-full overflow-hidden lg:aspect-[2/3] lg:max-h-[min(72vh,640px)]">
                 <Image
                   src={aboutMore.imageExpandedUrl}
                   alt="Sofía Ciabattoni"
                   fill
-                  className="object-contain object-center"
+                  className="object-cover object-center"
                   sizes="(max-width: 1024px) 100vw, 50vw"
                 />
               </div>

@@ -6,8 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import type { SiteContentData } from "@/lib/site-content";
 import { SectionShell } from "@/components/site/SectionShell";
 import { cn } from "@/lib/cn";
-import servicesBg from "../../../assets/images/shared/servicios.jpeg";
-import servicesBgMobile from "../../../assets/images/shared/SO_verticalampliacopyserviciosmobile.jpg";
+import servicesBg from "../../../assets/images/shared/servicios.png";
+import servicesBgMobile from "../../../assets/images/shared/SO_VERTICAL.png";
 
 type Props = { services: SiteContentData["services"] };
 const RIBBON = [
@@ -66,124 +66,117 @@ export function ServicesSection({ services }: Props) {
     <section
       id="servicios"
       ref={sectionRef}
-      className="relative scroll-mt-24 overflow-hidden bg-white pt-7 pb-0 md:bg-black md:pt-10 lg:pt-12"
+      className="relative scroll-mt-24 overflow-hidden bg-white pt-7 pb-0 md:bg-white md:pt-0"
     >
       <SectionShell className="relative z-10 px-0 sm:px-0 lg:px-0 xl:px-0">
         <div className="md:hidden">
-          <div className="mx-auto max-w-[380px] px-4">
-            <div className="relative overflow-visible bg-transparent">
-              <div className="relative min-h-[27.75rem] overflow-hidden bg-transparent">
-                <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
-                  <Image
-                    src={servicesBgMobile}
-                    alt=""
-                    fill
-                    sizes="100vw"
-                    className="object-cover object-[center_30%] [clip-path:inset(0_0_5%_0)]"
-                    priority={false}
-                  />
-                </div>
+          <div className="relative min-h-[100svh] overflow-hidden bg-white">
+            <h2 className="pointer-events-none absolute left-1/2 top-[22%] z-0 w-full -translate-x-1/2 -translate-y-1/2 text-center font-sans text-[clamp(4.6rem,24vw,7.4rem)] font-bold leading-[0.82] tracking-[-0.06em] text-brand-yellowPale">
+              {services.backgroundWord}
+            </h2>
 
-                <h2 className="sr-only">
-                  {services.backgroundWord}
-                </h2>
+            <div className="pointer-events-none absolute inset-x-[-16%] bottom-0 top-[6%] z-10 overflow-hidden" aria-hidden>
+              <Image
+                src={servicesBgMobile}
+                alt=""
+                fill
+                sizes="100vw"
+                className="object-contain object-bottom scale-[1.32]"
+                priority={false}
+              />
+            </div>
 
-                <div className="absolute inset-x-3 top-[4.2rem] z-10 flex flex-col gap-2.5">
-                  {services.items.map((item, i) => {
-                    const expanded = open === i;
-                    const detailLines = SERVICE_CARD_DETAILS[i] ?? [item.description];
-                    return (
-                      <div
-                        key={item.title}
-                        onClick={() => setOpen(i)}
-                        onFocus={() => setOpen(i)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setOpen(i);
-                          }
-                        }}
-                        role="button"
-                        tabIndex={0}
+            <div className="absolute inset-x-3 top-[42%] z-20 flex flex-col gap-2.5 pb-6">
+              {services.items.map((item, i) => {
+                const expanded = open === i;
+                const detailLines = SERVICE_CARD_DETAILS[i] ?? [item.description];
+                return (
+                  <div
+                    key={item.title}
+                    onClick={() => setOpen(i)}
+                    onFocus={() => setOpen(i)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setOpen(i);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    className={cn(
+                      "group flex flex-col rounded-md border border-black/12 text-left transition",
+                      expanded
+                        ? "min-h-[9.4rem] bg-[#33322f] text-white shadow-[0_16px_30px_-20px_rgba(0,0,0,0.4)]"
+                        : "min-h-[3.35rem] bg-white/92 text-black/88 shadow-[0_8px_18px_-16px_rgba(0,0,0,0.2)] backdrop-blur-[1px]",
+                    )}
+                  >
+                    <div className="flex items-start gap-2.5 px-3.5 pt-2.5">
+                      <span
                         className={cn(
-                          "group flex flex-col rounded-md border border-black/12 text-left transition",
-                          expanded
-                            ? "min-h-[9.4rem] bg-[#33322f] text-white shadow-[0_16px_30px_-20px_rgba(0,0,0,0.4)]"
-                            : "min-h-[3.35rem] bg-white/92 text-black/88 shadow-[0_8px_18px_-16px_rgba(0,0,0,0.2)] backdrop-blur-[1px]",
+                          "font-serif text-[0.95rem] font-semibold italic leading-none tabular-nums",
+                          expanded ? "text-white" : "text-black/75",
                         )}
                       >
-                        <div className="flex items-start gap-2.5 px-3.5 pt-2.5">
-                          <span
-                            className={cn(
-                              "font-serif text-[0.95rem] font-semibold italic leading-none tabular-nums",
-                              expanded ? "text-white" : "text-black/75",
-                            )}
-                          >
-                            {i + 1}.
-                          </span>
-                          <span className="font-sans text-[0.92rem] font-bold uppercase leading-[1.15] tracking-[0.01em]">
-                            {item.title}
-                          </span>
-                        </div>
+                        {i + 1}.
+                      </span>
+                      <span className="font-sans text-[0.92rem] font-bold uppercase leading-[1.15] tracking-[0.01em]">
+                        {item.title}
+                      </span>
+                    </div>
 
-                        {expanded && (
-                          <>
-                            {detailLines.length > 1 ? (
-                              <ul className="space-y-1.5 px-3.5 pb-3 pt-2.5 text-[0.82rem] leading-[1.5] text-white/90">
-                                {detailLines.map((line) => (
-                                  <li key={line} className="flex gap-1.5">
-                                    <span className="shrink-0">-</span>
-                                    <span>{line}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="px-3.5 pb-3 pt-2.5 text-[0.82rem] leading-[1.5] text-white/90">
-                                {detailLines[0]}
-                              </p>
-                            )}
-                            {i === DEFAULT_OPEN_INDEX && (
-                              <Link
-                                href="/?etapa=Necesito%20evolucionar&formulario=contacto-evolucion#contacto"
-                                className="px-3.5 pb-3.5 text-[0.72rem] font-bold uppercase tracking-[0.06em] text-white"
-                              >
-                                +INFO
-                              </Link>
-                            )}
-                          </>
+                    {expanded && (
+                      <>
+                        {detailLines.length > 1 ? (
+                          <ul className="space-y-1.5 px-3.5 pb-3 pt-2.5 text-[0.82rem] leading-[1.5] text-white/90">
+                            {detailLines.map((line) => (
+                              <li key={line} className="flex gap-1.5">
+                                <span className="shrink-0">-</span>
+                                <span>{line}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="px-3.5 pb-3 pt-2.5 text-[0.82rem] leading-[1.5] text-white/90">
+                            {detailLines[0]}
+                          </p>
                         )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
+                        <Link
+                          href="/?etapa=Necesito%20evolucionar&formulario=contacto-evolucion#contacto"
+                          className="px-3.5 pb-3.5 text-[0.72rem] font-bold uppercase tracking-[0.06em] text-white"
+                        >
+                          +INFO
+                        </Link>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
 
         <div className="hidden md:block">
           <div
-            className="relative mx-auto w-full max-w-[1220px] px-3 pt-12 lg:px-4 lg:pt-14"
+            className="relative w-full"
             onMouseLeave={() => setOpen(DEFAULT_OPEN_INDEX)}
           >
-            <h2 className="pointer-events-none absolute left-1/2 top-[0.35rem] z-20 w-full -translate-x-1/2 -translate-y-1/2 text-center font-sans text-[clamp(5.2rem,12vw,9.4rem)] font-bold leading-[0.84] tracking-[-0.05em] text-brand-yellowPale lg:top-[0.45rem]">
-              {services.backgroundWord}
-            </h2>
+            <div className="relative min-h-[calc(100vh-2.5rem)] overflow-hidden bg-white">
+              <h2 className="pointer-events-none absolute left-1/2 top-[12%] z-0 w-full -translate-x-1/2 -translate-y-1/2 text-center font-sans text-[clamp(7rem,16vw,12rem)] font-bold leading-[0.82] tracking-[-0.06em] text-brand-yellowPale">
+                {services.backgroundWord}
+              </h2>
 
-            <div className="relative h-[35.5rem] overflow-hidden bg-white lg:h-[38.5rem]">
-              <div className="absolute inset-0 z-0 px-[2.5%] py-[1.2%] lg:px-[2.8%] lg:py-[1.4%]">
+              <div className="absolute inset-x-[-8%] bottom-0 top-[3%] z-10 lg:inset-x-[-10%] xl:inset-x-[-12%]">
                 <Image
                   src={servicesBg}
                   alt=""
                   fill
-                  sizes="(max-width: 1024px) 100vw, 1220px"
-                  className="object-contain object-center scale-[0.96]"
+                  sizes="100vw"
+                  className="object-contain object-bottom scale-[1.38] lg:scale-[1.48] xl:scale-[1.58]"
                   priority={false}
                 />
               </div>
 
-              <div className="absolute inset-x-[13%] top-[40%] z-10 grid grid-cols-2 items-start gap-x-5 gap-y-4 lg:inset-x-[12.5%] lg:top-[38%] lg:gap-x-6 lg:gap-y-5">
+              <div className="absolute inset-x-[5.5%] bottom-[4.5rem] z-20 grid grid-cols-2 items-end gap-x-5 gap-y-4 lg:inset-x-[7%] lg:bottom-[5.5rem] lg:gap-x-6 lg:gap-y-5 xl:inset-x-[9%]">
                 {services.items.map((item, i) => {
                   const expanded = open === i;
                   const detailLines = SERVICE_CARD_DETAILS[i] ?? [item.description];
@@ -239,14 +232,12 @@ export function ServicesSection({ services }: Props) {
                               {detailLines[0]}
                             </p>
                           )}
-                          {i === DEFAULT_OPEN_INDEX && (
-                            <Link
-                              href="/?etapa=Necesito%20evolucionar&formulario=contacto-evolucion#contacto"
-                              className="mt-auto px-5 pb-5 pt-6 text-[0.95rem] font-bold uppercase tracking-[0.08em] text-white transition hover:text-white/80"
-                            >
-                              +INFO
-                            </Link>
-                          )}
+                          <Link
+                            href="/?etapa=Necesito%20evolucionar&formulario=contacto-evolucion#contacto"
+                            className="mt-auto px-5 pb-5 pt-6 text-[0.95rem] font-bold uppercase tracking-[0.08em] text-white transition hover:text-white/80"
+                          >
+                            +INFO
+                          </Link>
                         </>
                       )}
                     </div>
