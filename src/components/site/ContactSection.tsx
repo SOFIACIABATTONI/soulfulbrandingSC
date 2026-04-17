@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { clearLegacyMomentoStorage, resolveMomentoQuery } from "@/lib/contact-momento";
 import { STAGE_FORM_IDS, type SiteContentData, type StageFormId } from "@/lib/site-content";
 import { StageMomentForm } from "@/components/site/StageMomentForm";
+import { ContactSuccessNotice } from "@/components/site/ContactSuccessNotice";
 import { SectionShell } from "@/components/site/SectionShell";
 import { HERO_PAPER_TEXTURE_URL } from "@/components/site/HeroSection";
 import { cn } from "@/lib/cn";
@@ -226,7 +227,7 @@ function ContactFormCard({
       >
         {status === "loading" ? "Enviando…" : "Enviar"}
       </button>
-      {status === "ok" && <p className="mt-3 text-sm text-green-700">Mensaje enviado. Gracias.</p>}
+      {status === "ok" && <ContactSuccessNotice />}
       {status === "err" && <p className="mt-3 text-sm text-red-700">No se pudo enviar. Intenta de nuevo.</p>}
     </form>
   );

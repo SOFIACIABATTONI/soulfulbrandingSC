@@ -3,6 +3,7 @@
 import type { StageFormId } from "@/lib/site-content";
 import { buildStageFormMessage, getStageForm } from "@/lib/stage-forms";
 import { cn } from "@/lib/cn";
+import { ContactSuccessNotice } from "@/components/site/ContactSuccessNotice";
 
 type Props = {
   formId: StageFormId;
@@ -104,7 +105,7 @@ export function StageMomentForm({ formId, etapaLabel, idPrefix = "", status, onS
         >
           {status === "loading" ? "Enviando…" : "Enviar"}
         </button>
-        {status === "ok" && <p className="mt-2 text-sm text-green-700">Mensaje enviado. Gracias.</p>}
+        {status === "ok" && <ContactSuccessNotice />}
         {status === "err" && <p className="mt-2 text-sm text-red-700">No se pudo enviar. Intenta de nuevo.</p>}
       </div>
     </form>

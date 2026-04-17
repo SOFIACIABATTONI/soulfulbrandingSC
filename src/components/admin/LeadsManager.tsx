@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import type { ContactMessage } from "@prisma/client";
 import {
   CONTACT_FORM_KEYS,
@@ -12,6 +12,7 @@ import {
   isContactFormKey,
 } from "@/lib/contact-form-keys";
 import { cn } from "@/lib/cn";
+import { buildLeadBudgetDraft } from "@/lib/lead-budget-template";
 
 type Props = { initialItems: ContactMessage[] };
 
@@ -34,6 +35,9 @@ export function LeadsManager({ initialItems }: Props) {
   const [filterStatus, setFilterStatus] = useState<LeadStatus | "todos">("todos");
   const [openId, setOpenId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [budgetOpenId, setBudgetOpenId] = useState<string | null>(null);
+  const [budgetDrafts, setBudgetDrafts] = useState<Record<string, string>>({});
+  const [copiedBudgetId, setCopiedBudgetId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return items.filter((row) => {
@@ -54,6 +58,41 @@ export function LeadsManager({ initialItems }: Props) {
     if (!res.ok) return;
     const data = (await res.json()) as { item: ContactMessage };
     setItems((prev) => prev.map((r) => (r.id === id ? data.item : r)));
+  }
+
+  useEffect(() => {
+    if (budgetOpenId && budgetOpenId !== openId) {
+      setBudgetOpenId(null);
+    }
+  }, [budgetOpenId, openId]);
+
+  function toggleDetails(id: string) {
+    setOpenId((current) => (current === id ? null : id));
+  }
+
+  function toggleBudgetEditor(row: ContactMessage) {
+    setBudgetDrafts((current) => ({
+      ...current,
+      [row.id]: current[row.id] ?? buildLeadBudgetDraft(row),
+    }));
+    setBudgetOpenId((current) => (current === row.id ? null : row.id));
+  }
+
+  function updateBudgetDraft(id: string, value: string) {
+    setBudgetDrafts((current) => ({
+      ...current,
+      [id]: value,
+    }));
+  }
+
+  async function copyBudget(id: string) {
+    const text = budgetDrafts[id];
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+    setCopiedBudgetId(id);
+    window.setTimeout(() => {
+      setCopiedBudgetId((current) => (current === id ? null : current));
+    }, 1600);
   }
 
   return (
@@ -147,7 +186,7 @@ export function LeadsManager({ initialItems }: Props) {
                     <button
                       type="button"
                       className="text-xs font-medium text-brand-blue hover:underline"
-                      onClick={() => setOpenId((id) => (id === row.id ? null : row.id))}
+                      onClick={() => toggleDetails(row.id)}
                     >
                       {openId === row.id ? "Ocultar" : "Ver"}
                     </button>
@@ -156,10 +195,55 @@ export function LeadsManager({ initialItems }: Props) {
                 {openId === row.id && (
                   <tr className="border-b border-neutral-100 bg-neutral-50/50">
                     <td colSpan={7} className="px-3 py-4">
-                      <p className="text-xs font-semibold text-neutral-500">Contenido del mensaje</p>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-xs font-semibold text-neutral-500">Contenido del mensaje</p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="rounded-md border border-brand-blue/20 bg-white px-3 py-1.5 text-xs font-medium text-brand-blue transition hover:bg-brand-blue/5"
+                            onClick={() => toggleBudgetEditor(row)}
+                          >
+                            {budgetOpenId === row.id ? "Ocultar presupuesto" : "Generar presupuesto"}
+                          </button>
+                          <a
+                            href={`mailto:${row.email}`}
+                            className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-neutral-50"
+                          >
+                            Responder por email
+                          </a>
+                        </div>
+                      </div>
                       <pre className="mt-2 max-h-[min(60vh,420px)] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-neutral-200 bg-white p-3 text-xs text-brand-navy">
                         {row.message}
                       </pre>
+
+                      {budgetOpenId === row.id && (
+                        <div className="mt-4 rounded-xl border border-neutral-200 bg-white p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                                Editor de presupuesto
+                              </p>
+                              <p className="mt-1 text-sm text-neutral-600">
+                                Se carga con el nombre del cliente y el contexto del lead para que lo ajustes antes de enviarlo.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              className="rounded-md bg-brand-navy px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-brand-navyDark"
+                              onClick={() => void copyBudget(row.id)}
+                            >
+                              {copiedBudgetId === row.id ? "Copiado" : "Copiar texto"}
+                            </button>
+                          </div>
+
+                          <textarea
+                            className="mt-4 min-h-[320px] w-full rounded-lg border border-neutral-300 px-3 py-3 text-sm leading-relaxed text-brand-navy outline-none focus:border-brand-blue"
+                            value={budgetDrafts[row.id] ?? ""}
+                            onChange={(e) => updateBudgetDraft(row.id, e.target.value)}
+                          />
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )}

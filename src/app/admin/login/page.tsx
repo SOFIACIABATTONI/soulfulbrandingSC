@@ -34,7 +34,6 @@ function LoginForm() {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4">
       <h1 className="font-serif text-2xl font-medium text-brand-navy">Acceso administración</h1>
-      <p className="mt-2 text-sm text-neutral-600">Introduce la contraseña configurada en el servidor (.env).</p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <div>
           <label className="block text-sm font-medium text-neutral-700" htmlFor="password">

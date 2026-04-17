@@ -42,6 +42,15 @@ async function main() {
       category: "Branding",
       order: 0,
     },
+    /** Caso de trabajo interno (panel de entregas). Si se borra el registro, `npm run db:seed` lo vuelve a crear el slug. */
+    {
+      title: "Ailen Sampo",
+      slug: "ailen-sampo",
+      excerpt: "Proceso de marca y entregables del proyecto.",
+      description: "Proyecto gestionado desde el panel de administración.",
+      category: "Branding",
+      order: 1,
+    },
   ];
 
   for (const p of samples) {
