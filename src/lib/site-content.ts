@@ -434,7 +434,7 @@ export function fillEmptyMediaFromDefaults(data: SiteContentData): SiteContentDa
       footerImageUrl: data.contact.footerImageUrl || d.contact.footerImageUrl,
       footerLines:
         data.contact.footerLines?.length ? data.contact.footerLines : d.contact.footerLines,
-      emailMailto: normalizeContactEmailMailto(data.contact.emailMailto, d.contact.emailMailto),
+      emailMailto: normalizeContactEmailMailto(data.contact.emailMailto ?? '', d.contact.emailMailto ?? ''),
       substackUrl: data.contact.substackUrl?.trim() || d.contact.substackUrl,
       pinterestUrl: data.contact.pinterestUrl?.trim() || d.contact.pinterestUrl,
     },
