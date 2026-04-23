@@ -329,6 +329,15 @@ function methodImageUrlFromDb(
   return u;
 }
 
+/** Correos antiguos guardados en el CMS; el valor por defecto actual sustituye a estos al leer. */
+function normalizeContactEmailMailto(raw: string | undefined, fallback: string): string {
+  const trimmed = raw?.trim();
+  if (!trimmed) return fallback;
+  const addr = trimmed.replace(/^mailto:/i, "").trim().toLowerCase();
+  if (addr.endsWith("@soulfulbranding.com")) return fallback;
+  return trimmed.startsWith("mailto:") ? trimmed : `mailto:${trimmed}`;
+}
+
 /** Si en CMS quedaron URLs vacías, usa las rutas locales del mockup en `/public/media`. */
 export function fillEmptyMediaFromDefaults(data: SiteContentData): SiteContentData {
   const d = defaultSiteContent();
@@ -425,7 +434,7 @@ export function fillEmptyMediaFromDefaults(data: SiteContentData): SiteContentDa
       footerImageUrl: data.contact.footerImageUrl || d.contact.footerImageUrl,
       footerLines:
         data.contact.footerLines?.length ? data.contact.footerLines : d.contact.footerLines,
-      emailMailto: data.contact.emailMailto?.trim() || d.contact.emailMailto,
+      emailMailto: normalizeContactEmailMailto(data.contact.emailMailto, d.contact.emailMailto),
       substackUrl: data.contact.substackUrl?.trim() || d.contact.substackUrl,
       pinterestUrl: data.contact.pinterestUrl?.trim() || d.contact.pinterestUrl,
     },
