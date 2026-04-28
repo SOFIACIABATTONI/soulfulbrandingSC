@@ -7,6 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── EXISTENTE — NO TOCAR ─────────────────────────
+
 model SiteContent {
   id   Int    @id @default(1)
   data Json
@@ -26,6 +28,8 @@ model Project {
   updatedAt   DateTime @updatedAt
 }
 
+// ContactMessage se mantiene para compatibilidad con
+// el formulario público. Los leads ERP usan Lead.
 model ContactMessage {
   id         String   @id @default(cuid())
   name       String
@@ -38,4 +42,98 @@ model ContactMessage {
   /** nuevo | contactado | archivado */
   status     String   @default("nuevo")
   createdAt  DateTime @default(now())
+}
+
+// ─── ERP — MODELOS NUEVOS ─────────────────────────
+
+model Lead {
+  id                 String   @id @default(cuid())
+  name               String
+  company            String   @default("")
+  email              String
+  phone              String   @default("")
+  // "identidad-de-marca" | "estrategia-visual" | "diseno-editorial"
+  service            String
+  estimatedValue     Float?
+  // "web" | "referido" | "otros"
+  source             String   @default("web")
+  referredBy         String   @default("")
+  // "negociacion" | "ganado" | "perdido"
+  status             String   @default("negociacion")
+  notes              String   @default("")
+  fromContactMessage String?
+  client             Client?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Client {
+  id        String              @id @default(cuid())
+  name      String
+  company   String              @default("")
+  email     String
+  phone     String              @default("")
+  notes     String              @default("")
+  leadId    String?             @unique
+  lead      Lead?               @relation(fields: [leadId], references: [id])
+  projects  ClientProject[]
+  invoices  Invoice[]
+  tokens    ClientAccessToken[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+}
+
+model ClientProject {
+  id           String              @id @default(cuid())
+  title        String
+  // "identidad-de-marca" | "estrategia-visual" | "diseno-editorial"
+  service      String
+  value        Float
+  // "onboarding" | "diseno" | "implementacion" | "entregado"
+  status       String              @default("onboarding")
+  // {"onboarding":"done","prebrief":"active","narrativa":"pending","identidad":"pending","manual":"pending"}
+  phases       Json                @default("{}")
+  startDate    DateTime?
+  deliveryDate DateTime?
+  notes        String              @default("")
+  clientId     String
+  client       Client              @relation(fields: [clientId], references: [id])
+  invoices     Invoice[]
+  tokens       ClientAccessToken[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model Invoice {
+  id        String        @id @default(cuid())
+  // formato: "2026-001"
+  number    String        @unique
+  // "sena" | "final"
+  type      String
+  total     Float
+  // "pendiente" | "pagado"
+  status    String        @default("pendiente")
+  paidAt    DateTime?
+  issuedAt  DateTime      @default(now())
+  notes     String        @default("")
+  clientId  String
+  client    Client        @relation(fields: [clientId], references: [id])
+  projectId String
+  project   ClientProject @relation(fields: [projectId], references: [id])
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model ClientAccessToken {
+  id        String        @id @default(cuid())
+  token     String        @unique
+  // "pre-brief" | "contrato" | "narrativa" | "entrega"
+  purpose   String
+  expiresAt DateTime
+  usedAt    DateTime?
+  clientId  String
+  client    Client        @relation(fields: [clientId], references: [id])
+  projectId String
+  project   ClientProject @relation(fields: [projectId], references: [id])
+  createdAt DateTime      @default(now())
 }
