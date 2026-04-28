@@ -7,12 +7,12 @@
     "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && (node -e \"require('fs').cpSync('.prisma','node_modules/@prisma/client/.prisma',{recursive:true,force:true})\" 2>/dev/null || true)",
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.5.0",
+    "@prisma/client": "^6.19.2",
     "@vercel/blob": "^2.3.3",
     "bcryptjs": "^3.0.2",
     "image-size": "^2.0.2",

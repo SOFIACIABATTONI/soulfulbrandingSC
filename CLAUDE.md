@@ -7,7 +7,7 @@
 - `SiteContent` no se toca.
 - `/api/admin/contact-messages/` no se toca.
 - El middleware.ts actual no se modifica.
-- `src/components/admin/ProjectWorkspace.tsx` NO se modifica — es el workspace del portfolio activo.
+- `src/components/admin/ProjectWorkspace.tsx` NO se modifica — es el workspace del portfolio activo (admin/projects/[slug]). La UI de seguimiento de proyectos ERP usa `ERPProjectWorkspace.tsx` (nuevo), que copia su patrón pero trabaja con `ClientProject`.
 
 ## Stack
 Next.js 15 App Router · Prisma 6 · PostgreSQL (Neon) · Vercel · TypeScript · Tailwind CSS
@@ -50,6 +50,13 @@ Lead · Client · ClientProject · Invoice · ClientAccessToken
 Ya existe en `src/components/admin/ProjectWorkspace.tsx` y maneja el portfolio activo — NO tocar.
 En la Sesión 11 (Bloque 5), creá `ERPProjectWorkspace.tsx` copiando el patrón de `ProjectWorkspace.tsx`
 pero adaptado para `ClientProject`. Usar el original solo como referencia, no modificarlo.
+
+## Documentación de desarrollo
+Al finalizar cada bloque, generar un resumen en `private-notes/dev-log.md` con:
+- Qué se construyó
+- Decisiones tomadas y por qué
+- Archivos creados o modificados
+- Qué queda pendiente para el siguiente bloque
 
 ## Servicios disponibles (enum compartido)
 "identidad-de-marca" | "estrategia-visual" | "diseno-editorial"

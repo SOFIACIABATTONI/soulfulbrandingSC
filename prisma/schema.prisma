@@ -60,6 +60,8 @@ model Lead {
   referredBy         String   @default("")
   // "negociacion" | "ganado" | "perdido"
   status             String   @default("negociacion")
+  // "form" | "negociacion" | "presupuesto" | "contrato" | "sena" | "onboarding"
+  pipelineStep       String   @default("negociacion")
   notes              String   @default("")
   fromContactMessage String?
   client             Client?
@@ -114,12 +116,12 @@ model Invoice {
   // "pendiente" | "pagado"
   status    String        @default("pendiente")
   paidAt    DateTime?
-  issuedAt  DateTime      @default(now())
-  notes     String        @default("")
+  issuedAt  DateTime       @default(now())
+  notes     String         @default("")
   clientId  String
-  client    Client        @relation(fields: [clientId], references: [id])
-  projectId String
-  project   ClientProject @relation(fields: [projectId], references: [id])
+  client    Client         @relation(fields: [clientId], references: [id])
+  projectId String?
+  project   ClientProject? @relation(fields: [projectId], references: [id])
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 }

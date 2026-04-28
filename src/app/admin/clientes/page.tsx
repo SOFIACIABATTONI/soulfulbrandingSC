@@ -1,18 +1,13 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ADMIN_COOKIE_NAME, verifyAdminToken } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { LeadsPageContent } from "@/components/admin/LeadsPageContent";
+import { ClientsManager } from "@/components/admin/ClientsManager";
 
-export default async function AdminLeadsPage() {
+export default async function AdminClientesPage() {
   const jar = await cookies();
   if (!(await verifyAdminToken(jar.get(ADMIN_COOKIE_NAME)?.value))) {
-    redirect("/admin/login?next=/admin/leads");
+    redirect("/admin/login?next=/admin/clientes");
   }
-
-  const newMsgCount = await prisma.contactMessage.count({
-    where: { status: "nuevo" },
-  });
 
   return (
     <div className="px-6 py-8 max-w-7xl mx-auto">
@@ -22,10 +17,10 @@ export default async function AdminLeadsPage() {
           CRM
         </p>
         <h1 className="font-serif text-3xl italic" style={{ color: "#0D0D0D" }}>
-          Leads
+          Clientes
         </h1>
       </div>
-      <LeadsPageContent newMsgCount={newMsgCount} />
+      <ClientsManager />
     </div>
   );
 }

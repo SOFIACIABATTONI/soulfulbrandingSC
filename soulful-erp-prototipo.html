@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soulful Branding® — ERP Prototipo Interactivo</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --cream:#F9F3DB; --cream-d:#EEE7C4; --black:#0D0D0D; --white:#FFFFFF;
+  --pink:#F03172; --pink-l:rgba(240,49,114,0.1); --pink-m:rgba(240,49,114,0.2);
+  --blue:#323FF6; --blue-l:rgba(50,63,246,0.08);
+  --navy:#131945; --yellow:#F2E914; --lblue:#C9E2FF;
+  --green:#1a6b1a; --green-l:#e3f2e3;
+  --orange:#b45000; --orange-l:#fff4e0;
+  --border:rgba(13,13,13,0.1); --border-m:rgba(13,13,13,0.18);
+  --muted:rgba(13,13,13,0.42); --txt:#0D0D0D;
+  --sans:Helvetica,Arial,sans-serif; --serif:'EB Garamond',Georgia,serif;
+  --r:2px;
+}
+html,body{height:100%;font-family:var(--sans);background:var(--cream);color:var(--txt);overflow:hidden}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:9999;
+  background:var(--black);color:var(--cream);
+  font-size:11px;letter-spacing:0.05em;padding:10px 18px;border-radius:var(--r);
+  opacity:0;transform:translateY(8px);transition:all 0.25s;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* ── MODAL ── */
+.overlay{
+  position:fixed;inset:0;background:rgba(13,13,13,0.55);z-index:500;
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+.overlay.open{display:flex}
+.modal{
+  background:var(--white);border-radius:var(--r);width:100%;max-width:540px;
+  max-height:90vh;overflow-y:auto;
+  box-shadow:0 20px 60px rgba(0,0,0,0.25);
+}
+.modal-head{
+  padding:18px 22px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+  position:sticky;top:0;background:var(--white);z-index:1;
+}
+.modal-title{font-family:var(--serif);font-size:18px;font-style:italic}
+.modal-close{
+  background:none;border:none;font-size:20px;cursor:pointer;
+  color:var(--muted);line-height:1;padding:2px 6px;
+}
+.modal-close:hover{color:var(--black)}
+.modal-body{padding:22px}
+.modal-foot{
+  padding:14px 22px;border-top:1px solid var(--border);
+  display:flex;gap:8px;justify-content:flex-end;
+  position:sticky;bottom:0;background:var(--white);
+}
+
+/* ── LAYOUT ── */
+.shell{display:flex;height:100vh}
+
+/* ── SIDEBAR ── */
+.sb{
+  width:216px;min-width:216px;background:var(--black);
+  display:flex;flex-direction:column;overflow-y:auto;
+}
+.sb-logo{padding:20px 16px 14px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.sb-brand{font-family:var(--serif);font-size:14px;color:var(--cream);font-style:italic}
+.sb-brand sup{font-size:8px;font-style:normal;color:var(--pink)}
+.sb-role{font-size:8px;letter-spacing:0.16em;color:rgba(255,255,255,0.22);text-transform:uppercase;margin-top:5px}
+.sb-sec{padding:16px 16px 4px;font-size:8px;letter-spacing:0.14em;color:rgba(255,255,255,0.18);text-transform:uppercase}
+.sb-item{
+  display:flex;align-items:center;gap:9px;padding:8px 13px;
+  font-size:11px;letter-spacing:0.02em;color:rgba(255,255,255,0.38);
+  cursor:pointer;margin:1px 7px;border-radius:var(--r);
+  border:none;background:none;width:calc(100% - 14px);
+  text-align:left;font-family:var(--sans);transition:all 0.12s;
+}
+.sb-item:hover{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.7)}
+.sb-item.on{background:var(--pink-m);color:var(--pink)}
+.sb-dot{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:0.6;flex-shrink:0}
+.sb-badge{
+  margin-left:auto;font-size:9px;padding:1px 6px;border-radius:10px;
+  background:var(--pink);color:var(--white);
+}
+.sb-badge.alt{background:var(--yellow);color:var(--black)}
+.sb-foot{
+  margin-top:auto;padding:13px 16px;
+  border-top:1px solid rgba(255,255,255,0.05);
+  display:flex;align-items:center;gap:9px;
+}
+.sb-av{
+  width:28px;height:28px;border-radius:50%;
+  background:var(--pink);color:var(--white);
+  font-family:var(--serif);font-size:12px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.sb-nm{font-size:10px;color:rgba(255,255,255,0.3)}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{
+  background:var(--cream);border-bottom:1px solid var(--border-m);
+  padding:0 26px;height:52px;display:flex;align-items:center;
+  justify-content:space-between;flex-shrink:0;
+}
+.tb-left .ttl{font-family:var(--serif);font-size:19px;font-style:italic}
+.tb-left .sub{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.tb-right{display:flex;gap:8px}
+
+/* ── BUTTONS ── */
+.btn{
+  padding:7px 15px;font-size:10px;letter-spacing:0.07em;text-transform:uppercase;
+  border-radius:var(--r);border:1px solid var(--border-m);
+  cursor:pointer;background:transparent;color:var(--black);
+  font-family:var(--sans);transition:all 0.12s;white-space:nowrap;
+}
+.btn:hover{background:rgba(13,13,13,0.06)}
+.btn-k{background:var(--black);color:var(--cream);border-color:var(--black)}
+.btn-k:hover{background:#222}
+.btn-p{background:var(--pink);color:var(--white);border-color:var(--pink)}
+.btn-p:hover{background:#d4255f}
+.btn-b{background:var(--blue);color:var(--white);border-color:var(--blue)}
+
+/* ── CONTENT AREA ── */
+.content{flex:1;overflow-y:auto;overflow-x:hidden}
+.page{display:none;padding:22px 26px}
+.page.on{display:block}
+
+/* ── SHARED ── */
+.pill{
+  display:inline-block;font-size:8px;font-weight:500;
+  padding:2px 8px;border-radius:var(--r);
+  letter-spacing:0.08em;white-space:nowrap;text-transform:uppercase;
+}
+.p-green{background:var(--green-l);color:var(--green)}
+.p-warn{background:var(--orange-l);color:var(--orange)}
+.p-blue{background:var(--blue-l);color:var(--blue)}
+.p-pink{background:var(--pink-l);color:var(--pink)}
+.p-dark{background:var(--black);color:var(--cream)}
+.p-muted{background:rgba(13,13,13,0.07);color:var(--muted)}
+.p-info{background:var(--lblue);color:var(--navy)}
+
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--r)}
+.card-hd{
+  padding:13px 18px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.card-lbl{font-size:8px;letter-spacing:0.13em;text-transform:uppercase;color:var(--muted);font-weight:500}
+
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{
+  text-align:left;font-size:8px;font-weight:500;letter-spacing:0.1em;
+  text-transform:uppercase;color:var(--muted);
+  padding:9px 14px;border-bottom:1px solid var(--border);background:var(--cream);
+}
+.tbl td{padding:11px 14px;border-bottom:1px solid var(--border);color:var(--txt);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr.clickable:hover td{background:rgba(249,243,219,0.6);cursor:pointer}
+.tn{font-weight:500}
+.ts{font-size:10px;color:var(--muted);display:block;margin-top:2px}
+.ta{font-size:10px;color:var(--pink);cursor:pointer;background:none;border:none;font-family:var(--sans);padding:0;letter-spacing:0.04em}
+
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fcol{display:flex;flex-direction:column;gap:5px}
+.fcol label{font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.fv{
+  font-size:12px;color:var(--txt);background:var(--cream);
+  border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;
+}
+.fv.ed{background:var(--white);border-color:rgba(50,63,246,0.4)}
+textarea.fv{width:100%;resize:vertical;min-height:72px;font-family:var(--sans);font-size:12px;line-height:1.55}
+select.fv{appearance:auto}
+.fspan{grid-column:1/-1}
+
+/* ── FLOW STEPS BAR ── */
+.flow-bar{
+  display:flex;gap:0;border:1px solid var(--border-m);border-radius:var(--r);
+  overflow:hidden;margin-bottom:20px;
+}
+.flow-step{
+  flex:1;padding:9px 8px;text-align:center;
+  font-size:8px;letter-spacing:0.08em;text-transform:uppercase;
+  border-right:1px solid var(--border);color:var(--muted);
+  background:var(--cream);
+}
+.flow-step:last-child{border-right:none}
+.flow-step .fs-icon{font-size:13px;display:block;margin-bottom:3px}
+.flow-step.done{background:var(--black);color:rgba(255,255,255,0.45)}
+.flow-step.done .fs-icon{color:var(--pink)}
+.flow-step.active{background:var(--pink);color:var(--white)}
+.flow-step.active .fs-icon{color:var(--white)}
+
+/* ══════════════════════════════════
+   PAGE: DASHBOARD
+══════════════════════════════════ */
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:18px}
+.metric{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:15px 17px}
+.m-lbl{font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+.m-num{font-family:var(--serif);font-size:30px;font-weight:400;color:var(--black);line-height:1}
+.m-delta{font-size:10px;margin-top:5px}
+
+.dash-cols{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
+.pipe-row{display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px}
+.pipe-row:last-child{border-bottom:none}
+.pr-name{flex:1}
+.pr-nm{font-weight:500;display:block}
+.pr-svc{font-size:10px;color:var(--muted)}
+.pr-val{font-size:11px;font-weight:500;margin-right:8px}
+
+.act-row{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)}
+.act-row:last-child{border-bottom:none}
+.act-d{width:5px;height:5px;border-radius:50%;background:var(--border-m);margin-top:4px;flex-shrink:0}
+.d-p{background:var(--pink)} .d-b{background:var(--blue)} .d-g{background:var(--green)} .d-y{background:#b08000}
+.act-t{font-size:9px;color:var(--muted);display:block;margin-top:1px}
+
+/* ══════════════════════════════════
+   PAGE: LEADS
+══════════════════════════════════ */
+.filter-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.filter-bar input,.filter-bar select{
+  padding:7px 11px;font-size:11px;border:1px solid var(--border-m);
+  border-radius:var(--r);background:var(--white);color:var(--txt);font-family:var(--sans);
+}
+.filter-bar input{width:200px}
+
+/* ══════════════════════════════════
+   PAGE: LEAD DETAIL
+══════════════════════════════════ */
+.detail-layout{display:grid;grid-template-columns:1fr 298px;gap:14px}
+.lead-head{display:flex;gap:13px;align-items:flex-start;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.lav{
+  width:46px;height:46px;border-radius:50%;
+  background:var(--pink);color:var(--white);
+  font-family:var(--serif);font-size:19px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.l-name{font-family:var(--serif);font-size:20px}
+.l-co{font-size:11px;color:var(--muted);margin-top:3px}
+.convert-bar{margin-top:18px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center}
+.convert-bar p{font-size:11px;color:var(--muted);flex:1;line-height:1.5}
+
+.tl-row{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--border);font-size:11px}
+.tl-row:last-child{border-bottom:none}
+.tl-d{width:7px;height:7px;border-radius:50%;background:var(--border-m);margin-top:3px;flex-shrink:0}
+.tl-b{background:var(--blue)} .tl-p{background:var(--pink)} .tl-g{background:var(--green)}
+.tl-txt{color:var(--muted);flex:1}
+.tl-t{font-size:9px;color:var(--muted);display:block;margin-top:2px}
+
+.qa{display:flex;flex-direction:column;gap:7px}
+.qa .btn{text-align:left;width:100%}
+
+/* ══════════════════════════════════
+   PAGE: PRESUPUESTO
+══════════════════════════════════ */
+.presup-layout{display:grid;grid-template-columns:1fr 286px;gap:14px}
+.presup-doc{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.presup-hd{
+  background:var(--black);padding:15px 22px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.p-brand{font-family:var(--serif);color:var(--cream);font-size:15px;font-style:italic}
+.p-brand sup{font-size:8px;font-style:normal;color:var(--pink)}
+.p-num{font-size:9px;color:rgba(255,255,255,0.28);letter-spacing:0.12em;text-transform:uppercase}
+.presup-bd{padding:22px}
+.for-lbl{font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.for-name{font-family:var(--serif);font-size:22px}
+.for-co{font-size:11px;color:var(--muted);margin-top:2px;margin-bottom:16px}
+.ptags{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
+.ptag{font-size:9px;letter-spacing:0.07em;text-transform:uppercase;border:1px solid var(--border-m);padding:3px 10px;border-radius:var(--r);color:var(--muted)}
+.ptbl{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:18px}
+.ptbl th{font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);text-align:left;padding:7px 9px;border-bottom:1px solid var(--border);font-weight:500}
+.ptbl td{padding:9px 9px;border-bottom:1px solid var(--border);color:var(--txt);vertical-align:top}
+.ptbl tr:last-child td{border-bottom:none}
+.edit-cell{background:var(--blue-l);border:1px dashed rgba(50,63,246,0.3);border-radius:var(--r);color:var(--blue);font-style:italic}
+input.edit-cell{padding:6px 8px;font-size:11px;font-family:var(--sans);width:100%;outline:none}
+.presup-total{
+  background:var(--black);border-radius:var(--r);
+  padding:13px 18px;display:flex;justify-content:space-between;align-items:center;
+}
+.pt-lbl{font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.35)}
+.pt-note{font-size:10px;color:rgba(255,255,255,0.25);margin-top:3px}
+.pt-num{font-family:var(--serif);font-size:26px;color:var(--cream)}
+
+.side-panel{display:flex;flex-direction:column;gap:11px}
+.sp-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:15px}
+.sp-lbl{font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:11px}
+.sp-f{display:flex;flex-direction:column;gap:4px;margin-bottom:9px}
+.sp-f label{font-size:9px;color:var(--muted)}
+.sp-f input,.sp-f select,.sp-f textarea{
+  padding:7px 9px;font-size:12px;border:1px solid var(--border-m);
+  border-radius:var(--r);background:var(--white);color:var(--txt);font-family:var(--sans);
+}
+.sp-f textarea{resize:vertical;min-height:56px;line-height:1.5}
+.info-box{font-size:10px;color:var(--muted);padding:9px;background:var(--cream);border-radius:var(--r);line-height:1.55}
+.checks p{font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px}
+.chk-row{display:flex;gap:7px;font-size:11px;color:var(--txt);margin-bottom:5px;align-items:center}
+.act-col{display:flex;flex-direction:column;gap:7px}
+.act-col .btn{text-align:center;width:100%;padding:9px 15px}
+
+/* ══════════════════════════════════
+   PAGE: INVOICE
+══════════════════════════════════ */
+.inv-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.inv-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.inv-hd{padding:13px 17px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+.inv-title{font-family:var(--serif);font-size:16px}
+.inv-sub{font-size:10px;color:var(--muted);margin-top:2px}
+.inv-lines{padding:13px 17px}
+.inv-ln{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.inv-ln:last-child{border-bottom:none}
+.inv-ll{color:var(--muted)}
+.inv-lv{font-weight:500}
+.inv-tot{background:var(--black);padding:11px 17px;display:flex;justify-content:space-between;align-items:center}
+.inv-tot .l{font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.35)}
+.inv-tot .v{font-family:var(--serif);font-size:20px;color:var(--cream)}
+.inv-foot{padding:10px 17px;border-top:1px solid var(--border);display:flex;gap:7px}
+
+/* ══════════════════════════════════
+   PAGE: PORTAL CLIENTE
+══════════════════════════════════ */
+.portal-wrap{padding:20px 26px;background:var(--cream);min-height:100%}
+.portal-note{
+  background:var(--pink-l);border:1px solid var(--pink-m);
+  border-radius:var(--r);padding:10px 14px;margin-bottom:16px;
+  font-size:11px;color:var(--pink);
+}
+.portal-frame{max-width:580px;margin:0 auto}
+.portal-top{
+  background:var(--black);border-radius:var(--r) var(--r) 0 0;
+  padding:17px 26px;display:flex;justify-content:space-between;align-items:center;
+}
+.portal-brand{font-family:var(--serif);font-size:15px;color:var(--cream);font-style:italic}
+.portal-brand sup{font-size:8px;font-style:normal;color:var(--pink)}
+.portal-tag{font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.22)}
+.portal-body{
+  background:var(--white);border:1px solid var(--border);border-top:none;
+  border-radius:0 0 var(--r) var(--r);padding:26px;
+}
+.portal-greeting{font-family:var(--serif);font-size:24px;margin-bottom:6px}
+.portal-sub{font-size:12px;color:var(--muted);line-height:1.65;margin-bottom:22px}
+.portal-phases{
+  display:flex;border:1px solid var(--border-m);border-radius:var(--r);
+  overflow:hidden;margin-bottom:22px;
+}
+.pp{flex:1;padding:9px 8px;text-align:center;font-size:8px;letter-spacing:0.07em;text-transform:uppercase;border-right:1px solid var(--border)}
+.pp:last-child{border-right:none}
+.pp .pi{font-size:12px;display:block;margin-bottom:3px}
+.pp.done{background:var(--black);color:rgba(255,255,255,0.4)}
+.pp.done .pi{color:var(--pink)}
+.pp.active{background:var(--pink);color:var(--white)}
+.pp.next{color:var(--muted);background:var(--cream)}
+.portal-sec{border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:13px}
+.psec-title{font-family:var(--serif);font-size:17px;margin-bottom:5px}
+.psec-desc{font-size:11px;color:var(--muted);margin-bottom:15px;line-height:1.6}
+.brief-form{display:flex;flex-direction:column;gap:10px}
+.brief-form label{font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.brief-form textarea,.brief-form input{
+  border:1px solid var(--border-m);border-radius:var(--r);
+  padding:8px 10px;font-size:12px;font-family:var(--sans);
+  background:var(--cream);color:var(--txt);
+}
+.brief-form textarea{resize:vertical;min-height:58px;line-height:1.5}
+.portal-foot{text-align:center;font-size:10px;color:var(--muted);padding-top:10px}
+
+/* ══════════════════════════════════
+   PAGE: PROYECTO WORKSPACE
+══════════════════════════════════ */
+.ws-header{display:flex;gap:14px;align-items:flex-start;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--border)}
+.ws-title{font-family:var(--serif);font-size:22px;font-style:italic}
+.ws-meta{font-size:11px;color:var(--muted);margin-top:4px}
+.ws-phases{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.ws-ph{
+  padding:8px 14px;border-radius:var(--r);border:1px solid var(--border-m);
+  font-size:10px;letter-spacing:0.06em;text-transform:uppercase;
+  cursor:pointer;color:var(--muted);background:var(--white);transition:all 0.12s;
+}
+.ws-ph:hover{border-color:var(--pink);color:var(--pink)}
+.ws-ph.on{background:var(--black);color:var(--cream);border-color:var(--black)}
+.ws-ph.done{background:var(--green-l);color:var(--green);border-color:transparent}
+
+.phase-content{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:14px}
+.phase-content h3{font-family:var(--serif);font-size:17px;margin-bottom:12px}
+.phase-note{font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:14px}
+
+.comment-box{border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-top:10px}
+.cb-hd{padding:9px 14px;background:var(--cream);border-bottom:1px solid var(--border);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)}
+.comment{display:flex;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);font-size:12px}
+.comment:last-child{border-bottom:none}
+.cm-av{width:28px;height:28px;border-radius:50%;background:var(--pink);color:var(--white);font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:var(--serif)}
+.cm-av.c{background:var(--navy)}
+.cm-txt{flex:1}
+.cm-who{font-weight:500;font-size:11px;margin-bottom:3px}
+.cm-t{font-size:9px;color:var(--muted)}
+.new-comment{display:flex;gap:9px;padding:11px 14px;border-top:1px solid var(--border)}
+.new-comment input{flex:1;border:1px solid var(--border-m);border-radius:var(--r);padding:7px 10px;font-size:12px;font-family:var(--sans);background:var(--white)}
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- MODAL: Nuevo Lead -->
+<div class="overlay" id="modal-lead">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Nuevo lead</div>
+      <button class="modal-close" onclick="closeModal('modal-lead')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="fgrid">
+        <div class="fcol"><label>Nombre completo</label><input class="fv ed" type="text" placeholder="Valentina Rossi"></div>
+        <div class="fcol"><label>Empresa / Marca</label><input class="fv ed" type="text" placeholder="Studio Rossi"></div>
+        <div class="fcol"><label>Email de contacto</label><input class="fv ed" type="text" placeholder="valentina@..."></div>
+        <div class="fcol"><label>Servicio interesado</label>
+          <select class="fv ed"><option>Identidad de marca</option><option>Estrategia visual</option><option>Diseño editorial</option></select>
+        </div>
+        <div class="fcol"><label>Valor estimado</label><input class="fv ed" type="text" placeholder="$3.200 USD"></div>
+        <div class="fcol"><label>Fuente</label>
+          <select class="fv ed"><option>Web</option><option>Referido</option><option>Otros</option></select>
+        </div>
+        <div class="fcol fspan"><label>Estado</label>
+          <select class="fv ed"><option>Negociación</option><option>Ganado</option><option>Perdido</option></select>
+        </div>
+        <div class="fcol fspan"><label>Notas</label><textarea class="fv ed" placeholder="Notas internas sobre este lead…"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-lead')">Cancelar</button>
+      <button class="btn btn-k" onclick="saveLead()">Guardar lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Enviar Presupuesto -->
+<div class="overlay" id="modal-send">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Confirmar envío</div>
+      <button class="modal-close" onclick="closeModal('modal-send')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6">Se enviará a <strong style="color:var(--black)">valentina@studiorossi.com</strong> con los documentos seleccionados adjuntos en PDF y un link de aceptación único.</p>
+      <div style="background:var(--cream);border-radius:var(--r);padding:14px 16px;margin-bottom:16px">
+        <div style="font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">¿Qué enviar?</div>
+        <label class="chk-row" style="margin-bottom:7px"><input type="checkbox" checked> <span style="font-size:12px">Presupuesto #2026-004 · $3.200 USD</span></label>
+        <label class="chk-row"><input type="checkbox" id="chk-contract"> <span style="font-size:12px">Contrato — Identidad de marca</span></label>
+      </div>
+      <div class="sp-f"><label>Nota personalizada (aparece en el mail)</label><textarea class="fv ed" placeholder="Ej: Con mucho cariño para este proceso, Valentina…"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-send')">Cancelar</button>
+      <button class="btn btn-p" onclick="doSend()">Enviar →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Contrato firmado -->
+<div class="overlay" id="modal-contract">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Contrato aceptado</div>
+      <button class="modal-close" onclick="closeModal('modal-contract')">×</button>
+    </div>
+    <div class="modal-body" style="text-align:center;padding:32px 22px">
+      <div style="font-size:40px;margin-bottom:14px">✓</div>
+      <div style="font-family:var(--serif);font-size:20px;margin-bottom:8px">Valentina firmó el contrato</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:20px">Se recibió la aceptación el 28 abr 2026 a las 11:45. El estado del proyecto se actualizó automáticamente a <strong>Contrato firmado</strong>.</div>
+      <div style="background:var(--cream);border-radius:var(--r);padding:14px;font-size:11px;color:var(--muted);text-align:left;margin-bottom:16px">
+        <div style="font-size:8px;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:7px">Próximos pasos sugeridos</div>
+        ① Registrar el pago del 50% de seña manualmente<br>
+        ② Enviar onboarding por mail<br>
+        ③ Habilitar acceso al portal del cliente
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-contract')">Cerrar</button>
+      <button class="btn btn-k" onclick="closeModal('modal-contract');showPage('portal');toast('Onboarding enviado a Valentina ✓')">Enviar onboarding →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Convertir a Cliente -->
+<div class="overlay" id="modal-convert">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Convertir a cliente</div>
+      <button class="modal-close" onclick="closeModal('modal-convert')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6">Se creará la ficha de <strong style="color:var(--black)">Valentina Rossi</strong> en la base de clientes y se vinculará el proyecto de Identidad de marca automáticamente.</p>
+      <div class="fgrid">
+        <div class="fcol"><label>Nombre del cliente</label><div class="fv">Valentina Rossi</div></div>
+        <div class="fcol"><label>Empresa</label><div class="fv">Studio Rossi Comunicación</div></div>
+        <div class="fcol"><label>Servicio contratado</label><div class="fv">Identidad de marca</div></div>
+        <div class="fcol"><label>Valor total</label><div class="fv">$3.200 USD</div></div>
+        <div class="fcol fspan"><label>Cuotas</label>
+          <select class="fv ed"><option>50% seña + 50% al entregar</option><option>2 cuotas iguales</option><option>3 cuotas</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-convert')">Cancelar</button>
+      <button class="btn btn-k" onclick="doConvert()">Confirmar conversión →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Nueva Factura -->
+<div class="overlay" id="modal-invoice">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Generar factura</div>
+      <button class="modal-close" onclick="closeModal('modal-invoice')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="fgrid">
+        <div class="fcol"><label>Cliente</label>
+          <select class="fv ed"><option>Valentina Rossi</option><option>Studio Bloom</option><option>Luna Creativa</option></select>
+        </div>
+        <div class="fcol"><label>Proyecto</label>
+          <select class="fv ed"><option>Identidad de marca — VR</option><option>Estrategia visual — SB</option></select>
+        </div>
+        <div class="fcol"><label>Tipo</label>
+          <select class="fv ed"><option>Recibo de seña (50%)</option><option>Factura final (saldo)</option></select>
+        </div>
+        <div class="fcol"><label>Monto</label><input class="fv ed" type="text" value="$1.600 USD"></div>
+        <div class="fcol"><label>Fecha de emisión</label><input class="fv ed" type="date"></div>
+        <div class="fcol"><label>Estado</label>
+          <select class="fv ed"><option>Pendiente</option><option>Pagado</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-invoice')">Cancelar</button>
+      <button class="btn btn-k" onclick="doInvoice()">Generar y guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     SHELL
+══════════════════════════════ -->
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <div class="sb">
+    <div class="sb-logo">
+      <div class="sb-brand">Soulful Branding<sup>®</sup></div>
+      <div class="sb-role">Panel admin</div>
+    </div>
+
+    <div class="sb-sec">CRM</div>
+    <button class="sb-item on" id="nav-leads" onclick="showPage('leads')"><span class="sb-dot"></span>Leads <span class="sb-badge" id="badge-leads">4</span></button>
+    <button class="sb-item" id="nav-clients" onclick="showPage('clients')"><span class="sb-dot"></span>Clientes</button>
+
+    <div class="sb-sec">Proyectos</div>
+    <button class="sb-item" id="nav-workspace" onclick="showPage('workspace')"><span class="sb-dot"></span>Proyectos</button>
+    <button class="sb-item" id="nav-presup" onclick="showPage('presup')"><span class="sb-dot"></span>Presupuestos <span class="sb-badge alt" id="badge-presup">1</span></button>
+    <button class="sb-item" id="nav-invoice" onclick="showPage('invoice')"><span class="sb-dot"></span>Facturas</button>
+
+    <div class="sb-sec">Vistas</div>
+    <button class="sb-item" id="nav-dash" onclick="showPage('dash')"><span class="sb-dot"></span>Dashboard</button>
+    <button class="sb-item" id="nav-portal" onclick="showPage('portal')"><span class="sb-dot"></span>Portal cliente</button>
+
+    <div class="sb-foot">
+      <div class="sb-av">S</div>
+      <div class="sb-nm">Sofia Ciabattoni</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar" id="topbar">
+      <div class="tb-left">
+        <div class="ttl" id="tb-title">Leads</div>
+        <div class="sub" id="tb-sub">4 contactos activos</div>
+      </div>
+      <div class="tb-right" id="tb-actions">
+        <button class="btn btn-k" onclick="openModal('modal-lead')">+ Agregar manual</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ═══ DASHBOARD ═══ -->
+      <div class="page" id="page-dash">
+        <div class="metrics">
+          <div class="metric"><div class="m-lbl">Leads activos</div><div class="m-num" id="m-leads">4</div><div class="m-delta" style="color:var(--green)">+2 esta semana</div></div>
+          <div class="metric"><div class="m-lbl">Proyectos en curso</div><div class="m-num">3</div><div class="m-delta" style="color:var(--muted)">2 en diseño</div></div>
+          <div class="metric"><div class="m-lbl">Facturado este mes</div><div class="m-num">$6.400</div><div class="m-delta" style="color:var(--green)">↑ 18% vs marzo</div></div>
+          <div class="metric"><div class="m-lbl">Por cobrar</div><div class="m-num" id="m-cobrar">$2.100</div><div class="m-delta" style="color:var(--orange)">2 facturas pendientes</div></div>
+        </div>
+        <div class="dash-cols">
+          <div class="card">
+            <div class="card-hd"><div class="card-lbl">Pipeline activo</div><span style="font-size:10px;color:var(--pink);cursor:pointer" onclick="showPage('leads')">Ver todos →</span></div>
+            <div style="padding:0 18px">
+              <div class="pipe-row"><div class="pr-name"><span class="pr-nm">Valentina Rossi</span><span class="pr-svc">Identidad de marca</span></div><div class="pr-val">$3.200</div><span class="pill p-blue">Negociación</span></div>
+              <div class="pipe-row"><div class="pr-name"><span class="pr-nm">Studio Bloom</span><span class="pr-svc">Estrategia visual</span></div><div class="pr-val">$2.800</div><span class="pill p-green">Ganado</span></div>
+              <div class="pipe-row"><div class="pr-name"><span class="pr-nm">Mara Fontana</span><span class="pr-svc">Diseño editorial</span></div><div class="pr-val">$1.900</div><span class="pill p-warn">Seguimiento</span></div>
+              <div class="pipe-row" id="pipe-luna"><div class="pr-name"><span class="pr-nm">Luna Creativa</span><span class="pr-svc">Identidad de marca</span></div><div class="pr-val">$3.600</div><span class="pill p-pink">Presupuesto enviado</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-lbl">Actividad reciente</div></div>
+            <div style="padding:0 18px" id="activity-feed">
+              <div class="act-row"><div class="act-d d-b"></div><div>Contrato firmado — Studio Bloom<span class="act-t">Hoy, 10:32</span></div></div>
+              <div class="act-row"><div class="act-d d-p"></div><div>Pre-brief recibido — Valentina R.<span class="act-t">Ayer, 16:05</span></div></div>
+              <div class="act-row"><div class="act-d d-g"></div><div>Pago recibido $1.600 — Luna Creativa<span class="act-t">23 abr</span></div></div>
+              <div class="act-row"><div class="act-d d-y"></div><div>Lead nuevo — Mara Fontana (web)<span class="act-t">22 abr</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ LEADS ═══ -->
+      <div class="page on" id="page-leads">
+        <div class="filter-bar">
+          <input type="text" placeholder="Buscar por nombre o empresa…">
+          <select><option>Todos los estados</option><option>Negociación</option><option>Ganado</option><option>Perdido</option></select>
+          <select><option>Todos los servicios</option><option>Identidad de marca</option><option>Estrategia visual</option><option>Diseño editorial</option></select>
+          <select><option>Todas las fuentes</option><option>Web</option><option>Referido</option><option>Otros</option></select>
+        </div>
+        <div class="card">
+          <table class="tbl">
+            <thead><tr><th>Nombre / Empresa</th><th>Servicio</th><th>Valor est.</th><th>Fuente</th><th>Estado</th><th>Notas</th><th></th></tr></thead>
+            <tbody id="leads-tbody">
+              <tr class="clickable" onclick="showPage('lead-detail')">
+                <td><div class="tn">Valentina Rossi</div><span class="ts">Studio Rossi Comunicación</span></td>
+                <td><span class="pill p-dark">Identidad de marca</span></td>
+                <td style="font-weight:500">$3.200</td>
+                <td style="font-size:11px;color:var(--muted)">Referido</td>
+                <td><span class="pill p-blue">Negociación</span></td>
+                <td style="font-size:10px;color:var(--muted)">Espera propuesta detallada</td>
+                <td><button class="ta" onclick="event.stopPropagation();showPage('lead-detail')">Ver →</button></td>
+              </tr>
+              <tr class="clickable">
+                <td><div class="tn">Studio Bloom</div><span class="ts">Agencia creativa</span></td>
+                <td><span class="pill p-dark">Estrategia visual</span></td>
+                <td style="font-weight:500">$2.800</td>
+                <td style="font-size:11px;color:var(--muted)">Web</td>
+                <td><span class="pill p-green">Ganado</span></td>
+                <td style="font-size:10px;color:var(--muted)">Contrato firmado</td>
+                <td><button class="ta">Ver →</button></td>
+              </tr>
+              <tr class="clickable">
+                <td><div class="tn">Mara Fontana</div><span class="ts">Freelance</span></td>
+                <td><span class="pill p-dark">Diseño editorial</span></td>
+                <td style="font-weight:500">$1.900</td>
+                <td style="font-size:11px;color:var(--muted)">Web</td>
+                <td><span class="pill p-warn">Seguimiento</span></td>
+                <td style="font-size:10px;color:var(--muted)">Llamar esta semana</td>
+                <td><button class="ta">Ver →</button></td>
+              </tr>
+              <tr class="clickable">
+                <td><div class="tn">Luna Creativa</div><span class="ts">Marca de moda</span></td>
+                <td><span class="pill p-dark">Identidad de marca</span></td>
+                <td style="font-weight:500">$3.600</td>
+                <td style="font-size:11px;color:var(--muted)">Referido</td>
+                <td><span class="pill p-pink">Presupuesto enviado</span></td>
+                <td style="font-size:10px;color:var(--muted)">Esperando respuesta</td>
+                <td><button class="ta">Ver →</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ═══ LEAD DETAIL ═══ -->
+      <div class="page" id="page-lead-detail">
+        <div style="margin-bottom:14px">
+          <button class="btn" onclick="showPage('leads')" style="font-size:10px">← Volver a leads</button>
+        </div>
+        <!-- Flow bar -->
+        <div class="flow-bar" id="flow-bar">
+          <div class="flow-step done"><span class="fs-icon">✓</span>Form recibido</div>
+          <div class="flow-step active"><span class="fs-icon">●</span>Negociación</div>
+          <div class="flow-step" id="fs-presup"><span class="fs-icon">○</span>Presupuesto</div>
+          <div class="flow-step" id="fs-contrato"><span class="fs-icon">○</span>Contrato</div>
+          <div class="flow-step" id="fs-pago"><span class="fs-icon">○</span>Seña</div>
+          <div class="flow-step" id="fs-onboard"><span class="fs-icon">○</span>Onboarding</div>
+        </div>
+        <div class="detail-layout">
+          <div>
+            <div class="card" style="padding:20px">
+              <div class="lead-head">
+                <div class="lav">V</div>
+                <div>
+                  <div class="l-name">Valentina Rossi</div>
+                  <div class="l-co">Studio Rossi Comunicación · valentina@studiorossi.com</div>
+                  <div style="margin-top:8px;display:flex;gap:6px;align-items:center">
+                    <span class="pill p-blue" id="lead-status-pill">Negociación</span>
+                    <span style="font-size:10px;color:var(--muted)">Referido · 15 abr 2026</span>
+                  </div>
+                </div>
+              </div>
+              <div class="fgrid">
+                <div class="fcol"><label>Empresa</label><div class="fv">Studio Rossi Comunicación</div></div>
+                <div class="fcol"><label>Email</label><div class="fv">valentina@studiorossi.com</div></div>
+                <div class="fcol"><label>Servicio interesado</label><div class="fv">Identidad de marca</div></div>
+                <div class="fcol"><label>Valor estimado</label><div class="fv">$3.200 USD</div></div>
+                <div class="fcol"><label>Fuente</label><div class="fv">Referido — Ana García</div></div>
+                <div class="fcol"><label>Estado</label>
+                  <select class="fv ed" id="lead-status-select" onchange="updateLeadStatus(this.value)">
+                    <option>Negociación</option><option>Ganado</option><option>Perdido</option>
+                  </select>
+                </div>
+                <div class="fcol fspan"><label>Notas</label><textarea class="fv ed">Espera propuesta detallada con desglose de etapas. Fecha límite fin de mayo. Muy interesada, buen fit con el método Soulful Branding®.</textarea></div>
+              </div>
+              <div class="convert-bar">
+                <p>Cuando este lead está listo, convertilo en cliente. Se creará su ficha automáticamente.</p>
+                <button class="btn btn-k" onclick="openModal('modal-convert')">Convertir a cliente →</button>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="card" style="padding:16px">
+              <div class="card-lbl" style="margin-bottom:12px">Historial</div>
+              <div class="tl-row"><div class="tl-d tl-b"></div><div class="tl-txt">Llamada de claridad realizada<span class="tl-t">18 abr · 11:00</span></div></div>
+              <div class="tl-row"><div class="tl-d tl-p"></div><div class="tl-txt">Form recibido desde web<span class="tl-t">15 abr · 09:22</span></div></div>
+              <div class="tl-row"><div class="tl-d tl-g"></div><div class="tl-txt">WhatsApp enviado por Sofi<span class="tl-t">15 abr · 10:00</span></div></div>
+              <div class="tl-row" id="tl-presup-sent" style="display:none"><div class="tl-d tl-p"></div><div class="tl-txt">Presupuesto enviado<span class="tl-t">Hoy</span></div></div>
+              <div class="tl-row" id="tl-contract-signed" style="display:none"><div class="tl-d tl-g"></div><div class="tl-txt">Contrato firmado ✓<span class="tl-t">Hoy</span></div></div>
+            </div>
+            <div class="card" style="padding:16px">
+              <div class="card-lbl" style="margin-bottom:12px">Acciones</div>
+              <div class="qa">
+                <button class="btn" onclick="toast('Link de calendario enviado a valentina@studiorossi.com ✓')">Enviar link de calendario</button>
+                <button class="btn btn-p" onclick="showPage('presup');updateFlow('presup')">Crear presupuesto →</button>
+                <button class="btn" id="btn-send-onboard" style="display:none" onclick="showPage('portal');toast('Onboarding enviado a Valentina ✓')">Enviar onboarding →</button>
+                <button class="btn" onclick="toast('Lead marcado como perdido')">Marcar como perdido</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ CLIENTES ═══ -->
+      <div class="page" id="page-clients">
+        <div class="filter-bar">
+          <input type="text" placeholder="Buscar cliente…">
+          <select><option>Todos los servicios</option><option>Identidad de marca</option><option>Estrategia visual</option><option>Diseño editorial</option></select>
+          <select><option>Todos los estados</option><option>Pagado</option><option>Partial</option></select>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <table class="tbl">
+            <thead><tr><th>Cliente</th><th>Servicio</th><th>Facturación</th><th>Cuotas</th><th>Por cobrar</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="clients-tbody">
+              <tr class="clickable" onclick="showPage('workspace')">
+                <td><div class="tn">Studio Bloom</div><span class="ts">Agencia creativa</span></td>
+                <td><span class="pill p-dark">Estrategia visual</span></td>
+                <td style="font-weight:500">$2.800</td>
+                <td style="font-size:11px">2 cuotas</td>
+                <td style="font-weight:500;color:var(--orange)">$1.400</td>
+                <td><span class="pill p-warn">Partial</span></td>
+                <td><button class="ta" onclick="event.stopPropagation();showPage('workspace')">Proyecto →</button></td>
+              </tr>
+              <tr class="clickable">
+                <td><div class="tn">Luna Creativa</div><span class="ts">Marca de moda</span></td>
+                <td><span class="pill p-dark">Identidad de marca</span></td>
+                <td style="font-weight:500">$3.600</td>
+                <td style="font-size:11px">50% seña</td>
+                <td style="font-weight:500;color:var(--green)">$0</td>
+                <td><span class="pill p-green">Pagado</span></td>
+                <td><button class="ta">Proyecto →</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="text-align:center;padding:16px;background:var(--white);border:1px solid var(--border);border-radius:var(--r);font-size:12px;color:var(--muted)">
+          Los leads convertidos a cliente aparecen aquí automáticamente.
+        </div>
+      </div>
+
+      <!-- ═══ PRESUPUESTO ═══ -->
+      <div class="page" id="page-presup">
+        <div style="margin-bottom:14px">
+          <button class="btn" onclick="showPage('lead-detail')" style="font-size:10px">← Volver a Valentina</button>
+        </div>
+        <div class="presup-layout">
+          <div class="presup-doc">
+            <div class="presup-hd">
+              <div class="p-brand">Soulful Branding<sup>®</sup></div>
+              <div class="p-num">Presupuesto · #2026-005</div>
+            </div>
+            <div class="presup-bd">
+              <div class="for-lbl">Preparado para</div>
+              <div class="for-name">Valentina Rossi</div>
+              <div class="for-co">Studio Rossi Comunicación · valentina@studiorossi.com</div>
+              <div class="ptags">
+                <span class="ptag">Identidad de marca</span>
+                <span class="ptag">Proceso Soulful Branding®</span>
+              </div>
+              <table class="ptbl">
+                <thead><tr><th>Etapa</th><th>Descripción</th><th style="text-align:right">Valor</th></tr></thead>
+                <tbody>
+                  <tr><td>01 — Onboarding</td><td>Pre-brief + sesión Deep Dive</td><td style="text-align:right;color:var(--muted)">Incluido</td></tr>
+                  <tr><td>02 — Narrativa</td><td>Construcción del relato de marca</td><td style="text-align:right;color:var(--muted)">Incluido</td></tr>
+                  <tr><td>03 — Identidad visual</td><td><input class="edit-cell" type="text" value="Logo, paleta, tipografía, sistema visual" style="width:100%"></td><td style="text-align:right"><input class="edit-cell" type="text" value="$3.200 USD" style="width:90px;text-align:right"></td></tr>
+                  <tr><td>04 — Manual de marca</td><td>Guía de uso y aplicaciones</td><td style="text-align:right;color:var(--muted)">Incluido</td></tr>
+                </tbody>
+              </table>
+              <div style="font-size:10px;color:var(--muted);margin-bottom:14px;font-style:italic">Los campos resaltados en azul son editables.</div>
+              <div class="presup-total">
+                <div>
+                  <div class="pt-lbl">Inversión total</div>
+                  <div class="pt-note">Válido 15 días · Seña del 50% para iniciar</div>
+                </div>
+                <div class="pt-num">$3.200 USD</div>
+              </div>
+            </div>
+          </div>
+          <div class="side-panel">
+            <div class="sp-card">
+              <div class="sp-lbl">Ajustar</div>
+              <div class="sp-f"><label>Valor total</label><input type="text" value="$3.200 USD"></div>
+              <div class="sp-f"><label>Forma de pago</label>
+                <select><option>50% seña + 50% al entregar</option><option>2 cuotas iguales</option><option>3 cuotas</option><option>Pago único</option></select>
+              </div>
+              <div class="sp-f"><label>Validez</label>
+                <select><option>15 días</option><option>30 días</option><option>Sin vencimiento</option></select>
+              </div>
+              <div class="sp-f"><label>Nota personalizada</label><input type="text" placeholder="Ej: Con cariño para este proceso…"></div>
+            </div>
+            <div class="sp-card">
+              <div class="sp-lbl">Envío</div>
+              <div class="info-box">Se enviará a valentina@studiorossi.com con el presupuesto en PDF y un link de aceptación.</div>
+              <div class="checks">
+                <p>¿Qué enviar?</p>
+                <label class="chk-row"><input type="checkbox" checked> Presupuesto</label>
+                <label class="chk-row"><input type="checkbox"> Contrato</label>
+              </div>
+            </div>
+            <div class="act-col">
+              <button class="btn" onclick="toast('PDF generado ✓')">Vista previa PDF</button>
+              <button class="btn btn-p" onclick="openModal('modal-send')">Enviar →</button>
+              <button class="btn" style="color:var(--muted)" onclick="toast('Borrador guardado ✓')">Guardar borrador</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ INVOICE ═══ -->
+      <div class="page" id="page-invoice">
+        <div class="inv-2">
+          <div class="inv-card">
+            <div class="inv-hd"><div><div class="inv-title">Recibo de seña</div><div class="inv-sub">Studio Bloom · 15 abr 2026</div></div><span class="pill p-green">Pagado</span></div>
+            <div class="inv-lines">
+              <div class="inv-ln"><span class="inv-ll">Cliente</span><span class="inv-lv">Studio Bloom</span></div>
+              <div class="inv-ln"><span class="inv-ll">Proyecto</span><span class="inv-lv">Estrategia visual</span></div>
+              <div class="inv-ln"><span class="inv-ll">Concepto</span><span class="inv-lv">50% seña inicial</span></div>
+              <div class="inv-ln"><span class="inv-ll">Fecha de pago</span><span class="inv-lv">15 abr 2026</span></div>
+            </div>
+            <div class="inv-tot"><span class="l">Total recibo</span><span class="v">$1.400 USD</span></div>
+            <div class="inv-foot"><button class="btn" style="font-size:10px" onclick="toast('PDF descargado ✓')">Descargar PDF</button><button class="btn" style="font-size:10px" onclick="toast('Factura reenviada ✓')">Reenviar</button></div>
+          </div>
+          <div class="inv-card" id="inv-card-luna">
+            <div class="inv-hd"><div><div class="inv-title">Factura final</div><div class="inv-sub">Luna Creativa · 20 abr 2026</div></div><span class="pill p-warn" id="inv-luna-status">Pendiente</span></div>
+            <div class="inv-lines">
+              <div class="inv-ln"><span class="inv-ll">Cliente</span><span class="inv-lv">Luna Creativa</span></div>
+              <div class="inv-ln"><span class="inv-ll">Proyecto</span><span class="inv-lv">Identidad de marca</span></div>
+              <div class="inv-ln"><span class="inv-ll">Concepto</span><span class="inv-lv">Saldo final — proyecto cerrado</span></div>
+              <div class="inv-ln"><span class="inv-ll">Vencimiento</span><span class="inv-lv" style="color:var(--orange)">30 abr 2026</span></div>
+            </div>
+            <div class="inv-tot"><span class="l">Total factura</span><span class="v">$1.800 USD</span></div>
+            <div class="inv-foot"><button class="btn" style="font-size:10px" onclick="toast('PDF descargado ✓')">Descargar PDF</button><button class="btn btn-p" style="font-size:10px" onclick="markPaid()">Marcar como pagado</button></div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <table class="tbl" id="inv-table">
+            <thead><tr><th>Número</th><th>Cliente</th><th>Tipo</th><th>Proyecto</th><th>Total</th><th>Fecha</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+              <tr><td style="font-size:10px;color:var(--muted)">#2026-004</td><td class="tn">Studio Bloom</td><td><span class="pill p-muted">Seña</span></td><td style="font-size:11px">Estrategia visual</td><td style="font-weight:500">$1.400</td><td style="font-size:11px">15 abr</td><td><span class="pill p-green">Pagado</span></td><td><button class="ta" onclick="toast('PDF descargado ✓')">PDF</button></td></tr>
+              <tr><td style="font-size:10px;color:var(--muted)">#2026-003</td><td class="tn">Luna Creativa</td><td><span class="pill p-dark">Final</span></td><td style="font-size:11px">Identidad de marca</td><td style="font-weight:500">$1.800</td><td style="font-size:11px">20 abr</td><td><span class="pill p-warn" id="tbl-luna-status">Pendiente</span></td><td><button class="ta" onclick="toast('PDF descargado ✓')">PDF</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ═══ PORTAL CLIENTE ═══ -->
+      <div class="page" id="page-portal">
+        <div class="portal-wrap" style="padding:0">
+          <div style="padding:16px 0 12px;margin-bottom:0">
+            <div class="portal-note" style="margin:0 0 16px">Esta es la vista que ve Valentina al abrir el link de su mail. Interactiva — podés simular el llenado del pre-brief.</div>
+          </div>
+          <div class="portal-frame">
+            <div class="portal-top">
+              <div class="portal-brand">Soulful Branding<sup>®</sup></div>
+              <div class="portal-tag">Área de cliente</div>
+            </div>
+            <div class="portal-body">
+              <div class="portal-greeting">Hola, Valentina.</div>
+              <div class="portal-sub">Bienvenida a tu proceso de Identidad de marca. Aquí encontrás todo lo que necesitás en cada etapa del camino.</div>
+              <div class="portal-phases">
+                <div class="pp done"><span class="pi">✓</span>Onboarding</div>
+                <div class="pp active" id="pp-prebrief"><span class="pi">●</span>Pre-brief</div>
+                <div class="pp next" id="pp-narrativa"><span class="pi">○</span>Narrativa</div>
+                <div class="pp next"><span class="pi">○</span>Identidad</div>
+                <div class="pp next"><span class="pi">○</span>Manual</div>
+              </div>
+              <div class="portal-sec" id="portal-prebrief-section">
+                <div class="psec-title">Tu pre-brief</div>
+                <div class="psec-desc">Respondé estas preguntas para que pueda conocer tu marca en profundidad. No hay respuestas incorrectas, solo las tuyas.</div>
+                <div class="brief-form">
+                  <label>¿Cómo describirías tu marca en tres palabras?</label>
+                  <input type="text" id="bf1" placeholder="Ej: auténtica, sensible, expansiva">
+                  <label>¿Qué siente tu cliente ideal cuando trabaja con vos?</label>
+                  <textarea id="bf2" placeholder="Contame desde tu experiencia…"></textarea>
+                  <label>¿Qué hace única tu forma de trabajar?</label>
+                  <textarea id="bf3" placeholder="Lo que solo vos podés ofrecer…"></textarea>
+                  <label>¿Cuál es tu mayor miedo al mostrar tu marca?</label>
+                  <textarea placeholder="Podés ser honesta acá…"></textarea>
+                </div>
+                <button class="btn btn-p" style="margin-top:14px;width:100%;text-align:center;padding:10px" onclick="submitBrief()">Enviar pre-brief →</button>
+              </div>
+              <div class="portal-sec" id="portal-calendar-section" style="display:none">
+                <div class="psec-title">Agendá tu sesión Deep Dive</div>
+                <div class="psec-desc">Tu pre-brief fue recibido. El siguiente paso es una sesión de profundización donde trabajamos juntas en los conceptos de tu marca.</div>
+                <button class="btn btn-k" style="width:100%;text-align:center;padding:10px" onclick="toast('Abriendo Google Calendar… ✓')">Ver disponibilidad y agendar →</button>
+              </div>
+              <div class="portal-foot">¿Tenés alguna pregunta? Escribí a sofia@soulfulbranding.com</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ WORKSPACE (PROYECTO) ═══ -->
+      <div class="page" id="page-workspace">
+        <div style="margin-bottom:14px">
+          <button class="btn" onclick="showPage('clients')" style="font-size:10px">← Volver a clientes</button>
+        </div>
+        <div class="ws-header">
+          <div>
+            <div class="ws-title">Studio Bloom — Estrategia visual</div>
+            <div class="ws-meta">Inicio: 1 abr 2026 · Entrega estimada: 30 may 2026 · <span style="color:var(--orange);font-weight:500">En diseño</span></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-left:auto">
+            <button class="btn" onclick="openModal('modal-invoice')">+ Generar factura</button>
+            <button class="btn btn-p" onclick="showPage('portal')">Ver portal cliente →</button>
+          </div>
+        </div>
+
+        <div class="ws-phases">
+          <div class="ws-ph done" onclick="setPhase(this,'onboarding')">✓ Onboarding</div>
+          <div class="ws-ph done" onclick="setPhase(this,'prebrief')">✓ Pre-brief</div>
+          <div class="ws-ph on" id="ph-narrativa" onclick="setPhase(this,'narrativa')">Narrativa</div>
+          <div class="ws-ph" onclick="setPhase(this,'identidad')">Identidad de marca</div>
+          <div class="ws-ph" onclick="setPhase(this,'manual')">Manual de marca</div>
+        </div>
+
+        <div class="phase-content" id="phase-panel">
+          <h3>Narrativa de marca</h3>
+          <div class="phase-note">En esta etapa trabajamos juntas en los conceptos y el relato que define la esencia de la marca. El cliente puede ver los avances y dejar comentarios.</div>
+          <div style="background:var(--cream);border-radius:var(--r);padding:14px;margin-bottom:14px">
+            <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Conceptos presentados</div>
+            <div style="font-size:12px;line-height:1.65;color:var(--txt)">
+              <strong>Concepto A — "La luz que ordena":</strong> Una marca que parte de la claridad interna para manifestar orden estético. La energía como herramienta de diseño.<br><br>
+              <strong>Concepto B — "Arquitectura del alma":</strong> Marca que construye identidad desde la estructura profunda. Cada elemento visual es consecuencia de una verdad.
+            </div>
+          </div>
+          <div class="comment-box">
+            <div class="cb-hd">Comentarios del cliente</div>
+            <div class="comment">
+              <div class="cm-av c">SB</div>
+              <div class="cm-txt">
+                <div class="cm-who">Studio Bloom <span class="cm-t">Hoy, 09:15</span></div>
+                Me encanta el Concepto A. "La luz que ordena" resuena mucho con lo que buscamos. ¿Podemos profundizar en esa dirección?
+              </div>
+            </div>
+            <div class="comment">
+              <div class="cm-av">S</div>
+              <div class="cm-txt">
+                <div class="cm-who">Sofia <span class="cm-t">Hoy, 10:02</span></div>
+                Perfecto, tomamos esa dirección como base. Voy a desarrollar los elementos visuales en torno a "La luz que ordena". ¡Gracias!
+              </div>
+            </div>
+            <div class="new-comment">
+              <div class="cm-av">S</div>
+              <input type="text" placeholder="Escribir comentario…" id="new-cm-input">
+              <button class="btn btn-k" style="padding:6px 13px;font-size:10px" onclick="addComment()">Enviar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-lbl">Control de pagos</div></div>
+          <table class="tbl">
+            <thead><tr><th>Concepto</th><th>Monto</th><th>Fecha</th><th>Estado</th></tr></thead>
+            <tbody>
+              <tr><td>Seña 50%</td><td style="font-weight:500">$1.400</td><td style="font-size:11px">1 abr 2026</td><td><span class="pill p-green">Pagado</span></td></tr>
+              <tr><td>Saldo final</td><td style="font-weight:500">$1.400</td><td style="font-size:11px">Al entregar</td><td><span class="pill p-warn">Pendiente</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<script>
+// ── STATE ──
+var state = {
+  flowStep: 'negociacion', // negociacion | presup | contrato | pago | onboarding
+  leadsCount: 4,
+};
+
+// ── TOAST ──
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2800);
+}
+
+// ── MODALS ──
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// ── NAV ──
+var pages = ['dash','leads','lead-detail','clients','presup','invoice','portal','workspace'];
+var navMap = {
+  'dash':'nav-dash','leads':'nav-leads','lead-detail':'nav-leads',
+  'clients':'nav-clients','presup':'nav-presup','invoice':'nav-invoice',
+  'portal':'nav-portal','workspace':'nav-workspace'
+};
+var topbarConfig = {
+  'dash':       {title:'Dashboard',sub:'Abril 2026', actions:''},
+  'leads':      {title:'Leads',sub:'<span id="leads-count">4</span> contactos activos', actions:'<button class="btn btn-k" onclick="openModal(\'modal-lead\')">+ Agregar manual</button>'},
+  'lead-detail':{title:'Valentina Rossi',sub:'Lead · Studio Rossi Comunicación', actions:'<button class="btn" onclick="showPage(\'leads\')">← Volver</button><button class="btn btn-p" onclick="showPage(\'presup\');updateFlow(\'presup\')">Generar presupuesto →</button>'},
+  'clients':    {title:'Clientes',sub:'Base de datos', actions:'<button class="btn btn-k" onclick="toast(\'Formulario de nuevo cliente\')">+ Agregar cliente</button>'},
+  'presup':     {title:'Presupuesto',sub:'Valentina Rossi — Identidad de marca', actions:'<button class="btn" onclick="toast(\'PDF generado ✓\')">Vista previa PDF</button><button class="btn btn-k" onclick="openModal(\'modal-send\')">Enviar por mail →</button>'},
+  'invoice':    {title:'Facturas',sub:'Emitidas este mes', actions:'<button class="btn btn-k" onclick="openModal(\'modal-invoice\')">+ Nueva factura</button>'},
+  'portal':     {title:'Portal del cliente',sub:'Vista de Valentina Rossi', actions:'<button class="btn btn-k" onclick="toast(\'Link copiado al portapapeles ✓\')">Copiar link →</button>'},
+  'workspace':  {title:'Proyecto — Studio Bloom',sub:'Estrategia visual · En diseño', actions:'<button class="btn btn-p" onclick="openModal(\'modal-invoice\')">Generar factura</button>'},
+};
+
+function showPage(id) {
+  pages.forEach(function(p){
+    var el = document.getElementById('page-'+p);
+    if(el) el.classList.remove('on');
+  });
+  document.querySelectorAll('.sb-item').forEach(function(b){ b.classList.remove('on'); });
+  var el = document.getElementById('page-'+id);
+  if(el) el.classList.add('on');
+  var nav = document.getElementById(navMap[id]);
+  if(nav) nav.classList.add('on');
+  var cfg = topbarConfig[id] || {};
+  document.getElementById('tb-title').textContent = cfg.title || '';
+  document.getElementById('tb-sub').innerHTML = cfg.sub || '';
+  document.getElementById('tb-actions').innerHTML = cfg.actions || '';
+}
+
+// ── FLOW BAR ──
+var flowOrder = ['negociacion','presup','contrato','pago','onboarding'];
+function updateFlow(step) {
+  state.flowStep = step;
+  var reached = false;
+  var steps = document.querySelectorAll('#flow-bar .flow-step');
+  var labels = ['Form recibido','Negociación','Presupuesto','Contrato','Seña','Onboarding'];
+  var keys = ['form','negociacion','presup','contrato','pago','onboarding'];
+  var idx = keys.indexOf(step);
+  steps.forEach(function(s, i){
+    s.classList.remove('done','active');
+    if(i < idx) s.classList.add('done');
+    else if(i === idx) s.classList.add('active');
+  });
+}
+
+// ── LEAD STATUS ──
+function updateLeadStatus(val) {
+  var pill = document.getElementById('lead-status-pill');
+  pill.className = 'pill';
+  if(val === 'Ganado') pill.classList.add('p-green');
+  else if(val === 'Perdido') pill.classList.add('p-red');
+  else pill.classList.add('p-blue');
+  pill.textContent = val;
+}
+
+// ── NEW LEAD ──
+function saveLead() {
+  closeModal('modal-lead');
+  state.leadsCount++;
+  document.getElementById('badge-leads').textContent = state.leadsCount;
+  var tbody = document.getElementById('leads-tbody');
+  var tr = document.createElement('tr');
+  tr.className = 'clickable';
+  tr.innerHTML = '<td><div class="tn">Nuevo lead</div><span class="ts">— </span></td><td><span class="pill p-dark">Identidad de marca</span></td><td style="font-weight:500">—</td><td style="font-size:11px;color:var(--muted)">Web</td><td><span class="pill p-blue">Negociación</span></td><td style="font-size:10px;color:var(--muted)">Recién ingresado</td><td><button class="ta">Ver →</button></td>';
+  tbody.insertBefore(tr, tbody.firstChild);
+  // Add to activity
+  var feed = document.getElementById('activity-feed');
+  var row = document.createElement('div');
+  row.className = 'act-row';
+  row.innerHTML = '<div class="act-d d-y"></div><div>Lead nuevo agregado manualmente<span class="act-t">Ahora</span></div>';
+  feed.insertBefore(row, feed.firstChild);
+  toast('Lead guardado ✓');
+}
+
+// ── SEND PRESUPUESTO ──
+function doSend() {
+  closeModal('modal-send');
+  updateFlow('contrato');
+  document.getElementById('tl-presup-sent').style.display = 'flex';
+  // Update badge
+  var b = document.getElementById('badge-presup');
+  if(b) b.textContent = '0';
+  // Add activity
+  var feed = document.getElementById('activity-feed');
+  var row = document.createElement('div');
+  row.className = 'act-row';
+  row.innerHTML = '<div class="act-d d-p"></div><div>Presupuesto enviado — Valentina Rossi<span class="act-t">Ahora</span></div>';
+  feed.insertBefore(row, feed.firstChild);
+  toast('Presupuesto enviado a valentina@studiorossi.com ✓');
+  // Show contract signed simulation after delay
+  setTimeout(function(){
+    document.getElementById('tl-contract-signed').style.display = 'flex';
+    document.getElementById('btn-send-onboard').style.display = 'block';
+    updateFlow('pago');
+    openModal('modal-contract');
+  }, 1800);
+}
+
+// ── CONVERT TO CLIENT ──
+function doConvert() {
+  closeModal('modal-convert');
+  // Add to clients table
+  var tbody = document.getElementById('clients-tbody');
+  var tr = document.createElement('tr');
+  tr.className = 'clickable';
+  tr.innerHTML = '<td><div class="tn">Valentina Rossi</div><span class="ts">Studio Rossi Comunicación</span></td><td><span class="pill p-dark">Identidad de marca</span></td><td style="font-weight:500">$3.200</td><td style="font-size:11px">50% seña</td><td style="font-weight:500;color:var(--orange)">$1.600</td><td><span class="pill p-warn">Partial</span></td><td><button class="ta">Proyecto →</button></td>';
+  tbody.insertBefore(tr, tbody.firstChild);
+  // Add activity
+  var feed = document.getElementById('activity-feed');
+  var row = document.createElement('div');
+  row.className = 'act-row';
+  row.innerHTML = '<div class="act-d d-g"></div><div>Lead convertido a cliente — Valentina Rossi<span class="act-t">Ahora</span></div>';
+  feed.insertBefore(row, feed.firstChild);
+  toast('Valentina Rossi convertida a cliente ✓');
+  setTimeout(function(){ showPage('clients'); }, 600);
+}
+
+// ── INVOICE ──
+function doInvoice() {
+  closeModal('modal-invoice');
+  toast('Factura generada y guardada ✓');
+}
+function markPaid() {
+  document.getElementById('inv-luna-status').className = 'pill p-green';
+  document.getElementById('inv-luna-status').textContent = 'Pagado';
+  document.getElementById('tbl-luna-status').className = 'pill p-green';
+  document.getElementById('tbl-luna-status').textContent = 'Pagado';
+  document.getElementById('m-cobrar').textContent = '$300';
+  toast('Factura marcada como pagada ✓');
+}
+
+// ── PORTAL: Submit Brief ──
+function submitBrief() {
+  var v1 = document.getElementById('bf1').value;
+  var v2 = document.getElementById('bf2').value;
+  if(!v1 && !v2){
+    toast('Completá al menos un campo antes de enviar');
+    return;
+  }
+  document.getElementById('portal-prebrief-section').innerHTML =
+    '<div style="text-align:center;padding:20px 0">' +
+    '<div style="font-size:32px;margin-bottom:10px">✓</div>' +
+    '<div style="font-family:var(--serif);font-size:18px;margin-bottom:6px">Pre-brief enviado</div>' +
+    '<div style="font-size:12px;color:var(--muted);line-height:1.6">Gracias, Valentina. Sofia recibió tus respuestas y las está revisando. Próximamente te llegará el link para agendar tu sesión Deep Dive.</div>' +
+    '</div>';
+  document.getElementById('pp-prebrief').className = 'pp done';
+  document.getElementById('pp-prebrief').innerHTML = '<span class="pi" style="color:var(--pink)">✓</span>Pre-brief';
+  document.getElementById('pp-narrativa').className = 'pp active';
+  document.getElementById('pp-narrativa').innerHTML = '<span class="pi">●</span>Narrativa';
+  document.getElementById('portal-calendar-section').style.display = 'block';
+  // Notify admin
+  var feed = document.getElementById('activity-feed');
+  var row = document.createElement('div');
+  row.className = 'act-row';
+  row.innerHTML = '<div class="act-d d-p"></div><div>Pre-brief recibido — Valentina Rossi<span class="act-t">Ahora</span></div>';
+  feed.insertBefore(row, feed.firstChild);
+  toast('Pre-brief recibido. Notificación enviada a Sofia ✓');
+}
+
+// ── WORKSPACE: phases ──
+function setPhase(el, id) {
+  document.querySelectorAll('.ws-ph').forEach(function(b){
+    if(!b.classList.contains('done')) b.classList.remove('on');
+  });
+  if(!el.classList.contains('done')) el.classList.add('on');
+  var panel = document.getElementById('phase-panel');
+  var content = {
+    'onboarding': '<h3>Onboarding</h3><div class="phase-note">El cliente recibió el mail de bienvenida con el onboarding y el pre-brief adjunto. Esta etapa está completada.</div><div style="background:var(--green-l);border-radius:var(--r);padding:12px 14px;font-size:12px;color:var(--green)">✓ Completado el 2 abr 2026</div>',
+    'prebrief': '<h3>Pre-brief</h3><div class="phase-note">El cliente completó el pre-brief el 5 de abril. Las respuestas están disponibles abajo.</div><div style="background:var(--cream);border-radius:var(--r);padding:14px;font-size:12px;color:var(--txt);line-height:1.65"><strong>3 palabras que definen la marca:</strong> Auténtica, estructurada, luminosa.<br><br><strong>¿Qué siente el cliente ideal?</strong> Claridad, confianza, que está en buenas manos.<br><br><strong>¿Qué la hace única?</strong> La combinación de estructura analítica con sensibilidad estética.</div>',
+    'narrativa': '<h3>Narrativa de marca</h3><div class="phase-note">En esta etapa trabajamos juntas en los conceptos y el relato de la marca.</div><div style="background:var(--cream);border-radius:var(--r);padding:14px;margin-bottom:14px;font-size:12px;line-height:1.65"><strong>Concepto A — "La luz que ordena":</strong> Una marca que parte de la claridad interna para manifestar orden estético.<br><br><strong>Concepto B — "Arquitectura del alma":</strong> Marca que construye identidad desde la estructura profunda.</div><div class="comment-box"><div class="cb-hd">Comentarios</div><div class="comment"><div class="cm-av c">SB</div><div class="cm-txt"><div class="cm-who">Studio Bloom <span class="cm-t">Hoy</span></div>Me encanta el Concepto A, resuena mucho con nosotros.</div></div><div class="new-comment"><div class="cm-av">S</div><input type="text" id="new-cm-input" placeholder="Responder…"><button class="btn btn-k" style="padding:6px 13px;font-size:10px" onclick="addComment()">Enviar</button></div></div>',
+    'identidad': '<h3>Identidad de marca</h3><div class="phase-note">Presentación del sistema visual completo. El cliente agenda la call de presentación en vivo.</div><button class="btn btn-k" style="margin-bottom:14px" onclick="toast(\'Abriendo Google Calendar… ✓\')">Agendar call de presentación →</button><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px"><div style="background:var(--black);border-radius:var(--r);padding:20px;text-align:center;color:var(--cream);font-size:10px">Logotipo<br><div style="font-family:var(--serif);font-size:22px;margin-top:8px;font-style:italic">SB</div></div><div style="background:#E8D5F0;border-radius:var(--r);padding:20px;text-align:center;font-size:10px;color:#4a1a6a">Paleta<br><div style="display:flex;gap:4px;justify-content:center;margin-top:8px"><div style="width:16px;height:16px;border-radius:50%;background:#323FF6"></div><div style="width:16px;height:16px;border-radius:50%;background:#F03172"></div><div style="width:16px;height:16px;border-radius:50%;background:#F9F3DB"></div></div></div><div style="background:var(--cream);border-radius:var(--r);padding:20px;text-align:center;font-size:10px;border:1px solid var(--border)">Tipografía<br><div style="font-family:var(--serif);font-size:16px;margin-top:6px;font-style:italic">Garamond</div></div></div>',
+    'manual': '<h3>Manual de marca</h3><div class="phase-note">El manual de marca completo está listo. El cliente lo descarga desde el link seguro.</div><div style="display:flex;gap:10px"><button class="btn btn-k" onclick="toast(\'PDF generado ✓\')">Descargar PDF manual</button><button class="btn" onclick="toast(\'Link copiado ✓\')">Copiar link de entrega</button></div>',
+  };
+  panel.innerHTML = content[id] || panel.innerHTML;
+}
+
+// ── ADD COMMENT ──
+function addComment() {
+  var input = document.getElementById('new-cm-input');
+  if(!input || !input.value.trim()) return;
+  var box = input.closest('.comment-box');
+  var newRow = document.createElement('div');
+  newRow.className = 'comment';
+  newRow.innerHTML = '<div class="cm-av">S</div><div class="cm-txt"><div class="cm-who">Sofia <span class="cm-t">Ahora</span></div>' + input.value + '</div>';
+  box.insertBefore(newRow, input.closest('.new-comment'));
+  input.value = '';
+  toast('Comentario enviado ✓');
+}
+
+// Init
+showPage('leads');
+</script>
+</body>
+</html>
