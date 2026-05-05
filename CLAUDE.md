@@ -12,6 +12,12 @@
 ## Stack
 Next.js 15 App Router · Prisma 6 · PostgreSQL (Neon) · Vercel · TypeScript · Tailwind CSS
 
+## Repositorio Git canónico y push (no repetir el error del fork)
+- **Repo oficial del proyecto (origen de verdad):** [SOFIACIABATTONI/soulfulbrandingSC](https://github.com/SOFIACIABATTONI/soulfulbrandingSC).
+- En local, `git remote -v` debe tener **`origin`** apuntando a ese repo. Si hace falta un fork o espejo personal, usar un segundo remoto con otro nombre (ej. `ailen`), **no** como `origin` si el trabajo es para producción de la clienta.
+- **Vercel:** el proyecto debe estar conectado a **este mismo repo** (`SOFIACIABATTONI/soulfulbrandingSC`) y a la rama de producción (`master`). Si el dashboard apunta a otro fork, los pushes “correctos” no dispararán el deploy esperado.
+- **Prisma / Neon:** el `schema.prisma` está pensado para **solo `DATABASE_URL`** en el datasource (sin `directUrl`). Variables extra en Vercel no molestan; lo importante es que exista `DATABASE_URL` válida para build (`prisma migrate deploy` + `next build`).
+
 ## Rama de trabajo
 Crear rama antes de cada bloque:
 - feature/erp-bloque-1-schema
