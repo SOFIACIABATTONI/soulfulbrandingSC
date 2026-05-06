@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendContactEmailNotification } from "@/lib/send-contact-email";
 import { z } from "zod";
 import { isContactFormKey } from "@/lib/contact-form-keys";
 
@@ -40,5 +41,14 @@ export async function POST(req: Request) {
       stageTitle,
     },
   });
+
+  await sendContactEmailNotification({
+    name,
+    email,
+    message,
+    formKey,
+    stageTitle,
+  });
+
   return NextResponse.json({ ok: true });
 }
