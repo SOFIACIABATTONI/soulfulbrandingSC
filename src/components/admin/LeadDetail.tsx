@@ -20,6 +20,9 @@ const STEP_INDEX: Record<string, number> = {
   form: 0, negociacion: 1, presupuesto: 2, contrato: 3, sena: 4, onboarding: 5,
 };
 
+/** Frase que hay que escribir para confirmar borrado (segunda aceptación). */
+const DELETE_CONFIRM_PHRASE = "ELIMINAR";
+
 function FlowBar({
   pipelineStep,
   status,
@@ -84,6 +87,11 @@ export function LeadDetail({ lead: initial }: { lead: Lead }) {
   const [editNotes, setEditNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(initial.notes);
   const [notesExpanded, setNotesExpanded] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteAck, setDeleteAck] = useState(false);
+  const [deletePhrase, setDeletePhrase] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function patchLead(data: Partial<Lead>) {
     setSaving(true);
@@ -103,6 +111,37 @@ export function LeadDetail({ lead: initial }: { lead: Lead }) {
   async function saveNotes() {
     await patchLead({ notes: notesValue });
     setEditNotes(false);
+  }
+
+  function resetDeleteModal() {
+    setDeleteOpen(false);
+    setDeleteAck(false);
+    setDeletePhrase("");
+    setDeleteError(null);
+  }
+
+  async function deleteLeadPermanently() {
+    setDeleteError(null);
+    setDeleting(true);
+    const res = await fetch(`/api/admin/leads/${lead.id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    setDeleting(false);
+    if (res.ok) {
+      resetDeleteModal();
+      router.push("/admin/leads");
+      router.refresh();
+      return;
+    }
+    let msg = "No se pudo eliminar.";
+    try {
+      const j = (await res.json()) as { error?: string };
+      if (j.error) msg = j.error;
+    } catch {
+      /* ignore */
+    }
+    setDeleteError(msg);
   }
 
   async function convertToClient() {
@@ -393,6 +432,19 @@ export function LeadDetail({ lead: initial }: { lead: Lead }) {
                   Marcar como perdido
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteAck(false);
+                  setDeletePhrase("");
+                  setDeleteError(null);
+                  setDeleteOpen(true);
+                }}
+                className="rounded border px-3 py-2 text-xs text-center transition-colors hover:bg-red-50"
+                style={{ borderColor: "rgba(185,28,28,0.35)", color: "#b91c1c" }}
+              >
+                Eliminar lead…
+              </button>
             </div>
           </div>
 
@@ -425,6 +477,98 @@ export function LeadDetail({ lead: initial }: { lead: Lead }) {
           </div>
         </div>
       </div>
+
+      {deleteOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(13,13,13,0.55)" }}
+          onClick={(e) => e.target === e.currentTarget && !deleting && resetDeleteModal()}
+        >
+          <div
+            className="w-full max-w-md rounded bg-white shadow-2xl p-5 space-y-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-lead-title"
+          >
+            <h3
+              id="delete-lead-title"
+              className="font-serif text-lg italic"
+              style={{ color: "#b91c1c" }}
+            >
+              Eliminar lead
+            </h3>
+            <p className="text-sm leading-relaxed" style={{ color: "rgba(13,13,13,0.65)" }}>
+              Se borrará de forma permanente el lead de{" "}
+              <strong style={{ color: "#0D0D0D" }}>{lead.name}</strong>. Si existía un cliente
+              vinculado por conversión, solo se quitará el enlace a este lead; el cliente y sus
+              proyectos no se eliminan.
+            </p>
+            <label className="flex items-start gap-2 cursor-pointer text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={deleteAck}
+                disabled={deleting}
+                onChange={(e) => setDeleteAck(e.target.checked)}
+              />
+              <span style={{ color: "#0D0D0D" }}>
+                Confirmo que quiero eliminar este lead y entiendo que no se puede deshacer.
+              </span>
+            </label>
+            <div>
+              <label
+                className="block text-[9px] font-medium uppercase tracking-widest mb-1"
+                style={{ color: "rgba(13,13,13,0.42)" }}
+              >
+                Escribí <strong className="text-[#0D0D0D]">{DELETE_CONFIRM_PHRASE}</strong> para
+                confirmar
+              </label>
+              <input
+                type="text"
+                className="w-full rounded border px-3 py-2 text-sm"
+                style={{
+                  borderColor: "rgba(185,28,28,0.45)",
+                  background: "#fff",
+                  color: "#0D0D0D",
+                }}
+                autoComplete="off"
+                disabled={deleting}
+                value={deletePhrase}
+                onChange={(e) => setDeletePhrase(e.target.value)}
+                placeholder={DELETE_CONFIRM_PHRASE}
+              />
+            </div>
+            {deleteError && (
+              <p className="text-xs text-red-700 bg-red-50 border border-red-100 rounded px-2 py-1.5">
+                {deleteError}
+              </p>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => resetDeleteModal()}
+                className="rounded border border-neutral-200 px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={
+                  deleting ||
+                  !deleteAck ||
+                  deletePhrase.trim() !== DELETE_CONFIRM_PHRASE
+                }
+                onClick={() => void deleteLeadPermanently()}
+                className="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: "#b91c1c" }}
+              >
+                {deleting ? "Eliminando…" : "Eliminar definitivamente"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
