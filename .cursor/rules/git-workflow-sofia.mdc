@@ -1,0 +1,35 @@
+---
+description: Git y remotes — push a sofia, master, rama dev opcional; sin asumir GitHub como remoto principal.
+alwaysApply: true
+---
+
+# Git — flujo Soulful Branding (remoto Sofía)
+
+## Remoto principal para publicar
+- El remoto donde se **pushea** el trabajo acordado es **`sofia`**, no `origin`.
+- Producción / línea principal del repo: **`master`** (salvo que el equipo indique otra rama).
+- Comando típico de publicación: `git push sofia master` (o `git push sofia <rama>` si están probando otra rama).
+
+## No asumir GitHub
+- El proyecto **no depende** de GitHub como fuente de verdad: puede haber solo Dropbox + remoto `sofia`, u otros remotos.
+- Antes de sugerir `git push origin` o abrir PR en GitHub, **verificar** remotos con `git remote -v` y usar el remoto que corresponda (`sofia` para publicar según este flujo).
+
+## Rama `dev` (opcional, pre-productivo)
+- Si existe flujo **dev → pruebas → master**: integrar en `dev`, probar (p. ej. preview en Vercel), luego merge a `master` y `git push sofia master`.
+- Mantener `dev` al día mergeando `master` → `dev` cuando haga falta para evitar divergencia larga.
+
+## Notas y docs solo locales
+- **`private-notes/`** está en `.gitignore`: comandos, env, notas internas — no van al remoto.
+- **`CLAUDE.md`** en la raíz suele estar **versionado** para que el equipo y Cursor compartan convenciones.
+
+### Si querés sacar `CLAUDE.md` del remoto (solo en tu máquina / sin subirlo más)
+1. Agregar `CLAUDE.md` al `.gitignore`.
+2. Dejar de trackearlo sin borrar el archivo: `git rm --cached CLAUDE.md` y commit.
+3. Próximo `git push sofia <rama>` deja de incluir ese archivo en el árbol del remoto.
+
+**Ojo:** quien clone solo verá el historial hasta que se eliminó del índice; para convenciones compartidas suele ser mejor **mantener** `CLAUDE.md` en el repo y poner datos sensibles en `private-notes/`.
+
+## Resumen para el agente
+- Push de publicación acordado: **`git push sofia master`** (u otra rama explícita).
+- No inventar `origin` como destino por defecto.
+- Respetar `CLAUDE.md` del proyecto salvo pedido explícito de migrar contenido a `private-notes/` o dejar de versionarlo.
