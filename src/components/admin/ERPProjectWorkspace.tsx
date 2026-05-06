@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 // ── tipos ──────────────────────────────────────────────────
 type InvoiceSummary = {
@@ -118,14 +119,22 @@ function formatDate(d: string | null) {
   return new Date(d).toLocaleDateString("es-AR", { dateStyle: "medium" });
 }
 
+const DELETE_CONFIRM_PHRASE = "ELIMINAR";
+
 // ── componente principal ───────────────────────────────────
 export function ERPProjectWorkspace({ project: initial }: { project: ClientProject }) {
+  const router = useRouter();
   const [project, setProject] = useState(initial);
   const [phases, setPhases] = useState<Record<string, PhaseContent>>(() =>
     parsePhases(initial.phases ?? {})
   );
   const [savingPhase, setSavingPhase] = useState<string | null>(null);
   const [savingProject, setSavingProject] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteAck, setDeleteAck] = useState(false);
+  const [deletePhrase, setDeletePhrase] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const savePhaseContent = useCallback(
     async (key: string, data: Partial<PhaseContent>) => {
@@ -164,11 +173,43 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
     setSavingProject(false);
   }
 
+  function resetDeleteModal() {
+    setDeleteOpen(false);
+    setDeleteAck(false);
+    setDeletePhrase("");
+    setDeleteError(null);
+  }
+
+  async function deleteProjectPermanently() {
+    setDeleteError(null);
+    setDeleting(true);
+    const res = await fetch(`/api/admin/projects-erp/${project.id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    setDeleting(false);
+    if (res.ok) {
+      resetDeleteModal();
+      router.push("/admin/proyectos");
+      router.refresh();
+      return;
+    }
+    let msg = "No se pudo eliminar.";
+    try {
+      const j = (await res.json()) as { error?: string };
+      if (j.error) msg = j.error;
+    } catch {
+      /* ignore */
+    }
+    setDeleteError(msg);
+  }
+
   const totalFacturado = project.invoices.reduce((a, i) => a + i.total, 0);
   const porCobrar = project.invoices.filter((i) => i.status === "pendiente").reduce((a, i) => a + i.total, 0);
   const sc = PROJECT_STATUS_COLORS[project.status] ?? PROJECT_STATUS_COLORS.onboarding;
 
   return (
+    <>
     <div className="rounded-[28px] border border-neutral-200/80 bg-white p-4 shadow-sm md:p-8">
 
       {/* ── Cabecera ── */}
@@ -202,6 +243,19 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
             style={{ background: sc.bg, color: sc.color }}>
             {project.status}
           </span>
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteAck(false);
+              setDeletePhrase("");
+              setDeleteError(null);
+              setDeleteOpen(true);
+            }}
+            className="rounded border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-red-50"
+            style={{ borderColor: "rgba(185,28,28,0.35)", color: "#b91c1c" }}
+          >
+            Eliminar proyecto…
+          </button>
         </div>
       </div>
 
@@ -383,5 +437,99 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         })}
       </div>
     </div>
+
+    {deleteOpen && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: "rgba(13,13,13,0.55)" }}
+        onClick={(e) => e.target === e.currentTarget && !deleting && resetDeleteModal()}
+      >
+        <div
+          className="w-full max-w-md rounded bg-white shadow-2xl p-5 space-y-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-project-title"
+        >
+          <h3
+            id="delete-project-title"
+            className="font-serif text-lg italic"
+            style={{ color: "#b91c1c" }}
+          >
+            Eliminar proyecto
+          </h3>
+          <p className="text-sm leading-relaxed" style={{ color: "rgba(13,13,13,0.65)" }}>
+            Se borrará de forma permanente el proyecto{" "}
+            <strong style={{ color: "#0D0D0D" }}>{project.title}</strong> de{" "}
+            <strong style={{ color: "#0D0D0D" }}>{project.client.name}</strong>, incluyendo
+            facturas y tokens de acceso vinculados solo a este proyecto. El cliente y sus otros
+            proyectos no se eliminan.
+          </p>
+          <label className="flex items-start gap-2 cursor-pointer text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={deleteAck}
+              disabled={deleting}
+              onChange={(e) => setDeleteAck(e.target.checked)}
+            />
+            <span style={{ color: "#0D0D0D" }}>
+              Confirmo que quiero eliminar este proyecto y entiendo que no se puede deshacer.
+            </span>
+          </label>
+          <div>
+            <label
+              className="block text-[9px] font-medium uppercase tracking-widest mb-1"
+              style={{ color: "rgba(13,13,13,0.42)" }}
+            >
+              Escribí <strong className="text-[#0D0D0D]">{DELETE_CONFIRM_PHRASE}</strong> para
+              confirmar
+            </label>
+            <input
+              type="text"
+              className="w-full rounded border px-3 py-2 text-sm"
+              style={{
+                borderColor: "rgba(185,28,28,0.45)",
+                background: "#fff",
+                color: "#0D0D0D",
+              }}
+              autoComplete="off"
+              disabled={deleting}
+              value={deletePhrase}
+              onChange={(e) => setDeletePhrase(e.target.value)}
+              placeholder={DELETE_CONFIRM_PHRASE}
+            />
+          </div>
+          {deleteError && (
+            <p className="text-xs text-red-700 bg-red-50 border border-red-100 rounded px-2 py-1.5">
+              {deleteError}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={() => resetDeleteModal()}
+              className="rounded border border-neutral-200 px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={
+                deleting ||
+                !deleteAck ||
+                deletePhrase.trim() !== DELETE_CONFIRM_PHRASE
+              }
+              onClick={() => void deleteProjectPermanently()}
+              className="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: "#b91c1c" }}
+            >
+              {deleting ? "Eliminando…" : "Eliminar definitivamente"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

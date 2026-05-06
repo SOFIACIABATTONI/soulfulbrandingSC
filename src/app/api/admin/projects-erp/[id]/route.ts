@@ -82,10 +82,22 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
   const { id } = await ctx.params;
-  try {
-    await prisma.clientProject.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
-  } catch {
+  const existing = await prisma.clientProject.findUnique({ where: { id } });
+  if (!existing) {
     return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+  }
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.clientAccessToken.deleteMany({ where: { projectId: id } });
+      await tx.invoice.deleteMany({ where: { projectId: id } });
+      await tx.clientProject.delete({ where: { id } });
+    });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[admin/projects-erp DELETE]", e);
+    return NextResponse.json(
+      { error: "No se pudo eliminar (restricción en base de datos)" },
+      { status: 409 },
+    );
   }
 }
