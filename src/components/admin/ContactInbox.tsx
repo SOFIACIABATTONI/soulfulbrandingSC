@@ -88,11 +88,11 @@ export function ContactInbox({ onNewCountChange }: { onNewCountChange?: (n: numb
     setItems((all) => all.map((m) => (m.id === id ? { ...m, status } : m)));
     // actualizar badge en tiempo real
     if (prev?.status === "nuevo" && status !== "nuevo") {
-      setLocalNewCount((n) => {
-        const next = Math.max(0, (n ?? 0) - 1);
-        onNewCountChange?.(next);
-        return next;
-      });
+      const baseline =
+        localNewCount ?? items.filter((m) => m.status === "nuevo").length;
+      const next = Math.max(0, baseline - 1);
+      setLocalNewCount(next);
+      onNewCountChange?.(next);
     }
   }
 
