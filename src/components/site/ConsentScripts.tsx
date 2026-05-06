@@ -1,13 +1,16 @@
 "use client";
 
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { useEffect, useState } from "react";
 import type { ConsentState } from "@/lib/cookie-consent";
 import { getConsent } from "@/lib/cookie-consent";
 
+const GA_MEASUREMENT_ID =
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? "G-7HMFH56SV0";
+
 /**
- * Punto único para cargar scripts de analítica / marketing según consentimiento.
- * Hoy no inyecta nada: cuando definas GA4, Meta Pixel, etc., añadí Next.js Script aquí
- * leyendo `consent` (solo en cliente, tras hidratar).
+ * Scripts de analítica / marketing según consentimiento (localStorage).
+ * GA4 solo se monta si el usuario aceptó cookies de analítica.
  */
 export function ConsentScripts() {
   const [consent, setConsent] = useState<ConsentState | null>(null);
@@ -25,12 +28,7 @@ export function ConsentScripts() {
     return () => window.removeEventListener("sb-consent-updated", onUpdate);
   }, []);
 
-  useEffect(() => {
-    if (!consent) return;
-    // Ejemplo futuro:
-    // if (consent.analytics) { /* gtag config */ }
-    // if (consent.marketing) { /* fbq */ }
-  }, [consent]);
+  if (!consent?.analytics) return null;
 
-  return null;
+  return <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />;
 }
