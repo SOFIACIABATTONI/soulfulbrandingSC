@@ -22,13 +22,6 @@ alwaysApply: true
 - **`private-notes/`** está en `.gitignore`: comandos, env, notas internas — no van al remoto.
 - **`CLAUDE.md`** en la raíz suele estar **versionado** para que el equipo y Cursor compartan convenciones.
 
-### Si querés sacar `CLAUDE.md` del remoto (solo en tu máquina / sin subirlo más)
-1. Agregar `CLAUDE.md` al `.gitignore`.
-2. Dejar de trackearlo sin borrar el archivo: `git rm --cached CLAUDE.md` y commit.
-3. Próximo `git push sofia <rama>` deja de incluir ese archivo en el árbol del remoto.
-
-**Ojo:** quien clone solo verá el historial hasta que se eliminó del índice; para convenciones compartidas suele ser mejor **mantener** `CLAUDE.md` en el repo y poner datos sensibles en `private-notes/`.
-
 ## Resumen para el agente
 - Push de publicación acordado: **`git push sofia master`** (u otra rama explícita).
 - No inventar `origin` como destino por defecto.
