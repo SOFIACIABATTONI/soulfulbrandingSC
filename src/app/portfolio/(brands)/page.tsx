@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { getSiteContent } from "@/lib/content";
+import { buildPageMetadata } from "@/lib/site-metadata";
 import { PORTFOLIO_SHOWCASE } from "@/lib/portfolio-showcase";
 import { getTestimonials } from "@/lib/testimonials";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { PortfolioShowcase } from "@/components/site/PortfolioShowcase";
 import { PortfolioTestimonialsCarousel } from "@/components/site/PortfolioTestimonialsCarousel";
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: "Portfolio | Soulful Branding®",
-};
+  description:
+    "Portfolio de identidades de marca y proyectos de branding estratégico. Casos de estudio Soulful Branding®.",
+  path: "/portfolio",
+});
 
 export default async function PortfolioPage() {
   const c = await getSiteContent();

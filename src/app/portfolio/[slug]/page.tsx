@@ -1,7 +1,9 @@
+import type { StaticImageData } from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSiteContent } from "@/lib/content";
+import { buildPageMetadata, DEFAULT_OG_IMAGE_PATH } from "@/lib/site-metadata";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SectionImage } from "@/components/site/SectionImage";
 import { PortfolioCaseStudy } from "@/components/site/PortfolioCaseStudy";
@@ -13,13 +15,41 @@ type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
+function portfolioOgImagePath(cover: string | StaticImageData | undefined): string {
+  return typeof cover === "string" ? cover : DEFAULT_OG_IMAGE_PATH;
+}
+
 export async function generateMetadata(ctx: Pick<PageProps, "params">) {
   const { slug } = await ctx.params;
   const item = PORTFOLIO_SHOWCASE.find((p) => p.id === slug);
   if (item) {
-    return { title: `${item.title} | Soulful Branding®` };
+    return buildPageMetadata({
+      title: `${item.title} | Caso de branding | Soulful Branding®`,
+      description: `Proyecto de identidad de marca: ${item.title}. Portfolio Soulful Branding® — branding estratégico y diseño emocional.`,
+      path: `/portfolio/${slug}`,
+      imagePath: portfolioOgImagePath(item.cover),
+    });
   }
-  return { title: "Proyecto | Soulful Branding®" };
+
+  const project = await prisma.project.findFirst({
+    where: { slug, published: true },
+    select: { title: true, excerpt: true, imageUrl: true },
+  });
+  if (project) {
+    return buildPageMetadata({
+      title: `${project.title} | Soulful Branding®`,
+      description:
+        project.excerpt?.trim() ||
+        `Proyecto de branding: ${project.title}. Portfolio Soulful Branding®.`,
+      path: `/portfolio/${slug}`,
+      imagePath: project.imageUrl?.trim() || DEFAULT_OG_IMAGE_PATH,
+    });
+  }
+
+  return buildPageMetadata({
+    title: "Proyecto | Soulful Branding®",
+    path: `/portfolio/${slug}`,
+  });
 }
 
 export default async function ProjectDetailPage(ctx: PageProps) {

@@ -2,10 +2,13 @@ import { LegalMarkdownBody } from "@/components/site/LegalMarkdownBody";
 import { LegalDocShell } from "@/components/site/LegalDocShell";
 import { readLegalMarkdownFile } from "@/lib/legal-docs";
 import { getSiteContent } from "@/lib/content";
+import { buildPageMetadata } from "@/lib/site-metadata";
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: "Política de privacidad | Soulful Branding®",
-};
+  description: "Política de privacidad del sitio Soulful Branding® — sofiaciabattoni.com.",
+  path: "/politica-privacidad",
+});
 
 export default async function PoliticaPrivacidadPage() {
   const [c, body] = await Promise.all([getSiteContent(), readLegalMarkdownFile("politica-privacidad.md")]);
