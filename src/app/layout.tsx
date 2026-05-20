@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     images: [
       {
         url: DEFAULT_OG_IMAGE_PATH,
-        alt: `${SITE_NAME} — branding estratégico e identidad de marca`,
+        alt: `Sofía Ciabattoni — proceso creativo Soulful Branding®`,
       },
     ],
   },

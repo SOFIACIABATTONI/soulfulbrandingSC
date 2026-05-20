@@ -10,7 +10,7 @@ export const DEFAULT_DESCRIPTION =
   "Estudio de branding estratégico e identidad de marca. Método Soulful Branding® — estrategia, energía e identidad para marcas conscientes.";
 
 /** Imagen por defecto para compartir en redes (ruta bajo `public/`) */
-export const DEFAULT_OG_IMAGE_PATH = "/media/method-sofia-seated.png";
+export const DEFAULT_OG_IMAGE_PATH = "/media/og-sofia-creative-process-floor.jpg";
 
 type BuildPageMetadataInput = {
   title: string;
