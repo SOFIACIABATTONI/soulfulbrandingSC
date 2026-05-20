@@ -1,4 +1,5 @@
 import { getSiteContent } from "@/lib/content";
+import { buildPageMetadata } from "@/lib/site-metadata";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { HeroSection } from "@/components/site/HeroSection";
 import { EssenceSection } from "@/components/site/EssenceSection";
@@ -7,6 +8,13 @@ import { StagesSection } from "@/components/site/StagesSection";
 import { ServicesSection } from "@/components/site/ServicesSection";
 import { ContactSection } from "@/components/site/ContactSection";
 import { SectionDebugIndicator } from "@/components/dev/SectionDebugIndicator";
+
+export const metadata = buildPageMetadata({
+  title: "Soulful Branding® | Branding estratégico e identidad de marca",
+  description:
+    "Estudio de branding estratégico e identidad de marca. Diseño emocional y método Soulful Branding® para emprendedoras y marcas conscientes.",
+  path: "/",
+});
 
 function firstQueryParam(v: string | string[] | undefined): string | undefined {
   if (v == null) return undefined;
