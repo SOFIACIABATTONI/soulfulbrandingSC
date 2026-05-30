@@ -2,9 +2,37 @@ import type { Metadata } from "next";
 
 export const SITE_NAME = "Soulful Branding®";
 
-export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.sofiaciabattoni.com"
-).replace(/\/$/, "");
+const DEFAULT_SITE_URL = "https://www.sofiaciabattoni.com";
+
+/**
+ * URL base para metadata, Open Graph y enlaces absolutos.
+ * - Preview Vercel: host del deployment (og:image apunta al mismo build desplegado).
+ * - Producción: dominio canónico (`NEXT_PUBLIC_SITE_URL`).
+ * - Local: `NEXT_PUBLIC_SITE_URL` o localhost.
+ */
+export function resolveSiteUrl(): string {
+  const canonical = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  const vercelHost = process.env.VERCEL_URL?.trim().replace(/\/$/, "");
+  const vercelEnv = process.env.VERCEL_ENV;
+
+  if (vercelEnv === "preview" && vercelHost) {
+    return `https://${vercelHost}`;
+  }
+
+  if (vercelEnv === "production" && canonical) {
+    return canonical;
+  }
+
+  if (canonical) return canonical;
+
+  if (vercelHost) return `https://${vercelHost}`;
+
+  return process.env.NODE_ENV === "production"
+    ? DEFAULT_SITE_URL
+    : "http://localhost:3000";
+}
+
+export const SITE_URL = resolveSiteUrl();
 
 export const DEFAULT_DESCRIPTION =
   "Estudio de branding estratégico e identidad de marca. Método Soulful Branding® — estrategia, energía e identidad para marcas conscientes.";
