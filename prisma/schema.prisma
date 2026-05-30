@@ -65,8 +65,30 @@ model Lead {
   notes              String   @default("")
   fromContactMessage String?
   client             Client?
+  quotes             Quote[]
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+model Quote {
+  id             String    @id @default(cuid())
+  leadId         String
+  lead           Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  // borrador | enviado | visto | aprobado | rechazado | consultar | expirado
+  status         String    @default("borrador")
+  /// SHA-256 del token público (el token plano solo se muestra al crear/enviar)
+  tokenHash      String    @unique
+  /// { body: string, total?: number, currency?: string }
+  content        Json
+  /// aprobado | rechazado | consultar
+  clientResponse String?
+  clientComment  String    @default("")
+  expiresAt      DateTime
+  sentAt         DateTime?
+  viewedAt       DateTime?
+  respondedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }
 
 model Client {

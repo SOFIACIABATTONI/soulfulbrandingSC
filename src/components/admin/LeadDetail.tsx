@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Lead } from "@prisma/client";
 import { SERVICE_LABELS, SOURCE_LABELS, STATUS_LABELS } from "./LeadsManager";
 import { FormMessageViewer, isFormMessage } from "./FormMessageViewer";
+import { LeadQuotePanel } from "./LeadQuotePanel";
 
 // ── Barra de progreso del flujo ────────────────────────────
 const FLOW_STEPS = [
@@ -477,6 +478,18 @@ export function LeadDetail({ lead: initial }: { lead: Lead }) {
           </div>
         </div>
       </div>
+
+      <LeadQuotePanel
+        leadId={lead.id}
+        lead={{
+          name: lead.name,
+          email: lead.email,
+          company: lead.company,
+          service: lead.service,
+          estimatedValue: lead.estimatedValue,
+          notes: lead.notes,
+        }}
+      />
 
       {deleteOpen && (
         <div
