@@ -7,7 +7,7 @@ const DEFAULT_SITE_URL = "https://www.sofiaciabattoni.com";
 /**
  * URL base para metadata, Open Graph y enlaces absolutos.
  * - Preview Vercel: host del deployment (og:image apunta al mismo build desplegado).
- * - Producción: dominio canónico (`NEXT_PUBLIC_SITE_URL`).
+ * - Producción: `NEXT_PUBLIC_SITE_URL` o fallback `https://www.sofiaciabattoni.com` (nunca VERCEL_URL).
  * - Local: `NEXT_PUBLIC_SITE_URL` o localhost.
  */
 export function resolveSiteUrl(): string {
@@ -15,12 +15,14 @@ export function resolveSiteUrl(): string {
   const vercelHost = process.env.VERCEL_URL?.trim().replace(/\/$/, "");
   const vercelEnv = process.env.VERCEL_ENV;
 
+  // Preview Vercel: og:image debe apuntar al mismo deployment
   if (vercelEnv === "preview" && vercelHost) {
     return `https://${vercelHost}`;
   }
 
-  if (vercelEnv === "production" && canonical) {
-    return canonical;
+  // Producción: dominio canónico. Nunca usar *.vercel.app en metadata de prod.
+  if (vercelEnv === "production") {
+    return canonical || DEFAULT_SITE_URL;
   }
 
   if (canonical) return canonical;
