@@ -4,7 +4,9 @@ import { ConsentScripts } from "@/components/site/ConsentScripts";
 import { CookieBanner } from "@/components/site/CookieBanner";
 import {
   DEFAULT_DESCRIPTION,
+  DEFAULT_OG_IMAGE_HEIGHT,
   DEFAULT_OG_IMAGE_PATH,
+  DEFAULT_OG_IMAGE_WIDTH,
   SITE_NAME,
   SITE_URL,
 } from "@/lib/site-metadata";
@@ -41,6 +43,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: DEFAULT_OG_IMAGE_PATH,
+        width: DEFAULT_OG_IMAGE_WIDTH,
+        height: DEFAULT_OG_IMAGE_HEIGHT,
         alt: `Sofía Ciabattoni — proceso creativo Soulful Branding®`,
       },
     ],

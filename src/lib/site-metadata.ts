@@ -37,8 +37,10 @@ export const SITE_URL = resolveSiteUrl();
 export const DEFAULT_DESCRIPTION =
   "Estudio de branding estratégico e identidad de marca. Método Soulful Branding® — estrategia, energía e identidad para marcas conscientes.";
 
-/** Imagen por defecto para compartir en redes (ruta bajo `public/`) */
-export const DEFAULT_OG_IMAGE_PATH = "/media/og-sofia-creative-process-floor.jpg";
+/** Imagen por defecto para compartir en redes (1200×630, <300 KB — requisito WhatsApp) */
+export const DEFAULT_OG_IMAGE_PATH = "/media/og-sofia-share.jpg";
+export const DEFAULT_OG_IMAGE_WIDTH = 1200;
+export const DEFAULT_OG_IMAGE_HEIGHT = 630;
 
 type BuildPageMetadataInput = {
   /** Título para Google / pestaña del navegador */
@@ -53,6 +55,10 @@ type BuildPageMetadataInput = {
   path?: string;
   /** Ruta bajo `public/` para `og:image` */
   imagePath?: string;
+  /** Ancho og:image (opcional; por defecto en imagen share) */
+  imageWidth?: number;
+  /** Alto og:image (opcional; por defecto en imagen share) */
+  imageHeight?: number;
   noIndex?: boolean;
 };
 
@@ -63,11 +69,19 @@ export function buildPageMetadata({
   openGraphDescription,
   path = "/",
   imagePath = DEFAULT_OG_IMAGE_PATH,
+  imageWidth,
+  imageHeight,
   noIndex = false,
 }: BuildPageMetadataInput): Metadata {
   const canonicalPath = path.startsWith("/") ? path : `/${path}`;
   const ogTitle = openGraphTitle ?? title;
   const ogDescription = openGraphDescription ?? description;
+  const ogW =
+    imageWidth ??
+    (imagePath === DEFAULT_OG_IMAGE_PATH ? DEFAULT_OG_IMAGE_WIDTH : undefined);
+  const ogH =
+    imageHeight ??
+    (imagePath === DEFAULT_OG_IMAGE_PATH ? DEFAULT_OG_IMAGE_HEIGHT : undefined);
 
   return {
     title,
@@ -84,6 +98,7 @@ export function buildPageMetadata({
         {
           url: imagePath,
           alt: `${ogTitle} — ${SITE_NAME}`,
+          ...(ogW && ogH ? { width: ogW, height: ogH } : {}),
         },
       ],
     },
