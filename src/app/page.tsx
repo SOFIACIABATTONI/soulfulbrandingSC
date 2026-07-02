@@ -10,9 +10,13 @@ import { ContactSection } from "@/components/site/ContactSection";
 import { SectionDebugIndicator } from "@/components/dev/SectionDebugIndicator";
 
 export const metadata = buildPageMetadata({
-  title: "Soulful Branding® | Branding estratégico e identidad de marca",
+  title:
+    "Sofía Ciabattoni | Identidad de Marca y sistemas de comunicación out of the box",
   description:
-    "Estudio de branding estratégico e identidad de marca. Diseño emocional y método Soulful Branding® para emprendedoras y marcas conscientes.",
+    "Sofía Ciabattoni | Soulful Branding®. Revelo identidades de marca y sistemas de comunicación. Estrategia y diseño emocional para proyectos con propósito.",
+  openGraphTitle: "Sofía Ciabattoni | Estudio creativo, Método Soulful Branding®",
+  openGraphDescription:
+    "Soulful Branding®: la fusión de estrategia, identidad y energía para marcas conscientes. Revelo la esencia activando autenticidad y magnetismo.",
   path: "/",
 });
 

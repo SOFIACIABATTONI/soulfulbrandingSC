@@ -8,9 +8,12 @@ import { PortfolioShowcase } from "@/components/site/PortfolioShowcase";
 import { PortfolioTestimonialsCarousel } from "@/components/site/PortfolioTestimonialsCarousel";
 
 export const metadata = buildPageMetadata({
-  title: "Portfolio | Soulful Branding®",
+  title: "Portfolio de Branding y Diseño Emocional | Sofía Ciabattoni",
   description:
-    "Portfolio de identidades de marca y proyectos de branding estratégico. Casos de estudio Soulful Branding®.",
+    "Explora mi portafolio. Branding estratégico y diseño emocional que revela la esencia de marcas conscientes. Proyectos con impacto y coherencia.",
+  openGraphTitle: "Portfolio | Soulful Branding® y Diseño Emocional",
+  openGraphDescription:
+    "Explora el portafolio. Branding estratégico y diseño emocional que revela la esencia de marcas conscientes.",
   path: "/portfolio",
 });
 

@@ -4,9 +4,12 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { AboutMorePage } from "@/components/site/AboutMorePage";
 
 export const metadata = buildPageMetadata({
-  title: "MORE ABOUT | Soulful Branding®",
+  title: "Sobre Mí | Soulful Branding y atelier identitario.",
   description:
-    "Conocé a Sofía Ciabattoni, fundadora de Soulful Branding®. Artista, alquimista y especialista en branding estratégico y diseño emocional.",
+    "Soy Artista y Alquimista de marcas. En mi estudio creativo fusiono estrategia, identidad, energía y sensibilidad emocional para visibilizar marcas con propósito.",
+  openGraphTitle: "Sobre Mí | Sofía Ciabattoni, Artista y Alquimista",
+  openGraphDescription:
+    "Conocé a Sofía Ciabattoni. En mi estudio creativo fusiono estrategia, identidad y diseño para visibilizar marcas con propósito.",
   path: "/about",
 });
 
