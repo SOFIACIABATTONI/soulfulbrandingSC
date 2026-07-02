@@ -41,8 +41,14 @@ export const DEFAULT_DESCRIPTION =
 export const DEFAULT_OG_IMAGE_PATH = "/media/og-sofia-creative-process-floor.jpg";
 
 type BuildPageMetadataInput = {
+  /** Título para Google / pestaña del navegador */
   title: string;
+  /** Meta description para Google */
   description?: string;
+  /** og:title — si no se pasa, usa `title` */
+  openGraphTitle?: string;
+  /** og:description — si no se pasa, usa `description` */
+  openGraphDescription?: string;
   /** Ruta del sitio, p. ej. `/about` */
   path?: string;
   /** Ruta bajo `public/` para `og:image` */
@@ -53,19 +59,23 @@ type BuildPageMetadataInput = {
 export function buildPageMetadata({
   title,
   description = DEFAULT_DESCRIPTION,
+  openGraphTitle,
+  openGraphDescription,
   path = "/",
   imagePath = DEFAULT_OG_IMAGE_PATH,
   noIndex = false,
 }: BuildPageMetadataInput): Metadata {
   const canonicalPath = path.startsWith("/") ? path : `/${path}`;
+  const ogTitle = openGraphTitle ?? title;
+  const ogDescription = openGraphDescription ?? description;
 
   return {
     title,
     description,
     alternates: { canonical: canonicalPath },
     openGraph: {
-      title,
-      description,
+      title: ogTitle,
+      description: ogDescription,
       url: canonicalPath,
       siteName: SITE_NAME,
       locale: "es_AR",
@@ -73,14 +83,14 @@ export function buildPageMetadata({
       images: [
         {
           url: imagePath,
-          alt: `${title} — ${SITE_NAME}`,
+          alt: `${ogTitle} — ${SITE_NAME}`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title,
-      description,
+      title: ogTitle,
+      description: ogDescription,
       images: [imagePath],
     },
     ...(noIndex ? { robots: { index: false, follow: false } } : {}),
