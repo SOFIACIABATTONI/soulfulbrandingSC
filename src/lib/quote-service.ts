@@ -11,6 +11,7 @@ import { notifyN8nQuoteEvent } from "@/lib/notify-n8n-quote";
 import {
   sendQuoteResponseNotificationToAdmin,
 } from "@/lib/send-quote-email";
+import { provisionClientFromApprovedQuote } from "@/lib/client-provision";
 
 export function isQuoteExpired(quote: Pick<Quote, "expiresAt" | "status">): boolean {
   if (quote.status === "expirado") return true;
@@ -94,6 +95,15 @@ export async function applyClientQuoteResponse(
       data: { pipelineStep },
     }),
   ]);
+
+  if (response === "aprobado") {
+    const leadFull = await prisma.lead.findUnique({ where: { id: quote.leadId } });
+    if (leadFull) {
+      void provisionClientFromApprovedQuote(leadFull, updated).catch((err) => {
+        console.error("[quote] provisionClientFromApprovedQuote:", err);
+      });
+    }
+  }
 
   void sendQuoteResponseNotificationToAdmin({
     leadName: quote.lead.name,

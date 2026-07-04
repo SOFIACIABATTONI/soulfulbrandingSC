@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ContractEditor } from "@/components/admin/ContractEditor";
 
 // ── tipos ──────────────────────────────────────────────────
 type InvoiceSummary = {
@@ -258,6 +259,12 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
           </button>
         </div>
       </div>
+
+      <ContractEditor
+        projectId={project.id}
+        clientName={project.client.name}
+        projectTitle={project.title}
+      />
 
       {/* ── Grilla de cards ── */}
       <div id="phases-grid" className="rounded-[24px] bg-[#fcfcfb] p-4 md:p-6 mb-8">

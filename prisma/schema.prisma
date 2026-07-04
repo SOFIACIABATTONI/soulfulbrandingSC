@@ -120,6 +120,12 @@ model ClientProject {
   startDate    DateTime?
   deliveryDate DateTime?
   notes        String              @default("")
+  /// { body: string, format?: "markdown" | "plain" }
+  contractContent Json             @default("{}")
+  /// borrador | enviado | aceptado
+  contractStatus  String           @default("borrador")
+  contractSentAt     DateTime?
+  contractAcceptedAt DateTime?
   clientId     String
   client       Client              @relation(fields: [clientId], references: [id])
   invoices     Invoice[]
