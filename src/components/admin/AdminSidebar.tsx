@@ -75,20 +75,30 @@ export function AdminSidebar() {
       className="flex flex-col h-full overflow-y-auto flex-shrink-0 border-r"
       style={{ width: 216, background: brandUi.surface, borderColor: brandUi.border }}
     >
-      <div
-        className="px-4 py-5 flex-shrink-0"
-        style={{ borderBottom: `1px solid ${brandUi.border}` }}
+      <Link
+        href="/admin"
+        className="px-4 py-5 flex-shrink-0 block transition-opacity hover:opacity-90"
+        style={{
+          borderBottom: `1px solid ${brandUi.border}`,
+          background: `linear-gradient(180deg, ${brandUi.accentSoft} 0%, ${brandUi.surface} 72%)`,
+        }}
       >
-        <div className="font-serif text-sm italic" style={{ color: brandUi.text }}>
-          Soulful Branding<sup className="text-[8px] not-italic" style={{ color: brandUi.accent }}>®</sup>
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/soulful-branding.svg"
+          alt="Soulful Branding®"
+          width={894}
+          height={112}
+          className="h-[18px] w-full max-w-[168px] object-contain object-left"
+          decoding="async"
+        />
         <div
-          className="text-[8px] uppercase tracking-[0.16em] mt-1"
-          style={{ color: brandUi.textFaint }}
+          className="text-[8px] font-medium uppercase tracking-[0.16em] mt-2.5"
+          style={{ color: brandUi.accent }}
         >
           Panel admin
         </div>
-      </div>
+      </Link>
 
       <nav className="flex-1 py-2">
         <SbSection label="CRM" />
@@ -113,10 +123,18 @@ export function AdminSidebar() {
         style={{ borderTop: `1px solid ${brandUi.border}` }}
       >
         <div
-          className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 font-serif text-xs text-white"
-          style={{ background: brandUi.accent }}
+          className="flex-shrink-0 rounded-md px-1.5 py-1 flex items-center justify-center"
+          style={{ background: brandUi.text }}
         >
-          S
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/logoclaro.png"
+            alt="SO — Soulful Branding"
+            width={320}
+            height={72}
+            className="block h-5 w-auto max-w-[52px] object-contain"
+            decoding="async"
+          />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[10px] truncate" style={{ color: brandUi.textMuted }}>

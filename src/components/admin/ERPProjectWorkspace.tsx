@@ -1,11 +1,42 @@
 ﻿"use client";
 
 import { useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ContractEditor } from "@/components/admin/ContractEditor";
+import { LazyPhaseMount } from "@/components/admin/LazyPhaseMount";
+import { PhaseDocumentEditor } from "@/components/admin/PhaseDocumentEditor";
+import { PhaseClientSendBar } from "@/components/admin/PhaseClientSendBar";
 import { ProjectFlowBar } from "@/components/admin/ProjectFlowBar";
+import { getPhaseClientMeta } from "@/lib/phase-client-store";
+import type { HtmlPhaseKey } from "@/lib/phase-client-flow";
+import {
+  PHASE_DOCUMENT_HINTS,
+  PHASE_DOCUMENT_TITLES,
+  type PhaseDocumentKey,
+} from "@/lib/phase-document-templates";
 import type { ProjectPipelineSignals } from "@/lib/project-pipeline";
+
+const PanelLoading = ({ label }: { label: string }) => (
+  <p className="text-xs py-4 text-center" style={{ color: "rgba(19,25,69,0.42)" }}>
+    Cargando {label}…
+  </p>
+);
+
+const ContractEditor = dynamic(
+  () => import("@/components/admin/ContractEditor").then((m) => ({ default: m.ContractEditor })),
+  { loading: () => <PanelLoading label="contrato" /> },
+);
+
+const PrebriefPanel = dynamic(
+  () => import("@/components/admin/PrebriefPanel").then((m) => ({ default: m.PrebriefPanel })),
+  { loading: () => <PanelLoading label="pre-brief" /> },
+);
+
+const NarrativaPanel = dynamic(
+  () => import("@/components/admin/NarrativaPanel").then((m) => ({ default: m.NarrativaPanel })),
+  { loading: () => <PanelLoading label="narrativa" /> },
+);
 
 // ── tipos ──────────────────────────────────────────────────
 type InvoiceSummary = {
@@ -17,13 +48,20 @@ type ClientProject = {
   contractStatus: string;
   phases: Record<string, Record<string, string>>;
   startDate: string | null; deliveryDate: string | null; notes: string;
-  client: { id: string; name: string; company: string };
+  client: { id: string; name: string; company: string; email: string };
   invoices: InvoiceSummary[];
 };
 
 type PhaseContent = {
-  state: string; overview: string; objective: string;
-  deliverables: string; assets: string; notes: string; owner: string;
+  state: string;
+  startDate: string;
+  endDate: string;
+  body: string;
+  bodyFormat: string;
+  owner: string;
+  clientStatus: string;
+  clientSentAt: string;
+  clientReceivedAt: string;
 };
 
 // ── fases del proyecto ─────────────────────────────────────
@@ -60,14 +98,6 @@ const PHASES = [
   },
 ];
 
-const PHASE_FIELDS = [
-  { key: "overview", label: "Resumen de la etapa", placeholder: "Describí brevemente de qué trata esta fase.", rows: 3 },
-  { key: "objective", label: "Objetivo", placeholder: "¿Qué debería quedar resuelto al finalizar?", rows: 3 },
-  { key: "deliverables", label: "Entregables", placeholder: "Enumera los entregables, documentos o decisiones.", rows: 4 },
-  { key: "assets", label: "Links o referencias", placeholder: "Drive, Figma, Notion, inspiración…", rows: 3 },
-  { key: "notes", label: "Notas internas", placeholder: "Observaciones, pendientes o recordatorios.", rows: 4 },
-];
-
 const STATE_OPTIONS = [
   { value: "pending", label: "Pendiente" },
   { value: "active", label: "En proceso" },
@@ -94,7 +124,17 @@ const PROJECT_STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 };
 
 function emptyPhaseContent(): PhaseContent {
-  return { state: "pending", overview: "", objective: "", deliverables: "", assets: "", notes: "", owner: "" };
+  return {
+    state: "pending",
+    startDate: "",
+    endDate: "",
+    body: "",
+    bodyFormat: "",
+    owner: "",
+    clientStatus: "",
+    clientSentAt: "",
+    clientReceivedAt: "",
+  };
 }
 
 function parsePhases(raw: Record<string, Record<string, string>>): Record<string, PhaseContent> {
@@ -103,15 +143,33 @@ function parsePhases(raw: Record<string, Record<string, string>>): Record<string
     const saved = raw[ph.key] ?? {};
     result[ph.key] = {
       state: saved.state ?? "pending",
-      overview: saved.overview ?? "",
-      objective: saved.objective ?? "",
-      deliverables: saved.deliverables ?? "",
-      assets: saved.assets ?? "",
-      notes: saved.notes ?? "",
+      startDate: saved.startDate ?? "",
+      endDate: saved.endDate ?? "",
+      body: saved.body ?? "",
+      bodyFormat: saved.bodyFormat ?? "",
       owner: saved.owner ?? "",
+      clientStatus: saved.clientStatus ?? "",
+      clientSentAt: saved.clientSentAt ?? "",
+      clientReceivedAt: saved.clientReceivedAt ?? "",
     };
   }
   return result;
+}
+
+function formatPhaseDateLabel(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function formatPhaseDateRange(startDate: string, endDate: string): string | null {
+  const start = startDate.trim();
+  const end = endDate.trim();
+  if (!start && !end) return null;
+  if (start && end) return `${formatPhaseDateLabel(start)} — ${formatPhaseDateLabel(end)}`;
+  if (start) return `Desde ${formatPhaseDateLabel(start)}`;
+  return `Hasta ${formatPhaseDateLabel(end)}`;
 }
 
 function phaseCover(ph: typeof PHASES[0]) {
@@ -270,12 +328,6 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         </div>
       </div>
 
-      <ContractEditor
-        projectId={project.id}
-        clientName={project.client.name}
-        projectTitle={project.title}
-      />
-
       <div className="mb-8">
         <p
           className="text-[9px] font-medium uppercase tracking-widest mb-2"
@@ -285,8 +337,9 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         </p>
         <ProjectFlowBar signals={projectPipelineSignals} />
         <p className="text-[10px] mt-2" style={{ color: "rgba(19,25,69,0.38)" }}>
-          Después de la seña siguen las etapas de producción. Marcá cada fase como completada en las
-          cards de abajo.
+          Contrato y seña en <strong>1) Onboarding</strong>. Pre-brief en{" "}
+          <strong>2) Pre-brief</strong>. Narrativa en <strong>3) Narrativa</strong>. Hacé clic en
+          cada card para ir a su sección.
         </p>
       </div>
 
@@ -302,6 +355,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
           {PHASES.map((ph) => {
             const pc = phases[ph.key];
             const stc = STATE_COLORS[pc.state] ?? STATE_COLORS.pending;
+            const dateRange = formatPhaseDateRange(pc.startDate, pc.endDate);
             return (
               <a key={ph.key} href={`#fase-${ph.key}`}
                 className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
@@ -326,6 +380,13 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                       </h3>
                     </div>
                     <p className="line-clamp-2 text-xs leading-relaxed text-neutral-500">{ph.desc}</p>
+                    {dateRange ? (
+                      <p className="mt-2 text-[10px] font-medium tracking-wide text-neutral-400">
+                        {dateRange}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-[10px] italic text-neutral-300">Sin fechas</p>
+                    )}
                   </div>
                 </article>
               </a>
@@ -362,27 +423,124 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                 </div>
               </div>
 
-              {/* Contenido */}
-              <div className="grid gap-6 p-5 md:grid-cols-[1.2fr_0.8fr] md:p-6">
-                {/* Campos principales */}
-                <div className="space-y-4">
-                  {PHASE_FIELDS.map((f) => (
-                    <label key={f.key} className="block">
-                      <span className="mb-1.5 block text-sm font-medium text-neutral-800">
-                        {f.label}
-                      </span>
-                      <textarea
-                        rows={f.rows}
-                        className="w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm text-neutral-800 outline-none transition focus:border-[#323FF6]"
-                        placeholder={f.placeholder}
-                        value={pc[f.key as keyof PhaseContent] ?? ""}
-                        onChange={(e) => updateField(ph.key, f.key as keyof PhaseContent, e.target.value)}
-                        onBlur={() =>
-                          void savePhaseContent(ph.key, { [f.key]: pc[f.key as keyof PhaseContent] })
-                        }
+              {/* Herramientas por etapa (contrato, pre-brief, etc.) */}
+              {(ph.key === "onboarding" || ph.key === "prebrief" || ph.key === "narrativa") && (
+                <div
+                  className="border-b px-5 py-5 md:px-6 space-y-4"
+                  style={{ borderColor: "rgba(19,25,69,0.1)", background: "rgba(19,25,69,0.02)" }}
+                >
+                  <p className="text-[9px] font-medium uppercase tracking-widest" style={{ color: "rgba(19,25,69,0.42)" }}>
+                    {ph.key === "onboarding"
+                      ? "Cierre comercial e inicio"
+                      : ph.key === "prebrief"
+                        ? "Cuestionario al cliente"
+                        : "Documento estratégico al cliente"}
+                  </p>
+
+                  {ph.key === "onboarding" && (
+                    <LazyPhaseMount phaseKey="onboarding">
+                      <>
+                        <ContractEditor
+                          embedded
+                          projectId={project.id}
+                          clientName={project.client.name}
+                          projectTitle={project.title}
+                        />
+                        <div
+                          className="rounded-2xl border bg-white p-4 flex flex-wrap items-center justify-between gap-3 text-sm"
+                          style={{ borderColor: "rgba(19,25,69,0.1)" }}
+                        >
+                          <div>
+                            <p className="font-medium text-neutral-900">Seña del proyecto</p>
+                            <p className="text-xs text-neutral-500 mt-0.5">
+                              {(() => {
+                                const sena = project.invoices.find((i) => i.type === "sena");
+                                if (!sena) return "Sin recibo de seña vinculado aún.";
+                                return sena.status === "pagado"
+                                  ? `Pagada · ${sena.number}`
+                                  : `Pendiente · ${sena.number}`;
+                              })()}
+                            </p>
+                          </div>
+                          <Link
+                            href={`/admin/facturas?clientId=${project.client.id}&projectId=${project.id}`}
+                            className="text-xs font-medium hover:underline"
+                            style={{ color: "#F03172" }}
+                          >
+                            Gestionar facturas →
+                          </Link>
+                        </div>
+                      </>
+                    </LazyPhaseMount>
+                  )}
+
+                  {ph.key === "prebrief" && (
+                    <LazyPhaseMount phaseKey="prebrief">
+                      <PrebriefPanel
+                        embedded
+                        projectId={project.id}
+                        clientName={project.client.name}
+                        clientEmail={project.client.email}
                       />
-                    </label>
-                  ))}
+                    </LazyPhaseMount>
+                  )}
+
+                  {ph.key === "narrativa" && (
+                    <LazyPhaseMount phaseKey="narrativa">
+                      <NarrativaPanel
+                        embedded
+                        projectId={project.id}
+                        clientName={project.client.name}
+                        projectTitle={project.title}
+                        clientEmail={project.client.email}
+                      />
+                    </LazyPhaseMount>
+                  )}
+                </div>
+              )}
+
+              {/* Contenido editable — editor visual por fase */}
+              <div className="grid gap-6 p-5 md:grid-cols-[1.2fr_0.8fr] md:p-6">
+                <div className="space-y-4">
+                  <PhaseDocumentEditor
+                    phaseKey={ph.key as PhaseDocumentKey}
+                    title={PHASE_DOCUMENT_TITLES[ph.key as PhaseDocumentKey]}
+                    hint={PHASE_DOCUMENT_HINTS[ph.key as PhaseDocumentKey]}
+                    saved={{ body: pc.body, bodyFormat: pc.bodyFormat }}
+                    saving={isSaving}
+                    onSave={({ body, bodyFormat }) => {
+                      setPhases((prev) => ({
+                        ...prev,
+                        [ph.key]: { ...prev[ph.key], body, bodyFormat },
+                      }));
+                      void savePhaseContent(ph.key, { body, bodyFormat });
+                    }}
+                  />
+                  {(ph.key === "identidad" || ph.key === "manual") && (
+                    <PhaseClientSendBar
+                      projectId={project.id}
+                      phaseKey={ph.key as HtmlPhaseKey}
+                      htmlBody={pc.body}
+                      clientEmail={project.client.email}
+                      meta={getPhaseClientMeta({
+                        clientStatus: pc.clientStatus,
+                        clientSentAt: pc.clientSentAt,
+                        clientReceivedAt: pc.clientReceivedAt,
+                      })}
+                      onSent={() => {
+                        const now = new Date().toISOString();
+                        setPhases((prev) => ({
+                          ...prev,
+                          [ph.key]: {
+                            ...prev[ph.key],
+                            clientStatus: "enviado",
+                            clientSentAt: now,
+                            state: "active",
+                          },
+                        }));
+                      }}
+                    />
+                  )}
                 </div>
 
                 {/* Sidebar de seguimiento */}
@@ -404,6 +562,39 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                       onBlur={() => void savePhaseContent(ph.key, { owner: pc.owner })}
                     />
                   </label>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="mb-1.5 block text-sm font-medium text-neutral-800">Inicio</span>
+                      <input
+                        type="date"
+                        className="w-full rounded-2xl border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-800 outline-none transition focus:border-[#323FF6]"
+                        value={pc.startDate}
+                        onChange={(e) => updateField(ph.key, "startDate", e.target.value)}
+                        onBlur={() =>
+                          void savePhaseContent(ph.key, {
+                            startDate: pc.startDate,
+                            endDate: pc.endDate,
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-sm font-medium text-neutral-800">Fin</span>
+                      <input
+                        type="date"
+                        className="w-full rounded-2xl border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-800 outline-none transition focus:border-[#323FF6]"
+                        value={pc.endDate}
+                        onChange={(e) => updateField(ph.key, "endDate", e.target.value)}
+                        onBlur={() =>
+                          void savePhaseContent(ph.key, {
+                            startDate: pc.startDate,
+                            endDate: pc.endDate,
+                          })
+                        }
+                      />
+                    </label>
+                  </div>
 
                   <label className="block">
                     <span className="mb-1.5 block text-sm font-medium text-neutral-800">Estado</span>

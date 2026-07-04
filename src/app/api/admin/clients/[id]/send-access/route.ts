@@ -63,6 +63,46 @@ export async function POST(req: Request, ctx: RouteParams) {
       token: plain,
       personalNote,
     });
+  } else if (purpose === "pre-brief") {
+    const { sendPrebriefEmailToClient } = await import("@/lib/send-prebrief-email");
+    emailed = await sendPrebriefEmailToClient({
+      toEmail: client.email,
+      toName: client.name,
+      projectTitle: project.title,
+      token: plain,
+      personalNote,
+    });
+  } else if (purpose === "narrativa") {
+    const { sendNarrativaEmailToClient } = await import("@/lib/send-narrativa-email");
+    emailed = await sendNarrativaEmailToClient({
+      toEmail: client.email,
+      toName: client.name,
+      projectTitle: project.title,
+      token: plain,
+      personalNote,
+    });
+  } else if (purpose === "identidad" || purpose === "manual") {
+    const { HTML_PHASE_SEND } = await import("@/lib/phase-client-flow");
+    const { sendPhaseDocEmailToClient } = await import("@/lib/send-phase-doc-email");
+    const { parseProjectPhases } = await import("@/lib/prebrief-service");
+    const { applyPhaseClientSent } = await import("@/lib/phase-client-store");
+    const config = HTML_PHASE_SEND[purpose];
+    const phases = parseProjectPhases(project.phases);
+    const html = phases[purpose]?.body?.trim() ?? "";
+    if (html) {
+      await prisma.clientProject.update({
+        where: { id: projectId },
+        data: { phases: applyPhaseClientSent(phases, purpose) },
+      });
+      emailed = await sendPhaseDocEmailToClient({
+        config,
+        toEmail: client.email,
+        toName: client.name,
+        projectTitle: project.title,
+        token: plain,
+        personalNote,
+      });
+    }
   }
 
   return NextResponse.json({

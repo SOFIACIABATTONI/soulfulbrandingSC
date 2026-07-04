@@ -16,6 +16,13 @@ const patchSchema = z.object({
       assets: z.string().optional(),
       notes: z.string().optional(),
       owner: z.string().optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      body: z.string().optional(),
+      bodyFormat: z.enum(["html"]).optional(),
+      clientStatus: z.string().optional(),
+      clientSentAt: z.string().optional(),
+      clientReceivedAt: z.string().optional(),
     })
     .optional(),
 });

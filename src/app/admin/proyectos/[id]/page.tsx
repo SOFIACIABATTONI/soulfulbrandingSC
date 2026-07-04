@@ -18,7 +18,7 @@ export default async function AdminProyectoDetailPage({ params }: PageProps) {
   const project = await prisma.clientProject.findUnique({
     where: { id },
     include: {
-      client: { select: { id: true, name: true, company: true } },
+      client: { select: { id: true, name: true, company: true, email: true } },
       invoices: {
         orderBy: { createdAt: "desc" },
         select: { id: true, number: true, type: true, total: true, status: true, issuedAt: true },

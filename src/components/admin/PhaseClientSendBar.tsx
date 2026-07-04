@@ -1,0 +1,156 @@
+"use client";
+
+import { useState } from "react";
+import type { HtmlPhaseKey } from "@/lib/phase-client-flow";
+import { HTML_PHASE_SEND } from "@/lib/phase-client-flow";
+import {
+  PHASE_CLIENT_STATUS_LABELS,
+  type PhaseClientMeta,
+} from "@/lib/phase-client-store";
+import { brandUi } from "@/lib/brand-ui";
+
+type PhaseClientSendBarProps = {
+  projectId: string;
+  phaseKey: HtmlPhaseKey;
+  htmlBody: string;
+  clientEmail: string;
+  meta: PhaseClientMeta;
+  onSent?: () => void;
+};
+
+export function PhaseClientSendBar({
+  projectId,
+  phaseKey,
+  htmlBody,
+  clientEmail,
+  meta,
+  onSent,
+}: PhaseClientSendBarProps) {
+  const config = HTML_PHASE_SEND[phaseKey];
+  const [personalNote, setPersonalNote] = useState("");
+  const [sending, setSending] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [lastLink, setLastLink] = useState<string | null>(null);
+
+  async function sendToClient() {
+    setSending(true);
+    setMessage(null);
+    setLastLink(null);
+
+    const res = await fetch(`/api/admin/projects-erp/${projectId}/phase-send`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        phase: phaseKey,
+        html: htmlBody.trim(),
+        personalNote: personalNote.trim() || undefined,
+      }),
+    });
+
+    setSending(false);
+    if (res.ok) {
+      const j = (await res.json()) as { emailed?: boolean; publicUrl?: string };
+      setLastLink(j.publicUrl ?? null);
+      setMessage(
+        j.emailed
+          ? `Enviado a ${clientEmail}. El cliente puede confirmar recibido desde el mail.`
+          : `Link generado. Configurá Resend para enviar el mail automáticamente.`,
+      );
+      onSent?.();
+    } else {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      setMessage(j.error ?? "No se pudo enviar.");
+    }
+  }
+
+  return (
+    <div
+      className="rounded-2xl border p-4 space-y-3"
+      style={{ borderColor: brandUi.border, background: "rgba(50,63,246,0.04)" }}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium" style={{ color: brandUi.text }}>
+            Enviar al cliente
+          </p>
+          <p className="text-xs mt-1" style={{ color: brandUi.textMuted }}>
+            El documento de arriba se envía por mail. El cliente lo revisa y confirma{" "}
+            <strong>recibido</strong>.
+          </p>
+        </div>
+        <span
+          className="text-[10px] font-medium uppercase tracking-wide rounded px-2 py-1"
+          style={{
+            background:
+              meta.clientStatus === "recibido"
+                ? "#e3f2e3"
+                : meta.clientStatus === "enviado"
+                  ? brandUi.accentSoft
+                  : brandUi.navySoft,
+            color:
+              meta.clientStatus === "recibido"
+                ? "#1a6b1a"
+                : meta.clientStatus === "enviado"
+                  ? brandUi.accent
+                  : brandUi.textMuted,
+          }}
+        >
+          {PHASE_CLIENT_STATUS_LABELS[meta.clientStatus]}
+        </span>
+      </div>
+
+      {meta.clientSentAt && (
+        <p className="text-[11px]" style={{ color: brandUi.textFaint }}>
+          Último envío:{" "}
+          {new Date(meta.clientSentAt).toLocaleString("es-AR", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })}
+          {meta.clientReceivedAt &&
+            ` · Recibido: ${new Date(meta.clientReceivedAt).toLocaleString("es-AR", {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}`}
+        </p>
+      )}
+
+      <label className="block">
+        <span
+          className="text-[9px] font-medium uppercase tracking-widest"
+          style={{ color: brandUi.textFaint }}
+        >
+          Nota personalizada (mail)
+        </span>
+        <textarea
+          className="mt-1 w-full rounded border p-2 text-sm min-h-[56px]"
+          style={{ borderColor: brandUi.borderStrong, background: brandUi.surface }}
+          placeholder={`Ej: Te comparto ${config.title.toLowerCase()}…`}
+          value={personalNote}
+          onChange={(e) => setPersonalNote(e.target.value)}
+        />
+      </label>
+
+      <button
+        type="button"
+        disabled={sending || !htmlBody.trim()}
+        onClick={() => void sendToClient()}
+        className="rounded-full px-4 py-2 text-xs font-medium text-white disabled:opacity-50"
+        style={{ background: brandUi.accent }}
+      >
+        {sending ? "Enviando…" : `Enviar ${config.title.toLowerCase()} al cliente →`}
+      </button>
+
+      {message && (
+        <p className="text-xs" style={{ color: brandUi.textMuted }}>
+          {message}
+        </p>
+      )}
+      {lastLink && (
+        <p className="text-[10px] break-all" style={{ color: brandUi.blue }}>
+          {lastLink}
+        </p>
+      )}
+    </div>
+  );
+}

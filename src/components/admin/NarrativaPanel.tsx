@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { QuoteFormattedBody } from "@/components/quote/QuoteFormattedBody";
@@ -6,36 +6,37 @@ import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
 import { Topbar } from "@/components/admin/ui/Topbar";
 import {
-  CONTRACT_STATUS_LABELS,
-  type ContractContent,
-  type ContractStatus,
-} from "@/lib/contract-types";
+  NARRATIVA_STATUS_LABELS,
+  type NarrativaContent,
+  type NarrativaStatus,
+} from "@/lib/narrativa-types";
 import { brandUi } from "@/lib/brand-ui";
 
-type ContractEditorProps = {
+type NarrativaPanelProps = {
   projectId: string;
   clientName: string;
   projectTitle: string;
-  /** Dentro de la sección #fase-onboarding (sin margen externo). */
+  clientEmail: string;
   embedded?: boolean;
 };
 
-type ContractData = {
-  content: ContractContent;
-  status: ContractStatus;
+type NarrativaData = {
+  content: NarrativaContent;
+  status: NarrativaStatus;
   statusLabel: string;
-  contractSentAt: string | null;
-  contractAcceptedAt: string | null;
-  client: { name: string; email: string; company: string };
+  narrativaSentAt: string | null;
+  narrativaAcknowledgedAt: string | null;
+  client: { name: string; email: string };
 };
 
-export function ContractEditor({
+export function NarrativaPanel({
   projectId,
   clientName,
   projectTitle,
+  clientEmail,
   embedded = false,
-}: ContractEditorProps) {
-  const [data, setData] = useState<ContractData | null>(null);
+}: NarrativaPanelProps) {
+  const [data, setData] = useState<NarrativaData | null>(null);
   const [body, setBody] = useState("");
   const [personalNote, setPersonalNote] = useState("");
   const [showPreview, setShowPreview] = useState(true);
@@ -47,11 +48,11 @@ export function ContractEditor({
   const [lastLink, setLastLink] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/admin/projects-erp/${projectId}/contract`, {
+    const res = await fetch(`/api/admin/projects-erp/${projectId}/narrativa`, {
       credentials: "include",
     });
     if (res.ok) {
-      const j = (await res.json()) as ContractData;
+      const j = (await res.json()) as NarrativaData;
       setData(j);
       setBody(j.content.body ?? "");
     }
@@ -62,14 +63,10 @@ export function ContractEditor({
     void load();
   }, [load]);
 
-  const isLocked = data?.status === "aceptado";
-  const canEdit = data?.status === "borrador" || data?.status === "enviado";
-
   async function saveDraft() {
-    if (!canEdit || isLocked) return;
     setSaving(true);
     setMessage(null);
-    const res = await fetch(`/api/admin/projects-erp/${projectId}/contract`, {
+    const res = await fetch(`/api/admin/projects-erp/${projectId}/narrativa`, {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -87,12 +84,11 @@ export function ContractEditor({
     }
   }
 
-  async function sendContract() {
-    if (isLocked) return;
+  async function sendNarrativa() {
     setSending(true);
     setMessage(null);
     setLastLink(null);
-    const res = await fetch(`/api/admin/projects-erp/${projectId}/contract/send`, {
+    const res = await fetch(`/api/admin/projects-erp/${projectId}/narrativa/send`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -105,14 +101,13 @@ export function ContractEditor({
     if (res.ok) {
       const j = (await res.json()) as {
         publicUrl?: string;
-        publicToken?: string;
         emailed?: boolean;
       };
       setLastLink(j.publicUrl ?? null);
       setMessage(
         j.emailed
-          ? `Contrato enviado a ${data?.client.email ?? "el cliente"}.`
-          : `Contrato registrado. ${j.publicToken ? `Link dev: ${j.publicUrl}` : "Configurá Resend para enviar el mail."}`,
+          ? `Narrativa enviada a ${clientEmail}.`
+          : `Link generado. ${j.publicUrl ? "Configurá Resend para enviar el mail." : ""}`,
       );
       void load();
     } else {
@@ -121,12 +116,12 @@ export function ContractEditor({
     }
   }
 
-  const cardClass = embedded ? "rounded-2xl border shadow-sm" : "mb-8";
+  const cardClass = embedded ? "rounded-2xl border shadow-sm" : "mb-6";
 
   if (loading) {
     return (
-      <Card id={embedded ? undefined : "contrato"} className={cardClass}>
-        <Topbar title="Contrato" subtitle={`${clientName} · ${projectTitle}`} />
+      <Card className={cardClass}>
+        <Topbar title="Narrativa de marca" subtitle={`${clientName} · ${projectTitle}`} />
         <p className="text-xs" style={{ color: brandUi.textMuted }}>
           Cargando…
         </p>
@@ -135,36 +130,32 @@ export function ContractEditor({
   }
 
   const status = data?.status ?? "borrador";
-  const editorLabel = editorOpen
-    ? "Ocultar contrato"
-    : isLocked
-      ? "Ver contrato"
-      : "Editar contrato";
+  const editorLabel = editorOpen ? "Ocultar editor" : "Editar narrativa";
 
   return (
-    <Card id={embedded ? undefined : "contrato"} className={cardClass}>
+    <Card className={cardClass}>
       <Topbar
-        title="Contrato"
-        subtitle={`${clientName} · ${projectTitle}`}
+        title="Narrativa de marca"
+        subtitle={`${clientName} · completá y enviá al cliente`}
         actions={
           <span
             className="inline-block rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
             style={{
               background:
-                status === "aceptado"
+                status === "recibido"
                   ? "#e3f2e3"
                   : status === "enviado"
                     ? brandUi.accentSoft
                     : brandUi.navySoft,
               color:
-                status === "aceptado"
+                status === "recibido"
                   ? "#1a6b1a"
                   : status === "enviado"
                     ? brandUi.accent
                     : brandUi.textMuted,
             }}
           >
-            {CONTRACT_STATUS_LABELS[status]}
+            {NARRATIVA_STATUS_LABELS[status]}
           </span>
         }
       />
@@ -174,31 +165,32 @@ export function ContractEditor({
         style={{ borderColor: brandUi.border }}
       >
         <div className="text-xs space-y-0.5">
-          {data?.contractAcceptedAt && (
-            <p style={{ color: "#1a6b1a" }}>
-              Aceptado el{" "}
-              {new Date(data.contractAcceptedAt).toLocaleString("es-AR", {
-                dateStyle: "medium",
-                timeStyle: "short",
-              })}
-            </p>
-          )}
-          {!data?.contractAcceptedAt && data?.contractSentAt && (
+          {data?.narrativaSentAt ? (
             <p style={{ color: brandUi.textMuted }}>
               Enviado el{" "}
-              {new Date(data.contractSentAt).toLocaleString("es-AR", {
+              {new Date(data.narrativaSentAt).toLocaleString("es-AR", {
                 dateStyle: "medium",
                 timeStyle: "short",
               })}
+              {data.narrativaAcknowledgedAt && (
+                <>
+                  {" "}
+                  · Recibido el{" "}
+                  {new Date(data.narrativaAcknowledgedAt).toLocaleString("es-AR", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </>
+              )}
             </p>
-          )}
-          {status === "borrador" && (
+          ) : (
             <p style={{ color: brandUi.textFaint }}>
-              Editá el texto del contrato y reemplazá lo que haga falta antes de enviar al cliente.
+              Completá el documento con la plantilla guía. Reemplazá cada{" "}
+              <strong style={{ color: brandUi.textMuted }}>[Completar]</strong> y enviá al cliente
+              cuando esté listo.
             </p>
           )}
         </div>
-
         <button
           type="button"
           onClick={() => setEditorOpen((v) => !v)}
@@ -221,58 +213,50 @@ export function ContractEditor({
                 className="text-[9px] font-medium uppercase tracking-widest"
                 style={{ color: brandUi.textFaint }}
               >
-                Texto del contrato (Markdown)
+                Documento (Markdown)
               </span>
               <textarea
-                className="mt-1 w-full rounded border p-3 text-sm font-mono leading-relaxed min-h-[320px]"
+                className="mt-1 w-full rounded border p-3 text-sm font-mono leading-relaxed min-h-[360px]"
                 style={{
                   borderColor: brandUi.borderStrong,
-                  background: isLocked ? brandUi.navySoft : brandUi.surface,
+                  background: brandUi.surface,
                   color: brandUi.text,
                 }}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                disabled={isLocked}
-                readOnly={isLocked}
               />
             </label>
 
-            {!isLocked && (
-              <label className="block">
-                <span
-                  className="text-[9px] font-medium uppercase tracking-widest"
-                  style={{ color: brandUi.textFaint }}
-                >
-                  Nota personalizada (mail)
-                </span>
-                <textarea
-                  className="mt-1 w-full rounded border p-2 text-sm min-h-[72px]"
-                  style={{ borderColor: brandUi.borderStrong, background: brandUi.surface }}
-                  placeholder="Ej: Con mucho cariño para este proceso…"
-                  value={personalNote}
-                  onChange={(e) => setPersonalNote(e.target.value)}
-                />
-              </label>
-            )}
+            <label className="block">
+              <span
+                className="text-[9px] font-medium uppercase tracking-widest"
+                style={{ color: brandUi.textFaint }}
+              >
+                Nota personalizada (mail)
+              </span>
+              <textarea
+                className="mt-1 w-full rounded border p-2 text-sm min-h-[72px]"
+                style={{ borderColor: brandUi.borderStrong, background: brandUi.surface }}
+                placeholder="Ej: Acá está el mapa estratégico de tu marca…"
+                value={personalNote}
+                onChange={(e) => setPersonalNote(e.target.value)}
+              />
+            </label>
 
             <div className="flex flex-wrap gap-2 pt-1">
-              {!isLocked && (
-                <>
-                  <Button variant="ghost" onClick={() => setShowPreview((v) => !v)}>
-                    {showPreview ? "Ocultar vista previa" : "Vista previa"}
-                  </Button>
-                  <Button variant="secondary" disabled={saving} onClick={() => void saveDraft()}>
-                    {saving ? "Guardando…" : "Guardar borrador"}
-                  </Button>
-                  <Button
-                    variant="primary"
-                    disabled={sending || !body.trim()}
-                    onClick={() => void sendContract()}
-                  >
-                    {sending ? "Enviando…" : "Enviar contrato →"}
-                  </Button>
-                </>
-              )}
+              <Button variant="ghost" onClick={() => setShowPreview((v) => !v)}>
+                {showPreview ? "Ocultar vista previa" : "Vista previa"}
+              </Button>
+              <Button variant="secondary" disabled={saving} onClick={() => void saveDraft()}>
+                {saving ? "Guardando…" : "Guardar borrador"}
+              </Button>
+              <Button
+                variant="primary"
+                disabled={sending || !body.trim()}
+                onClick={() => void sendNarrativa()}
+              >
+                {sending ? "Enviando…" : "Enviar al cliente →"}
+              </Button>
             </div>
 
             {message && (
@@ -289,7 +273,7 @@ export function ContractEditor({
 
           {showPreview && (
             <div
-              className="rounded-lg border p-4 min-h-[320px] overflow-auto bg-white"
+              className="rounded-lg border p-4 min-h-[360px] overflow-auto bg-white"
               style={{ borderColor: brandUi.border }}
             >
               <QuoteFormattedBody body={body} format="markdown" theme="light" />

@@ -126,6 +126,15 @@ model ClientProject {
   contractStatus  String           @default("borrador")
   contractSentAt     DateTime?
   contractAcceptedAt DateTime?
+  /// Respuestas del pre-brief cliente: { answers: Record<string, string> }
+  prebriefResponses  Json               @default("{}")
+  prebriefSubmittedAt DateTime?
+  /// { body: string, format?: "markdown" | "plain" }
+  narrativaContent   Json               @default("{}")
+  /// borrador | enviado | recibido
+  narrativaStatus    String             @default("borrador")
+  narrativaSentAt    DateTime?
+  narrativaAcknowledgedAt DateTime?
   clientId     String
   client       Client              @relation(fields: [clientId], references: [id])
   invoices     Invoice[]
