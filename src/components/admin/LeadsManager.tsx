@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -179,7 +179,7 @@ export function LeadsManager() {
         <button
           onClick={() => setModalOpen(true)}
           className="ml-auto rounded px-4 py-2 text-sm font-medium text-white"
-          style={{ background: "#0D0D0D" }}
+          style={{ background: "#F03172" }}
         >
           + Agregar manual
         </button>
@@ -190,7 +190,7 @@ export function LeadsManager() {
         <table className="min-w-full text-sm">
           <thead
             className="border-b border-neutral-200 text-left text-[11px] font-medium uppercase tracking-widest"
-            style={{ background: "#F9F3DB", color: "rgba(13,13,13,0.42)" }}
+            style={{ background: "#F2F2F2", color: "rgba(19,25,69,0.42)" }}
           >
             <tr>
               <th className="px-4 py-3">Nombre / Empresa</th>
@@ -207,10 +207,10 @@ export function LeadsManager() {
             {filtered.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-neutral-100 hover:bg-[#F9F3DB]/40 transition-colors"
+                className="border-b border-neutral-100 hover:bg-brand-sky/30 transition-colors"
               >
                 <td className="px-4 py-3">
-                  <div className="font-medium text-[#0D0D0D]">{row.name}</div>
+                  <div className="font-medium text-[#131945]">{row.name}</div>
                   {row.company && (
                     <div className="text-xs text-neutral-400 mt-0.5">{row.company}</div>
                   )}
@@ -218,12 +218,12 @@ export function LeadsManager() {
                 <td className="px-4 py-3">
                   <span
                     className="inline-block rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
-                    style={{ background: "#0D0D0D", color: "#F9F3DB" }}
+                    style={{ background: "rgba(19,25,69,0.08)", color: "#131945" }}
                   >
                     {SERVICE_LABELS[row.service] ?? row.service}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-medium text-[#0D0D0D]">
+                <td className="px-4 py-3 font-medium text-[#131945]">
                   {row.estimatedValue ? `$${row.estimatedValue.toLocaleString("es-AR")}` : "—"}
                 </td>
                 <td className="px-4 py-3 text-xs text-neutral-500">
@@ -265,7 +265,7 @@ export function LeadsManager() {
       {modalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(13,13,13,0.55)" }}
+          style={{ background: "rgba(19,25,69,0.2)" }}
           onClick={(e) => e.target === e.currentTarget && setModalOpen(false)}
         >
           <div className="w-full max-w-lg rounded bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -393,7 +393,7 @@ export function LeadsManager() {
                   type="submit"
                   disabled={saving}
                   className="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                  style={{ background: "#0D0D0D" }}
+                  style={{ background: "#F03172" }}
                 >
                   {saving ? "Guardando…" : "Guardar lead"}
                 </button>
@@ -408,10 +408,10 @@ export function LeadsManager() {
           width: 100%;
           padding: 7px 10px;
           font-size: 13px;
-          border: 1px solid rgba(13,13,13,0.15);
+          border: 1px solid rgba(19,25,69,0.15);
           border-radius: 2px;
-          background: #F9F3DB;
-          color: #0D0D0D;
+          background: #FFFFFF;
+          color: #131945;
           outline: none;
         }
         .fv:focus {
@@ -437,7 +437,7 @@ function Field({
     <div className="flex flex-col gap-1">
       <label
         className="text-[9px] font-medium uppercase tracking-widest"
-        style={{ color: "rgba(13,13,13,0.42)" }}
+        style={{ color: "rgba(19,25,69,0.42)" }}
       >
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}

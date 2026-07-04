@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { LeadsManager } from "./LeadsManager";
@@ -15,7 +15,7 @@ export function LeadsPageContent({ newMsgCount }: { newMsgCount: number }) {
       {/* ── Tabs ── */}
       <div
         className="flex gap-0 mb-6 border-b"
-        style={{ borderColor: "rgba(13,13,13,0.12)" }}
+        style={{ borderColor: "rgba(19,25,69,0.12)" }}
       >
         <TabButton
           active={tab === "leads"}
@@ -58,7 +58,7 @@ function TabButton({
       className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors"
       style={{
         borderColor: active ? "#F03172" : "transparent",
-        color: active ? "#F03172" : "rgba(13,13,13,0.42)",
+        color: active ? "#F03172" : "rgba(19,25,69,0.42)",
         background: "none",
         marginBottom: "-1px",
       }}

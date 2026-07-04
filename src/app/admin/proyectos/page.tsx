@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ADMIN_COOKIE_NAME, verifyAdminToken } from "@/lib/session";
@@ -42,10 +42,10 @@ export default async function AdminProyectosPage() {
     <div className="px-6 py-8 max-w-7xl mx-auto">
       <div className="mb-6">
         <p className="text-[9px] font-medium uppercase tracking-widest mb-1"
-          style={{ color: "rgba(13,13,13,0.42)" }}>
+          style={{ color: "rgba(19,25,69,0.42)" }}>
           ERP
         </p>
-        <h1 className="font-serif text-3xl italic" style={{ color: "#0D0D0D" }}>
+        <h1 className="font-serif text-3xl italic" style={{ color: "#131945" }}>
           Proyectos
         </h1>
       </div>
@@ -53,7 +53,7 @@ export default async function AdminProyectosPage() {
       <div className="overflow-x-auto rounded border border-neutral-200 bg-white">
         <table className="min-w-full text-sm">
           <thead className="border-b border-neutral-200 text-left text-[11px] font-medium uppercase tracking-widest"
-            style={{ background: "#F9F3DB", color: "rgba(13,13,13,0.42)" }}>
+            style={{ background: "#FFFFFF", color: "rgba(19,25,69,0.42)" }}>
             <tr>
               <th className="px-4 py-3">Proyecto</th>
               <th className="px-4 py-3">Cliente</th>
@@ -68,11 +68,11 @@ export default async function AdminProyectosPage() {
             {projects.map((p) => {
               const sc = STATUS_COLORS[p.status] ?? STATUS_COLORS.onboarding;
               return (
-                <tr key={p.id} className="border-b border-neutral-100 hover:bg-[#F9F3DB]/40 transition-colors">
-                  <td className="px-4 py-3 font-medium text-[#0D0D0D]">{p.title}</td>
+                <tr key={p.id} className="border-b border-neutral-100 hover:bg-brand-sky/30 transition-colors">
+                  <td className="px-4 py-3 font-medium text-[#131945]">{p.title}</td>
                   <td className="px-4 py-3">
                     <Link href={`/admin/clientes/${p.client.id}`} className="hover:underline"
-                      style={{ color: "#0D0D0D" }}>
+                      style={{ color: "#131945" }}>
                       {p.client.name}
                     </Link>
                     {p.client.company && (

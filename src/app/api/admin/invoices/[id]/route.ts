@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
+import { syncLeadPipelineOnSenaPaid } from "@/lib/lead-pipeline";
 import { z } from "zod";
-
 const patchSchema = z.object({
   type: z.enum(["sena", "final"]).optional(),
   total: z.number().positive().optional(),
@@ -44,12 +44,35 @@ export async function PATCH(req: Request, ctx: RouteParams) {
       { status: 400 }
     );
   }
-  const { paidAt, issuedAt, ...rest } = parsed.data;
+  const { paidAt, issuedAt, projectId, ...rest } = parsed.data;
+
+  const existing = await prisma.invoice.findUnique({
+    where: { id },
+    select: { clientId: true, type: true, status: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+  }
+
+  if (projectId) {
+    const project = await prisma.clientProject.findFirst({
+      where: { id: projectId, clientId: existing.clientId },
+      select: { id: true },
+    });
+    if (!project) {
+      return NextResponse.json(
+        { error: "El proyecto no pertenece a este cliente" },
+        { status: 400 },
+      );
+    }
+  }
+
   try {
     const updated = await prisma.invoice.update({
       where: { id },
       data: {
         ...rest,
+        ...(projectId !== undefined ? { projectId } : {}),
         ...(paidAt !== undefined ? { paidAt: paidAt ? new Date(paidAt) : null } : {}),
         ...(issuedAt !== undefined ? { issuedAt: new Date(issuedAt) } : {}),
         // si se paga, registrar fecha automáticamente
@@ -60,8 +83,12 @@ export async function PATCH(req: Request, ctx: RouteParams) {
         project: { select: { id: true, title: true } },
       },
     });
-    return NextResponse.json({ ok: true, item: updated });
-  } catch {
+    if (updated.type === "sena" && updated.status === "pagado") {
+      void syncLeadPipelineOnSenaPaid(updated.clientId).catch((err) => {
+        console.error("[invoice] syncLeadPipelineOnSenaPaid:", err);
+      });
+    }
+    return NextResponse.json({ ok: true, item: updated });  } catch {
     return NextResponse.json({ error: "No encontrado" }, { status: 404 });
   }
 }

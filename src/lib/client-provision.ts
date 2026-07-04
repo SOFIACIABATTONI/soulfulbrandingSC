@@ -79,3 +79,50 @@ export async function provisionClientFromApprovedQuote(
 
   return { clientId: client.id, projectId: project.id, created: true };
 }
+
+/**
+ * Garantiza ficha de cliente para un lead con presupuesto aprobado (o ganado).
+ * Idempotente — repara leads históricos sin Client vinculado.
+ */
+export async function ensureClientForLead(leadId: string): Promise<string | null> {
+  const existing = await prisma.client.findUnique({ where: { leadId } });
+  if (existing) return existing.id;
+
+  const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+  if (!lead) return null;
+
+  const orphanByEmail = await prisma.client.findFirst({
+    where: { email: lead.email, leadId: null },
+  });
+  if (orphanByEmail) {
+    await prisma.client.update({
+      where: { id: orphanByEmail.id },
+      data: { leadId: lead.id },
+    });
+    return orphanByEmail.id;
+  }
+
+  const approvedQuote = await prisma.quote.findFirst({
+    where: { leadId, status: "aprobado" },
+    orderBy: { respondedAt: "desc" },
+  });
+  if (approvedQuote) {
+    const { clientId } = await provisionClientFromApprovedQuote(lead, approvedQuote);
+    return clientId;
+  }
+
+  if (lead.status === "ganado") {
+    const client = await prisma.client.create({
+      data: {
+        name: lead.name,
+        company: lead.company,
+        email: lead.email,
+        phone: lead.phone,
+        leadId: lead.id,
+      },
+    });
+    return client.id;
+  }
+
+  return null;
+}

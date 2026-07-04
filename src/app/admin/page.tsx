@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ADMIN_COOKIE_NAME, verifyAdminToken } from "@/lib/session";
@@ -23,10 +23,10 @@ export default async function AdminHomePage() {
     <div className="px-6 py-8 max-w-5xl mx-auto">
       <div className="mb-8">
         <p className="text-[9px] font-medium uppercase tracking-widest mb-1"
-          style={{ color: "rgba(13,13,13,0.42)" }}>
+          style={{ color: "rgba(19,25,69,0.42)" }}>
           Panel
         </p>
-        <h1 className="font-serif text-3xl italic" style={{ color: "#0D0D0D" }}>
+        <h1 className="font-serif text-3xl italic" style={{ color: "#131945" }}>
           Dashboard
         </h1>
       </div>
@@ -92,12 +92,12 @@ function MetricCard({
   return (
     <Link href={href}
       className="rounded border bg-white px-4 py-4 hover:shadow-sm transition-shadow"
-      style={{ borderColor: "rgba(13,13,13,0.1)" }}>
+      style={{ borderColor: "rgba(19,25,69,0.1)" }}>
       <p className="text-[9px] font-medium uppercase tracking-widest mb-2"
-        style={{ color: "rgba(13,13,13,0.42)" }}>
+        style={{ color: "rgba(19,25,69,0.42)" }}>
         {label}
       </p>
-      <p className="font-serif text-3xl" style={{ color: warn ? "#b45000" : "#0D0D0D" }}>
+      <p className="font-serif text-3xl" style={{ color: warn ? "#b45000" : "#131945" }}>
         {value}
       </p>
     </Link>
@@ -108,9 +108,9 @@ function NavCard({ href, label, desc }: { href: string; label: string; desc: str
   return (
     <Link href={href}
       className="rounded border bg-white px-5 py-4 hover:shadow-sm transition-shadow"
-      style={{ borderColor: "rgba(13,13,13,0.1)" }}>
-      <p className="font-medium text-sm mb-1" style={{ color: "#0D0D0D" }}>{label}</p>
-      <p className="text-xs" style={{ color: "rgba(13,13,13,0.42)" }}>{desc}</p>
+      style={{ borderColor: "rgba(19,25,69,0.1)" }}>
+      <p className="font-medium text-sm mb-1" style={{ color: "#131945" }}>{label}</p>
+      <p className="text-xs" style={{ color: "rgba(19,25,69,0.42)" }}>{desc}</p>
     </Link>
   );
 }

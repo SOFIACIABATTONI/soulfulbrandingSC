@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 
@@ -8,6 +8,8 @@ type ProjectSummary = {
   service: string;
   status: string;
   value: number;
+  contractStatus: string;
+  phases: Record<string, { state?: string }>;
   startDate: string | null;
   deliveryDate: string | null;
 };
@@ -60,8 +62,17 @@ export function NewProjectModal({
     });
     setSaving(false);
     if (res.ok) {
-      const j = (await res.json()) as { item: ProjectSummary };
-      onCreated(j.item);
+      const j = (await res.json()) as {
+        item: Omit<ProjectSummary, "contractStatus" | "phases"> & {
+          contractStatus?: string;
+          phases?: Record<string, { state?: string }>;
+        };
+      };
+      onCreated({
+        ...j.item,
+        contractStatus: j.item.contractStatus ?? "borrador",
+        phases: j.item.phases ?? {},
+      });
     } else {
       setError("Error al crear el proyecto. Intentá de nuevo.");
     }
@@ -70,14 +81,14 @@ export function NewProjectModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(13,13,13,0.55)" }}
+      style={{ background: "rgba(19,25,69,0.2)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="w-full max-w-lg rounded bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4 sticky top-0 bg-white z-10">
           <div>
             <h2 className="font-serif text-lg italic">Nuevo proyecto</h2>
-            <p className="text-xs mt-0.5" style={{ color: "rgba(13,13,13,0.42)" }}>
+            <p className="text-xs mt-0.5" style={{ color: "rgba(19,25,69,0.42)" }}>
               Para {clientName}
             </p>
           </div>
@@ -171,7 +182,7 @@ export function NewProjectModal({
               type="submit"
               disabled={saving}
               className="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-              style={{ background: "#0D0D0D" }}
+              style={{ background: "#F03172" }}
             >
               {saving ? "Creando…" : "Crear proyecto"}
             </button>
@@ -184,10 +195,10 @@ export function NewProjectModal({
           width: 100%;
           padding: 7px 10px;
           font-size: 13px;
-          border: 1px solid rgba(13,13,13,0.15);
+          border: 1px solid rgba(19,25,69,0.15);
           border-radius: 2px;
-          background: #F9F3DB;
-          color: #0D0D0D;
+          background: #FFFFFF;
+          color: #131945;
           outline: none;
         }
         .fv:focus { border-color: rgba(50,63,246,0.5); background: #fff; }
@@ -200,7 +211,7 @@ export function NewProjectModal({
 function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-[9px] font-medium uppercase tracking-widest" style={{ color: "rgba(13,13,13,0.42)" }}>
+      <label className="text-[9px] font-medium uppercase tracking-widest" style={{ color: "rgba(19,25,69,0.42)" }}>
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       {children}

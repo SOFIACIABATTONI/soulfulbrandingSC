@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
+import { syncLeadPipelineOnSenaPaid } from "@/lib/lead-pipeline";
 import { z } from "zod";
 
 const createSchema = z.object({
@@ -56,11 +57,26 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  const { issuedAt, ...rest } = parsed.data;
+  const { issuedAt, projectId, ...rest } = parsed.data;
+
+  if (projectId) {
+    const project = await prisma.clientProject.findFirst({
+      where: { id: projectId, clientId: rest.clientId },
+      select: { id: true },
+    });
+    if (!project) {
+      return NextResponse.json(
+        { error: "El proyecto no pertenece a este cliente" },
+        { status: 400 },
+      );
+    }
+  }
+
   const number = await nextInvoiceNumber();
   const invoice = await prisma.invoice.create({
     data: {
       ...rest,
+      projectId: projectId ?? null,
       number,
       issuedAt: issuedAt ? new Date(issuedAt) : new Date(),
     },
@@ -69,5 +85,10 @@ export async function POST(req: Request) {
       project: { select: { id: true, title: true } },
     },
   });
+  if (invoice.type === "sena" && invoice.status === "pagado") {
+    void syncLeadPipelineOnSenaPaid(invoice.clientId).catch((err) => {
+      console.error("[invoice] syncLeadPipelineOnSenaPaid:", err);
+    });
+  }
   return NextResponse.json({ ok: true, item: invoice }, { status: 201 });
 }

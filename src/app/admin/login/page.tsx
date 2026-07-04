@@ -98,7 +98,7 @@ function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-md bg-brand-navy py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-navyDark disabled:opacity-60"
+          className="w-full rounded-md bg-brand-magenta py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-60"
         >
           {loading ? "Entrando…" : "Entrar"}
         </button>

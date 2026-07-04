@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { QuoteFormattedBody } from "@/components/quote/QuoteFormattedBody";
@@ -10,6 +10,7 @@ import {
   type ContractContent,
   type ContractStatus,
 } from "@/lib/contract-types";
+import { brandUi } from "@/lib/brand-ui";
 
 type ContractEditorProps = {
   projectId: string;
@@ -35,6 +36,7 @@ export function ContractEditor({
   const [body, setBody] = useState("");
   const [personalNote, setPersonalNote] = useState("");
   const [showPreview, setShowPreview] = useState(true);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
@@ -118,15 +120,21 @@ export function ContractEditor({
 
   if (loading) {
     return (
-      <Card title="Contrato" subtitle="Cargando…">
-        <p className="text-xs" style={{ color: "rgba(13,13,13,0.45)" }}>
-          Preparando editor…
+      <Card id="contrato" className="mb-8">
+        <Topbar title="Contrato" subtitle={`${clientName} · ${projectTitle}`} />
+        <p className="text-xs" style={{ color: brandUi.textMuted }}>
+          Cargando…
         </p>
       </Card>
     );
   }
 
   const status = data?.status ?? "borrador";
+  const editorLabel = editorOpen
+    ? "Ocultar contrato"
+    : isLocked
+      ? "Ver contrato"
+      : "Editar contrato";
 
   return (
     <Card id="contrato" className="mb-8">
@@ -141,14 +149,14 @@ export function ContractEditor({
                 status === "aceptado"
                   ? "#e3f2e3"
                   : status === "enviado"
-                    ? "rgba(240,49,114,0.1)"
-                    : "rgba(13,13,13,0.06)",
+                    ? brandUi.accentSoft
+                    : brandUi.navySoft,
               color:
                 status === "aceptado"
                   ? "#1a6b1a"
                   : status === "enviado"
-                    ? "#F03172"
-                    : "rgba(13,13,13,0.5)",
+                    ? brandUi.accent
+                    : brandUi.textMuted,
             }}
           >
             {CONTRACT_STATUS_LABELS[status]}
@@ -156,96 +164,132 @@ export function ContractEditor({
         }
       />
 
-      {data?.contractAcceptedAt && (
-        <p className="text-xs mb-4" style={{ color: "#1a6b1a" }}>
-          Aceptado el{" "}
-          {new Date(data.contractAcceptedAt).toLocaleString("es-AR", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          })}
-        </p>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="space-y-3">
-          <label className="block">
-            <span
-              className="text-[9px] font-medium uppercase tracking-widest"
-              style={{ color: "rgba(13,13,13,0.42)" }}
-            >
-              Texto del contrato (Markdown)
-            </span>
-            <textarea
-              className="mt-1 w-full rounded border p-3 text-sm font-mono leading-relaxed min-h-[320px]"
-              style={{
-                borderColor: "rgba(13,13,13,0.15)",
-                background: isLocked ? "rgba(13,13,13,0.04)" : "#fff",
-                color: "#0D0D0D",
-              }}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              disabled={isLocked}
-            />
-          </label>
-
-          {!isLocked && (
-            <label className="block">
-              <span
-                className="text-[9px] font-medium uppercase tracking-widest"
-                style={{ color: "rgba(13,13,13,0.42)" }}
-              >
-                Nota personalizada (mail)
-              </span>
-              <textarea
-                className="mt-1 w-full rounded border p-2 text-sm min-h-[72px]"
-                style={{ borderColor: "rgba(13,13,13,0.15)", background: "#fff" }}
-                placeholder="Ej: Con mucho cariño para este proceso…"
-                value={personalNote}
-                onChange={(e) => setPersonalNote(e.target.value)}
-              />
-            </label>
-          )}
-
-          <div className="flex flex-wrap gap-2 pt-1">
-            {!isLocked && (
-              <>
-                <Button variant="ghost" onClick={() => setShowPreview((v) => !v)}>
-                  {showPreview ? "Ocultar vista previa" : "Vista previa"}
-                </Button>
-                <Button variant="secondary" disabled={saving} onClick={() => void saveDraft()}>
-                  {saving ? "Guardando…" : "Guardar borrador"}
-                </Button>
-                <Button variant="primary" disabled={sending || !body.trim()} onClick={() => void sendContract()}>
-                  {sending ? "Enviando…" : "Enviar contrato →"}
-                </Button>
-              </>
-            )}
-          </div>
-
-          {message && (
-            <p className="text-xs" style={{ color: "rgba(13,13,13,0.65)" }}>
-              {message}
+      <div
+        className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t"
+        style={{ borderColor: brandUi.border }}
+      >
+        <div className="text-xs space-y-0.5">
+          {data?.contractAcceptedAt && (
+            <p style={{ color: "#1a6b1a" }}>
+              Aceptado el{" "}
+              {new Date(data.contractAcceptedAt).toLocaleString("es-AR", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
             </p>
           )}
-          {lastLink && (
-            <p className="text-[10px] break-all" style={{ color: "#323FF6" }}>
-              {lastLink}
+          {!data?.contractAcceptedAt && data?.contractSentAt && (
+            <p style={{ color: brandUi.textMuted }}>
+              Enviado el{" "}
+              {new Date(data.contractSentAt).toLocaleString("es-AR", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
             </p>
+          )}
+          {status === "borrador" && (
+            <p style={{ color: brandUi.textFaint }}>Borrador — aún no enviado al cliente</p>
           )}
         </div>
 
-        {showPreview && (
-          <div
-            className="rounded border p-4 min-h-[320px] overflow-auto"
-            style={{ borderColor: "rgba(13,13,13,0.1)", background: "#0D0D0D" }}
-          >
-            <QuoteFormattedBody
-              body={body}
-              format="markdown"
-            />
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={() => setEditorOpen((v) => !v)}
+          className="text-xs font-medium uppercase tracking-wider hover:opacity-80 transition-opacity"
+          style={{ color: brandUi.accent, background: "none", border: "none", cursor: "pointer" }}
+          aria-expanded={editorOpen}
+        >
+          {editorLabel} {editorOpen ? "↑" : "↓"}
+        </button>
       </div>
+
+      {editorOpen && (
+        <div
+          className="mt-4 pt-4 border-t grid grid-cols-1 lg:grid-cols-2 gap-4"
+          style={{ borderColor: brandUi.border }}
+        >
+          <div className="space-y-3">
+            <label className="block">
+              <span
+                className="text-[9px] font-medium uppercase tracking-widest"
+                style={{ color: brandUi.textFaint }}
+              >
+                Texto del contrato (Markdown)
+              </span>
+              <textarea
+                className="mt-1 w-full rounded border p-3 text-sm font-mono leading-relaxed min-h-[320px]"
+                style={{
+                  borderColor: brandUi.borderStrong,
+                  background: isLocked ? brandUi.navySoft : brandUi.surface,
+                  color: brandUi.text,
+                }}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                disabled={isLocked}
+                readOnly={isLocked}
+              />
+            </label>
+
+            {!isLocked && (
+              <label className="block">
+                <span
+                  className="text-[9px] font-medium uppercase tracking-widest"
+                  style={{ color: brandUi.textFaint }}
+                >
+                  Nota personalizada (mail)
+                </span>
+                <textarea
+                  className="mt-1 w-full rounded border p-2 text-sm min-h-[72px]"
+                  style={{ borderColor: brandUi.borderStrong, background: brandUi.surface }}
+                  placeholder="Ej: Con mucho cariño para este proceso…"
+                  value={personalNote}
+                  onChange={(e) => setPersonalNote(e.target.value)}
+                />
+              </label>
+            )}
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {!isLocked && (
+                <>
+                  <Button variant="ghost" onClick={() => setShowPreview((v) => !v)}>
+                    {showPreview ? "Ocultar vista previa" : "Vista previa"}
+                  </Button>
+                  <Button variant="secondary" disabled={saving} onClick={() => void saveDraft()}>
+                    {saving ? "Guardando…" : "Guardar borrador"}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    disabled={sending || !body.trim()}
+                    onClick={() => void sendContract()}
+                  >
+                    {sending ? "Enviando…" : "Enviar contrato →"}
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {message && (
+              <p className="text-xs" style={{ color: brandUi.textMuted }}>
+                {message}
+              </p>
+            )}
+            {lastLink && (
+              <p className="text-[10px] break-all" style={{ color: brandUi.blue }}>
+                {lastLink}
+              </p>
+            )}
+          </div>
+
+          {showPreview && (
+            <div
+              className="rounded-lg border p-4 min-h-[320px] overflow-auto bg-white"
+              style={{ borderColor: brandUi.border }}
+            >
+              <QuoteFormattedBody body={body} format="markdown" theme="light" />
+            </div>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

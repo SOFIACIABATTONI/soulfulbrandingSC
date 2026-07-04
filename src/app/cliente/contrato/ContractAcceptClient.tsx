@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { QuoteFormattedBody } from "@/components/quote/QuoteFormattedBody";
+import { PortalCard, PortalShell } from "@/components/portal/PortalShell";
+import { brandUi } from "@/lib/brand-ui";
 
 type PublicContract = {
   clientName: string;
@@ -56,102 +58,63 @@ export function ContractAcceptClient({ token }: { token: string }) {
 
   if (loading) {
     return (
-      <main
-        className="min-h-screen flex items-center justify-center px-4"
-        style={{ background: "#0D0D0D" }}
-      >
-        <p className="text-sm" style={{ color: "rgba(249,243,219,0.6)" }}>
+      <PortalShell>
+        <p className="text-center text-sm" style={{ color: brandUi.textMuted }}>
           Cargando contrato…
         </p>
-      </main>
+      </PortalShell>
     );
   }
 
   if (!data && error) {
     return (
-      <main
-        className="min-h-screen flex items-center justify-center px-4"
-        style={{ background: "#0D0D0D" }}
-      >
-        <div className="max-w-md text-center">
-          <p className="font-serif text-2xl italic mb-3" style={{ color: "#F9F3DB" }}>
-            Enlace no disponible
-          </p>
-          <p className="text-sm" style={{ color: "rgba(249,243,219,0.55)" }}>
-            {error}
-          </p>
-        </div>
-      </main>
+      <PortalShell title="Enlace no disponible">
+        <p className="text-center text-sm text-brand-magenta">{error}</p>
+      </PortalShell>
     );
   }
 
   if (!data) return null;
 
   return (
-    <main className="min-h-screen px-4 py-10" style={{ background: "#0D0D0D" }}>
-      <div className="max-w-2xl mx-auto">
-        <header className="text-center mb-8">
-          <p
-            className="text-[10px] uppercase tracking-[0.2em] mb-2"
-            style={{ color: "rgba(249,243,219,0.45)" }}
-          >
-            Soulful Branding®
-          </p>
-          <h1 className="font-serif text-3xl italic mb-2" style={{ color: "#F9F3DB" }}>
-            Contrato de servicios
-          </h1>
-          <p className="text-sm" style={{ color: "rgba(249,243,219,0.55)" }}>
-            {data.projectTitle} · USD {data.value.toLocaleString("en-US")}
-          </p>
-        </header>
+    <PortalShell
+      eyebrow="Soulful Branding®"
+      title="Contrato de servicios"
+      subtitle={`${data.projectTitle} · USD ${data.value.toLocaleString("en-US")}`}
+    >
+      <PortalCard className="mb-8">
+        <QuoteFormattedBody body={data.content.body} format="markdown" theme="light" />
+      </PortalCard>
 
-        <div
-          className="rounded-lg border p-6 mb-8"
-          style={{
-            borderColor: "rgba(249,243,219,0.12)",
-            background: "rgba(249,243,219,0.04)",
-          }}
-        >
-          <QuoteFormattedBody body={data.content.body} format="markdown" />
+      {done ? (
+        <div className="text-center py-6">
+          <div className="text-3xl mb-4 text-brand-magenta">✓</div>
+          <p className="font-serif text-xl italic mb-2 text-brand-navy">Contrato aceptado</p>
+          <p className="text-sm" style={{ color: brandUi.textMuted }}>
+            Gracias, {data.clientName.split(" ")[0]}. Sofía recibirá la confirmación y te
+            contactará con los próximos pasos.
+          </p>
         </div>
-
-        {done ? (
-          <div className="text-center py-6">
-            <div className="text-4xl mb-4">✓</div>
-            <p className="font-serif text-xl italic mb-2" style={{ color: "#F9F3DB" }}>
-              Contrato aceptado
-            </p>
-            <p className="text-sm" style={{ color: "rgba(249,243,219,0.55)" }}>
-              Gracias, {data.clientName.split(" ")[0]}. Sofía recibirá la confirmación y te
-              contactará con los próximos pasos.
-            </p>
-          </div>
-        ) : (
-          <div className="text-center space-y-4">
-            {error && (
-              <p className="text-sm" style={{ color: "#f87171" }}>
-                {error}
+      ) : (
+        <div className="text-center space-y-4">
+          {error && <p className="text-sm text-brand-magenta">{error}</p>}
+          {data.canAccept && (
+            <>
+              <p className="text-xs uppercase tracking-widest" style={{ color: brandUi.textFaint }}>
+                Al hacer click confirmás que leíste y aceptás los términos del contrato.
               </p>
-            )}
-            {data.canAccept && (
-              <>
-                <p className="text-xs" style={{ color: "rgba(249,243,219,0.45)" }}>
-                  Al hacer click confirmás que leíste y aceptás los términos del contrato.
-                </p>
-                <button
-                  type="button"
-                  disabled={submitting}
-                  onClick={() => void accept()}
-                  className="rounded px-8 py-3 text-sm font-medium uppercase tracking-wider disabled:opacity-50"
-                  style={{ background: "#F03172", color: "#fff" }}
-                >
-                  {submitting ? "Procesando…" : "Aceptar contrato"}
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    </main>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => void accept()}
+                className="rounded px-8 py-3 text-sm font-medium uppercase tracking-wider text-white bg-brand-magenta disabled:opacity-50"
+              >
+                {submitting ? "Procesando…" : "Aceptar contrato"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </PortalShell>
   );
 }

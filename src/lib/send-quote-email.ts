@@ -58,11 +58,11 @@ export async function sendQuoteEmailToClient(payload: SendQuoteEmailPayload): Pr
     .join("\n");
 
   const innerHtml = isDeck
-    ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:rgba(249,243,219,0.88);">Te comparto la propuesta <strong style="color:#F9F3DB;">Born &amp; Be</strong> — experiencia de identidad verbal y visual con el método Soulful Branding®.</p>
-       <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:rgba(249,243,219,0.65);">En el enlace vas a ver la presentación completa (12 diapositivas) y podés aprobar, consultar cambios o responder desde ahí.</p>`
+    ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:rgba(19,25,69,0.88);">Te comparto la propuesta <strong style="color:#131945;">Born &amp; Be</strong> — experiencia de identidad verbal y visual con el método Soulful Branding®.</p>
+       <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:rgba(19,25,69,0.65);">En el enlace vas a ver la presentación completa (12 diapositivas) y podés aprobar, consultar cambios o responder desde ahí.</p>`
     : content.format === "markdown"
       ? markdownToQuoteHtml(content.body)
-      : `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:rgba(249,243,219,0.88);white-space:pre-wrap;">${content.body.replace(/</g, "&lt;")}</p>`;
+      : `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:rgba(19,25,69,0.88);white-space:pre-wrap;">${content.body.replace(/</g, "&lt;")}</p>`;
 
   const html = wrapQuoteEmailHtml(
     innerHtml,

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { CLIENT_RESPONSE_LABELS } from "@/lib/quote-types";
 import { QuoteFormattedBody } from "@/components/quote/QuoteFormattedBody";
+import { PortalCard, PortalShell } from "@/components/portal/PortalShell";
+import { brandUi } from "@/lib/brand-ui";
 
 type PublicQuote = {
   status: string;
@@ -75,27 +77,19 @@ export function QuoteRespondClient({ token }: { token: string }) {
 
   if (loading) {
     return (
-      <main
-        className="min-h-screen flex items-center justify-center px-4"
-        style={{ background: "#0D0D0D" }}
-      >
-        <p className="text-sm" style={{ color: "rgba(249,243,219,0.5)" }}>
+      <PortalShell>
+        <p className="text-center text-sm" style={{ color: brandUi.textMuted }}>
           Cargando…
         </p>
-      </main>
+      </PortalShell>
     );
   }
 
   if (error && !data) {
     return (
-      <main
-        className="min-h-screen flex items-center justify-center px-4"
-        style={{ background: "#0D0D0D" }}
-      >
-        <p className="text-sm text-center max-w-md" style={{ color: "#F03172" }}>
-          {error}
-        </p>
-      </main>
+      <PortalShell title="Enlace no disponible">
+        <p className="text-center text-sm text-brand-magenta">{error}</p>
+      </PortalShell>
     );
   }
 
@@ -104,56 +98,38 @@ export function QuoteRespondClient({ token }: { token: string }) {
   const isDeck = data.content.format === "bbb-deck-2026";
 
   return (
-    <main className="min-h-screen py-10 px-4" style={{ background: "#0D0D0D" }}>
-      <article className={isDeck ? "max-w-3xl mx-auto" : "max-w-xl mx-auto"}>
-        <header className="mb-8 text-center">
-          <p
-            className="text-[10px] uppercase tracking-[0.25em] mb-3"
-            style={{ color: "#F03172" }}
-          >
-            Soulful Branding®
+    <PortalShell
+      eyebrow="Soulful Branding®"
+      subtitle={`Hola, ${data.clientName}`}
+      footer={
+        <p className="text-[10px] text-center mt-10" style={{ color: brandUi.textFaint }}>
+          Válido hasta{" "}
+          {new Date(data.expiresAt).toLocaleDateString("es-AR", { dateStyle: "long" })}
+        </p>
+      }
+    >
+      <div className={isDeck ? "max-w-3xl mx-auto" : undefined}>
+        {isDeck && (
+          <p className="text-[10px] uppercase tracking-[0.2em] text-center mb-4" style={{ color: brandUi.textFaint }}>
+            Born & Be · Brand ID
           </p>
-          <p className="text-sm" style={{ color: "rgba(249,243,219,0.55)" }}>
-            Hola, {data.clientName}
-          </p>
-          {isDeck && (
-            <p
-              className="text-[10px] uppercase tracking-[0.2em] mt-2"
-              style={{ color: "rgba(249,243,219,0.35)" }}
-            >
-              Born & Be · Brand ID
-            </p>
-          )}
-        </header>
+        )}
 
-        <div
-          className={isDeck ? "rounded-lg overflow-hidden" : "rounded-lg border px-6 py-8 sm:px-8"}
-          style={
-            isDeck
-              ? { background: "#0D0D0D" }
-              : {
-                  borderColor: "rgba(249,243,219,0.12)",
-                  background: "rgba(13,13,13,0.6)",
-                }
-          }
-        >
+        <PortalCard className={isDeck ? "border-0 shadow-none p-0 bg-transparent" : "mb-8"}>
           <QuoteFormattedBody
             body={data.content.body}
             format={data.content.format}
             videoUrl={data.content.videoUrl}
             total={data.content.total}
             currency={data.content.currency}
+            theme="light"
           />
-        </div>
+        </PortalCard>
 
         {done || !data.canRespond ? (
           <div
-            className="rounded p-4 text-sm text-center mt-8"
-            style={{
-              background: "rgba(249,243,219,0.06)",
-              color: "rgba(249,243,219,0.85)",
-              border: "1px solid rgba(249,243,219,0.1)",
-            }}
+            className="rounded-lg border p-4 text-sm text-center mt-8 bg-white"
+            style={{ borderColor: brandUi.border, color: brandUi.textMuted }}
           >
             {data.clientResponse
               ? `Registramos tu respuesta: ${CLIENT_RESPONSE_LABELS[data.clientResponse] ?? data.clientResponse}. Gracias.`
@@ -165,17 +141,13 @@ export function QuoteRespondClient({ token }: { token: string }) {
           <div className="mt-10">
             <p
               className="text-xs mb-4 text-center uppercase tracking-widest"
-              style={{ color: "rgba(249,243,219,0.45)" }}
+              style={{ color: brandUi.textFaint }}
             >
               ¿Cómo querés continuar?
             </p>
             <textarea
-              className="w-full rounded border px-3 py-2 text-sm mb-4 resize-y"
-              style={{
-                borderColor: "rgba(249,243,219,0.2)",
-                background: "rgba(249,243,219,0.06)",
-                color: "#F9F3DB",
-              }}
+              className="w-full rounded-lg border px-3 py-2 text-sm mb-4 resize-y bg-white text-brand-navy"
+              style={{ borderColor: brandUi.borderStrong }}
               placeholder="Comentario opcional…"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
@@ -186,8 +158,7 @@ export function QuoteRespondClient({ token }: { token: string }) {
                 type="button"
                 disabled={!!submitting}
                 onClick={() => void respond("aprobado")}
-                className="w-full rounded py-3 text-sm font-medium text-white disabled:opacity-50"
-                style={{ background: "#F03172" }}
+                className="w-full rounded-lg py-3 text-sm font-medium text-white disabled:opacity-50 bg-brand-magenta"
               >
                 {submitting === "aprobado" ? "Enviando…" : "Aprobar y continuar"}
               </button>
@@ -195,8 +166,7 @@ export function QuoteRespondClient({ token }: { token: string }) {
                 type="button"
                 disabled={!!submitting}
                 onClick={() => void respond("consultar")}
-                className="w-full rounded py-3 text-sm font-medium border disabled:opacity-50"
-                style={{ borderColor: "#323FF6", color: "#323FF6" }}
+                className="w-full rounded-lg py-3 text-sm font-medium border disabled:opacity-50 border-brand-blue text-brand-blue bg-white"
               >
                 {submitting === "consultar" ? "Enviando…" : "Quiero consultar cambios"}
               </button>
@@ -204,8 +174,8 @@ export function QuoteRespondClient({ token }: { token: string }) {
                 type="button"
                 disabled={!!submitting}
                 onClick={() => void respond("rechazado")}
-                className="w-full rounded py-2 text-xs disabled:opacity-50"
-                style={{ color: "rgba(249,243,219,0.4)" }}
+                className="w-full rounded-lg py-2 text-xs disabled:opacity-50"
+                style={{ color: brandUi.textFaint }}
               >
                 {submitting === "rechazado" ? "Enviando…" : "No continuar por ahora"}
               </button>
@@ -214,19 +184,9 @@ export function QuoteRespondClient({ token }: { token: string }) {
         )}
 
         {error && (
-          <p className="text-xs text-center mt-4" style={{ color: "#F03172" }}>
-            {error}
-          </p>
+          <p className="text-xs text-center mt-4 text-brand-magenta">{error}</p>
         )}
-
-        <p
-          className="text-[10px] text-center mt-10"
-          style={{ color: "rgba(249,243,219,0.3)" }}
-        >
-          Válido hasta{" "}
-          {new Date(data.expiresAt).toLocaleDateString("es-AR", { dateStyle: "long" })}
-        </p>
-      </article>
-    </main>
+      </div>
+    </PortalShell>
   );
 }

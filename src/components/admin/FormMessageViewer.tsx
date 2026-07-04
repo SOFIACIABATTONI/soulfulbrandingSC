@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 // ── parser ─────────────────────────────────────────────────
 type ParsedLine =
@@ -55,7 +55,7 @@ export function FormMessageViewer({
       <div>
         <p
           className="text-xs leading-relaxed line-clamp-2"
-          style={{ color: "rgba(13,13,13,0.55)" }}
+          style={{ color: "rgba(19,25,69,0.2)" }}
         >
           {preview}
         </p>
@@ -79,7 +79,7 @@ export function FormMessageViewer({
             <p
               key={i}
               className="text-[9px] font-medium uppercase tracking-widest pt-2 border-t"
-              style={{ color: "rgba(13,13,13,0.35)", borderColor: "rgba(13,13,13,0.08)" }}
+              style={{ color: "rgba(19,25,69,0.35)", borderColor: "rgba(19,25,69,0.08)" }}
             >
               {line.text}
             </p>
@@ -87,7 +87,7 @@ export function FormMessageViewer({
         }
         if (line.type === "intro") {
           return (
-            <p key={i} className="text-xs italic" style={{ color: "rgba(13,13,13,0.42)" }}>
+            <p key={i} className="text-xs italic" style={{ color: "rgba(19,25,69,0.42)" }}>
               {line.text}
             </p>
           );
@@ -95,10 +95,10 @@ export function FormMessageViewer({
         const qa = line as { type: "qa"; label: string; value: string };
         return (
           <div key={i} className="grid gap-1 text-xs" style={{ gridTemplateColumns: "minmax(0,160px) 1fr" }}>
-            <span className="leading-relaxed" style={{ color: "rgba(13,13,13,0.42)" }}>
+            <span className="leading-relaxed" style={{ color: "rgba(19,25,69,0.42)" }}>
               {qa.label}
             </span>
-            <span className="leading-relaxed font-medium" style={{ color: "#0D0D0D" }}>
+            <span className="leading-relaxed font-medium" style={{ color: "#131945" }}>
               {qa.value}
             </span>
           </div>
@@ -108,7 +108,7 @@ export function FormMessageViewer({
         type="button"
         onClick={onToggle}
         className="text-[10px] pt-1 hover:underline"
-        style={{ color: "rgba(13,13,13,0.35)" }}
+        style={{ color: "rgba(19,25,69,0.35)" }}
       >
         Colapsar ↑
       </button>

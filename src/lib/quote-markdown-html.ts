@@ -1,9 +1,7 @@
 import type { ParsedVideo } from "@/lib/quote-video";
+import { brandSansStack, brandSerifStack, brandUi } from "@/lib/brand-ui";
 
-/**
- * Convierte markdown simple (###, **, listas) a HTML para correos.
- * Misma lógica visual que la página pública en fondo negro.
- */
+/** Convierte markdown simple (###, **, listas) a HTML para correos — estilo sitio (claro). */
 
 function escapeHtml(s: string): string {
   return s
@@ -40,7 +38,7 @@ export function markdownToQuoteHtml(markdown: string): string {
     if (line.startsWith("### ")) {
       closeList();
       parts.push(
-        `<h3 style="margin:28px 0 12px;font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:400;font-style:italic;color:#F9F3DB;line-height:1.3;">${inlineFormat(line.slice(4).trim())}</h3>`,
+        `<h3 style="margin:28px 0 12px;font-family:${brandSerifStack};font-size:22px;font-weight:400;font-style:italic;color:${brandUi.text};line-height:1.3;">${inlineFormat(line.slice(4).trim())}</h3>`,
       );
       continue;
     }
@@ -48,14 +46,14 @@ export function markdownToQuoteHtml(markdown: string): string {
     if (line.startsWith("## ")) {
       closeList();
       parts.push(
-        `<h2 style="margin:32px 0 14px;font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:400;font-style:italic;color:#F9F3DB;">${inlineFormat(line.slice(3).trim())}</h2>`,
+        `<h2 style="margin:32px 0 14px;font-family:${brandSerifStack};font-size:26px;font-weight:400;font-style:italic;color:${brandUi.text};">${inlineFormat(line.slice(3).trim())}</h2>`,
       );
       continue;
     }
 
     if (line.startsWith("- ")) {
       if (!inList) {
-        parts.push('<ul style="margin:12px 0 20px;padding-left:20px;color:rgba(249,243,219,0.92);">');
+        parts.push(`<ul style="margin:12px 0 20px;padding-left:20px;color:${brandUi.text};">`);
         inList = true;
       }
       parts.push(
@@ -66,7 +64,7 @@ export function markdownToQuoteHtml(markdown: string): string {
 
     closeList();
     parts.push(
-      `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:rgba(249,243,219,0.88);">${inlineFormat(line.trim())}</p>`,
+      `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:${brandUi.textMuted};">${inlineFormat(line.trim())}</p>`,
     );
   }
 
@@ -78,18 +76,18 @@ export function wrapQuoteEmailHtml(inner: string, videoBlock: string, ctaUrl: st
   return `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/></head>
-<body style="margin:0;padding:0;background:#0D0D0D;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#0D0D0D;">
+<body style="margin:0;padding:0;background:${brandUi.page};">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:${brandUi.page};">
 <tr><td align="center" style="padding:40px 20px;">
-<table width="100%" style="max-width:600px;" cellpadding="0" cellspacing="0">
-<tr><td style="font-family:Helvetica,Arial,sans-serif;">
-<p style="margin:0 0 8px;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#F03172;">Soulful Branding®</p>
+<table width="100%" style="max-width:600px;background:${brandUi.surface};border-radius:8px;" cellpadding="0" cellspacing="0">
+<tr><td style="font-family:${brandSansStack};padding:32px 28px;">
+<p style="margin:0 0 8px;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:${brandUi.accent};">Soulful Branding®</p>
 ${videoBlock}
 <div style="margin-top:8px;">${inner}</div>
 <table cellpadding="0" cellspacing="0" style="margin:36px 0 0;"><tr><td>
-<a href="${escapeHtml(ctaUrl)}" style="display:inline-block;background:#F03172;color:#ffffff;text-decoration:none;padding:14px 28px;font-size:14px;font-weight:600;border-radius:4px;">Ver propuesta y responder</a>
+<a href="${escapeHtml(ctaUrl)}" style="display:inline-block;background:${brandUi.accent};color:#ffffff;text-decoration:none;padding:14px 28px;font-size:14px;font-weight:600;border-radius:4px;">Ver propuesta y responder</a>
 </td></tr></table>
-<p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:rgba(249,243,219,0.45);">Este enlace es personal y confidencial.</p>
+<p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:${brandUi.textFaint};">Este enlace es personal y confidencial.</p>
 </td></tr>
 </table>
 </td></tr>
@@ -103,8 +101,8 @@ export function buildVideoEmailBlock(video: ParsedVideo | null): string {
 
   const thumb =
     video.thumbnailUrl &&
-    `<a href="${escapeHtml(video.watchUrl)}" style="display:block;margin:0 0 20px;text-decoration:none;"><img src="${escapeHtml(video.thumbnailUrl)}" alt="Ver video" width="560" style="max-width:100%;border-radius:6px;border:1px solid rgba(249,243,219,0.15);"/></a>`;
+    `<a href="${escapeHtml(video.watchUrl)}" style="display:block;margin:0 0 20px;text-decoration:none;"><img src="${escapeHtml(video.thumbnailUrl)}" alt="Ver video" width="560" style="max-width:100%;border-radius:6px;border:1px solid ${brandUi.border};"/></a>`;
 
   return `${thumb ?? ""}
-<p style="margin:0 0 24px;"><a href="${escapeHtml(video.watchUrl)}" style="color:#F03172;font-size:14px;font-weight:600;text-decoration:underline;">Ver video de bienvenida →</a></p>`;
+<p style="margin:0 0 24px;"><a href="${escapeHtml(video.watchUrl)}" style="color:${brandUi.accent};font-size:14px;font-weight:600;text-decoration:underline;">Ver video de bienvenida →</a></p>`;
 }

@@ -99,9 +99,11 @@ export async function applyClientQuoteResponse(
   if (response === "aprobado") {
     const leadFull = await prisma.lead.findUnique({ where: { id: quote.leadId } });
     if (leadFull) {
-      void provisionClientFromApprovedQuote(leadFull, updated).catch((err) => {
+      try {
+        await provisionClientFromApprovedQuote(leadFull, updated);
+      } catch (err) {
         console.error("[quote] provisionClientFromApprovedQuote:", err);
-      });
+      }
     }
   }
 

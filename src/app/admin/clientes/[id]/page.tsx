@@ -21,11 +21,29 @@ export default async function AdminClienteDetailPage({ params }: PageProps) {
       lead: { select: { id: true, service: true, estimatedValue: true } },
       projects: {
         orderBy: { createdAt: "desc" },
-        select: { id: true, title: true, service: true, status: true, value: true, startDate: true, deliveryDate: true },
+        select: {
+          id: true,
+          title: true,
+          service: true,
+          status: true,
+          value: true,
+          contractStatus: true,
+          phases: true,
+          startDate: true,
+          deliveryDate: true,
+        },
       },
       invoices: {
         orderBy: { createdAt: "desc" },
-        select: { id: true, number: true, type: true, total: true, status: true, issuedAt: true },
+        select: {
+          id: true,
+          number: true,
+          type: true,
+          total: true,
+          status: true,
+          issuedAt: true,
+          projectId: true,
+        },
       },
       _count: { select: { projects: true, invoices: true } },
     },
@@ -38,16 +56,16 @@ export default async function AdminClienteDetailPage({ params }: PageProps) {
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <Link href="/admin/clientes" className="text-[9px] font-medium uppercase tracking-widest hover:underline"
-            style={{ color: "rgba(13,13,13,0.35)" }}>
+            style={{ color: "rgba(19,25,69,0.35)" }}>
             Clientes
           </Link>
-          <span className="text-[9px]" style={{ color: "rgba(13,13,13,0.25)" }}>›</span>
+          <span className="text-[9px]" style={{ color: "rgba(19,25,69,0.25)" }}>›</span>
           <span className="text-[9px] font-medium uppercase tracking-widest"
-            style={{ color: "rgba(13,13,13,0.42)" }}>
+            style={{ color: "rgba(19,25,69,0.42)" }}>
             Ficha
           </span>
         </div>
-        <h1 className="font-serif text-3xl italic" style={{ color: "#0D0D0D" }}>
+        <h1 className="font-serif text-3xl italic" style={{ color: "#131945" }}>
           {client.name}
         </h1>
       </div>

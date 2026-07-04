@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -105,7 +105,7 @@ export function ClientsManager() {
         <button
           onClick={() => setModalOpen(true)}
           className="ml-auto rounded px-4 py-2 text-sm font-medium text-white"
-          style={{ background: "#0D0D0D" }}
+          style={{ background: "#F03172" }}
         >
           + Nuevo cliente
         </button>
@@ -116,7 +116,7 @@ export function ClientsManager() {
         <table className="min-w-full text-sm">
           <thead
             className="border-b border-neutral-200 text-left text-[11px] font-medium uppercase tracking-widest"
-            style={{ background: "#F9F3DB", color: "rgba(13,13,13,0.42)" }}
+            style={{ background: "#FFFFFF", color: "rgba(19,25,69,0.42)" }}
           >
             <tr>
               <th className="px-4 py-3">Cliente</th>
@@ -132,7 +132,7 @@ export function ClientsManager() {
             {filtered.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-neutral-100 hover:bg-[#F9F3DB]/40 transition-colors"
+                className="border-b border-neutral-100 hover:bg-brand-sky/30 transition-colors"
               >
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -143,7 +143,7 @@ export function ClientsManager() {
                       {initials(row.name)}
                     </div>
                     <div>
-                      <div className="font-medium text-[#0D0D0D]">
+                      <div className="font-medium text-[#131945]">
                         {row.name}
                       </div>
                       {row.company && (
@@ -165,11 +165,11 @@ export function ClientsManager() {
                       background:
                         row._count.projects > 0
                           ? "rgba(50,63,246,0.08)"
-                          : "rgba(13,13,13,0.05)",
+                          : "rgba(19,25,69,0.05)",
                       color:
                         row._count.projects > 0
                           ? "#323FF6"
-                          : "rgba(13,13,13,0.35)",
+                          : "rgba(19,25,69,0.35)",
                     }}
                   >
                     {row._count.projects}
@@ -182,11 +182,11 @@ export function ClientsManager() {
                       background:
                         row._count.invoices > 0
                           ? "rgba(240,49,114,0.08)"
-                          : "rgba(13,13,13,0.05)",
+                          : "rgba(19,25,69,0.05)",
                       color:
                         row._count.invoices > 0
                           ? "#F03172"
-                          : "rgba(13,13,13,0.35)",
+                          : "rgba(19,25,69,0.35)",
                     }}
                   >
                     {row._count.invoices}
@@ -221,7 +221,7 @@ export function ClientsManager() {
       {modalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(13,13,13,0.55)" }}
+          style={{ background: "rgba(19,25,69,0.2)" }}
           onClick={(e) => e.target === e.currentTarget && setModalOpen(false)}
         >
           <div className="w-full max-w-lg rounded bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -303,7 +303,7 @@ export function ClientsManager() {
                   type="submit"
                   disabled={saving}
                   className="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                  style={{ background: "#0D0D0D" }}
+                  style={{ background: "#F03172" }}
                 >
                   {saving ? "Guardando…" : "Guardar cliente"}
                 </button>
@@ -318,10 +318,10 @@ export function ClientsManager() {
           width: 100%;
           padding: 7px 10px;
           font-size: 13px;
-          border: 1px solid rgba(13,13,13,0.15);
+          border: 1px solid rgba(19,25,69,0.15);
           border-radius: 2px;
-          background: #F9F3DB;
-          color: #0D0D0D;
+          background: #FFFFFF;
+          color: #131945;
           outline: none;
         }
         .fv:focus {
@@ -347,7 +347,7 @@ function Field({
     <div className="flex flex-col gap-1">
       <label
         className="text-[9px] font-medium uppercase tracking-widest"
-        style={{ color: "rgba(13,13,13,0.42)" }}
+        style={{ color: "rgba(19,25,69,0.42)" }}
       >
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}

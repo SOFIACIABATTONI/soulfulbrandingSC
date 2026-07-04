@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { QuoteFormattedBody } from "@/components/quote/QuoteFormattedBody";
 import {
   CLIENT_RESPONSE_LABELS,
@@ -35,9 +36,10 @@ type QuoteRow = {
 type LeadQuotePanelProps = {
   leadId: string;
   lead: Pick<Lead, "name" | "email" | "company" | "service" | "estimatedValue" | "notes">;
+  clientId?: string | null;
 };
 
-export function LeadQuotePanel({ leadId, lead }: LeadQuotePanelProps) {
+export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanelProps) {
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -46,10 +48,12 @@ export function LeadQuotePanel({ leadId, lead }: LeadQuotePanelProps) {
   const [videoUrl, setVideoUrl] = useState("");
   const [total, setTotal] = useState("");
   const [showPreview, setShowPreview] = useState(true);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [lastLink, setLastLink] = useState<string | null>(null);
+  const [resolvedClientId, setResolvedClientId] = useState<string | null>(clientId ?? null);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/admin/leads/${leadId}/quotes`, {
@@ -67,8 +71,27 @@ export function LeadQuotePanel({ leadId, lead }: LeadQuotePanelProps) {
   }, [leadId]);
 
   useEffect(() => {
+    setResolvedClientId(clientId ?? null);
+  }, [clientId]);
+
+  useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (resolvedClientId || loading) return;
+    const hasApproved = quotes.some((q) => q.status === "aprobado");
+    if (!hasApproved) return;
+    void fetch(`/api/admin/leads/${leadId}/ensure-client`, {
+      method: "POST",
+      credentials: "include",
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((j: { clientId?: string } | null) => {
+        if (j?.clientId) setResolvedClientId(j.clientId);
+      })
+      .catch(() => undefined);
+  }, [resolvedClientId, loading, quotes, leadId]);
 
   const active = quotes.find((q) => q.id === activeId) ?? null;
 
@@ -124,6 +147,7 @@ export function LeadQuotePanel({ leadId, lead }: LeadQuotePanelProps) {
       await load();
       setActiveId(j.item.id);
       selectQuote(j.item);
+      setEditorOpen(true);
       if (j.publicToken) {
         setMessage(`Borrador creado. Token de prueba (solo dev): ${j.publicToken}`);
       }
@@ -288,18 +312,47 @@ export function LeadQuotePanel({ leadId, lead }: LeadQuotePanelProps) {
                   {QUOTE_STATUS_LABELS[active.status] ?? active.status}
                 </span>
                 {active.clientResponse && (
-                  <span style={{ color: "#0D0D0D" }}>
+                  <span style={{ color: "#131945" }}>
                     Cliente: {CLIENT_RESPONSE_LABELS[active.clientResponse] ?? active.clientResponse}
+                    {active.clientComment ? (" — " + active.clientComment) : ""}
                   </span>
                 )}
-                {active.clientComment && (
-                  <span style={{ color: "rgba(13,13,13,0.55)" }}>
+                {!active.clientResponse && active.clientComment && (
+                  <span style={{ color: "rgba(19,25,69,0.55)" }}>
                     — {active.clientComment}
                   </span>
                 )}
               </div>
 
-              {active.status === "borrador" ? (
+              <div
+                className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t"
+                style={{ borderColor: "rgba(19,25,69,0.1)" }}
+              >
+                <div className="text-[10px]" style={{ color: "rgba(19,25,69,0.42)" }}>
+                  {active.sentAt && (
+                    <span>
+                      Enviado {new Date(active.sentAt).toLocaleDateString("es-AR")}
+                      {active.viewedAt &&
+                        (" · Visto " + new Date(active.viewedAt).toLocaleDateString("es-AR"))}
+                    </span>
+                  )}
+                  {!active.sentAt && active.status === "borrador" && (
+                    <span>Borrador — aún no enviado</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditorOpen((v) => !v)}
+                  className="text-xs font-medium uppercase tracking-wider hover:opacity-80 transition-opacity"
+                  style={{ color: "#F03172", background: "none", border: "none", cursor: "pointer" }}
+                  aria-expanded={editorOpen}
+                >
+                  {active.status === "borrador" ? "Ver / editar presupuesto" : "Ver presupuesto completo"}{" "}
+                  {editorOpen ? "↑" : "↓"}
+                </button>
+              </div>
+
+              {editorOpen && (active.status === "borrador" ? (
                 <>
                   <p className="text-xs leading-relaxed" style={{ color: "rgba(13,13,13,0.5)" }}>
                     {isDeck
@@ -478,15 +531,11 @@ export function LeadQuotePanel({ leadId, lead }: LeadQuotePanelProps) {
                     currency={normalizeQuoteContent(active.content).currency}
                   />
                 </div>
-              )}
+              ))}
 
-              {active.sentAt && (
-                <p className="text-[10px]" style={{ color: "rgba(13,13,13,0.42)" }}>
-                  Enviado: {new Date(active.sentAt).toLocaleString("es-AR")}
-                  {active.viewedAt &&
-                    ` · Visto: ${new Date(active.viewedAt).toLocaleString("es-AR")}`}
-                  {active.respondedAt &&
-                    ` · Respondido: ${new Date(active.respondedAt).toLocaleString("es-AR")}`}
+              {editorOpen && active.respondedAt && (
+                <p className="text-[10px]" style={{ color: "rgba(19,25,69,0.42)" }}>
+                  Respondido: {new Date(active.respondedAt).toLocaleString("es-AR")}
                 </p>
               )}
             </div>
@@ -495,17 +544,36 @@ export function LeadQuotePanel({ leadId, lead }: LeadQuotePanelProps) {
       )}
 
       {message && (
-        <p className="text-xs mt-3 rounded px-2 py-1.5" style={{ background: "#F9F3DB", color: "#0D0D0D" }}>
+        <p className="text-xs mt-3 rounded px-2 py-1.5" style={{ background: "#F9F3DB", color: "#131945" }}>
           {message}
         </p>
       )}
       {lastLink && (
         <p className="text-xs mt-2 break-all">
-          <span style={{ color: "rgba(13,13,13,0.42)" }}>Link cliente: </span>
+          <span style={{ color: "rgba(19,25,69,0.42)" }}>Link cliente: </span>
           <a href={lastLink} style={{ color: "#323FF6" }} target="_blank" rel="noreferrer">
             {lastLink}
           </a>
         </p>
+      )}
+
+      {resolvedClientId && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t"
+          style={{ borderColor: "rgba(19,25,69,0.1)" }}
+        >
+          <p className="text-sm leading-relaxed" style={{ color: "rgba(19,25,69,0.55)" }}>
+            Cliente vinculado — proyectos, contratos y facturas se gestionan en{" "}
+            <strong style={{ color: "#131945" }}>Clientes</strong>.
+          </p>
+          <Link
+            href={"/admin/clientes/" + resolvedClientId}
+            className="rounded px-4 py-2 text-sm font-medium text-white whitespace-nowrap"
+            style={{ background: "#F03172" }}
+          >
+            Ver ficha de cliente →
+          </Link>
+        </div>
       )}
     </div>
   );

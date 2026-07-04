@@ -34,13 +34,13 @@ export default async function AdminProyectoDetailPage({ params }: PageProps) {
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <Link href="/admin/proyectos" className="text-[9px] font-medium uppercase tracking-widest hover:underline"
-            style={{ color: "rgba(13,13,13,0.35)" }}>
+            style={{ color: "rgba(19,25,69,0.35)" }}>
             Proyectos
           </Link>
-          <span className="text-[9px]" style={{ color: "rgba(13,13,13,0.25)" }}>›</span>
+          <span className="text-[9px]" style={{ color: "rgba(19,25,69,0.25)" }}>›</span>
           <Link href={`/admin/clientes/${project.client.id}`}
             className="text-[9px] font-medium uppercase tracking-widest hover:underline"
-            style={{ color: "rgba(13,13,13,0.35)" }}>
+            style={{ color: "rgba(19,25,69,0.35)" }}>
             {project.client.name}
           </Link>
         </div>

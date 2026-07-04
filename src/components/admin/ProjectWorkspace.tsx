@@ -246,7 +246,7 @@ export function ProjectWorkspace({ slug }: Props) {
 
 function ProjectsPortalPreview({ projectTitle }: { projectTitle: string }) {
   return (
-    <div id="projects-grid" className="mt-8 rounded-[24px] bg-[#fcfcfb] p-4 md:p-6">
+    <div id="projects-grid" className="mt-8 rounded-lg border bg-white p-4 md:p-6" style={{ borderColor: "rgba(19,25,69,0.1)" }}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-neutral-900 md:text-[28px]">{projectTitle}</h2>
@@ -346,7 +346,7 @@ function ProjectPhaseSections({
           >
             <div className="relative h-[180px] overflow-hidden border-b border-neutral-200 bg-neutral-100">
               <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: buildPhaseCover(phase) }} />
-              <div className="absolute inset-0 bg-black/20" />
+              <div className="absolute inset-0 bg-brand-navy/10" />
               <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-3 px-5 pb-5">
                 <div className="max-w-2xl text-white">
                   <p className="text-xs font-medium uppercase tracking-[0.24em] text-white/80">Etapa del proyecto</p>

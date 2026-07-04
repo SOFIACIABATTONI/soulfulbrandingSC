@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 // ── tipos ──────────────────────────────────────────────────
@@ -19,11 +19,31 @@ type InvoiceItem = {
 
 type ClientOption = { id: string; name: string; company: string };
 
+type ProjectOption = {
+  id: string;
+  title: string;
+  service: string;
+  value: number;
+  status: string;
+  clientId: string;
+};
+
 // ── helpers ────────────────────────────────────────────────
 const TYPE_LABELS: Record<string, string> = {
   sena: "Seña",
   final: "Final",
 };
+
+const SERVICE_LABELS: Record<string, string> = {
+  "identidad-de-marca": "Identidad de marca",
+  "estrategia-visual": "Estrategia visual",
+  "diseno-editorial": "Diseño editorial",
+};
+
+function suggestedTotal(projectValue: number, type: string): number {
+  if (type === "sena") return Math.round(projectValue * 0.5);
+  return projectValue;
+}
 
 function formatDate(d: string | null) {
   if (!d) return "—";
@@ -48,6 +68,7 @@ function StatusPill({ status }: { status: string }) {
 
 const EMPTY_FORM = {
   clientId: "",
+  projectId: "",
   type: "sena",
   total: "",
   status: "pendiente",
@@ -58,23 +79,88 @@ const EMPTY_FORM = {
 // ── componente principal ───────────────────────────────────
 export function InvoicesManager({
   initialClientId,
+  initialProjectId,
 }: {
   initialClientId?: string;
+  initialProjectId?: string;
 }) {
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [clients, setClients] = useState<ClientOption[]>([]);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("todos");
   const [filterType, setFilterType] = useState("todos");
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
-  const [form, setForm] = useState({ ...EMPTY_FORM, clientId: initialClientId ?? "" });
+  const [linkingProject, setLinkingProject] = useState<string | null>(null);
+  const autoOpenedRef = useRef(false);
+  const [form, setForm] = useState({
+    ...EMPTY_FORM,
+    clientId: initialClientId ?? "",
+    projectId: initialProjectId ?? "",
+  });
+
+  const clientProjects = useMemo(
+    () => projects.filter((p) => p.clientId === form.clientId),
+    [projects, form.clientId],
+  );
+
+  function projectsForClient(clientId: string) {
+    return projects.filter((p) => p.clientId === clientId);
+  }
+
+  function openNewInvoiceModal() {
+    const clientId = initialClientId ?? "";
+    const clientProjs = projectsForClient(clientId);
+    const projectId =
+      initialProjectId ??
+      (clientProjs.length === 1 ? clientProjs[0].id : "");
+    const project = clientProjs.find((p) => p.id === projectId);
+    setForm({
+      ...EMPTY_FORM,
+      clientId,
+      projectId,
+      total: project ? String(suggestedTotal(project.value, "sena")) : "",
+    });
+    setModalOpen(true);
+  }
+
+  function setClientId(clientId: string) {
+    const clientProjs = projectsForClient(clientId);
+    const projectId = clientProjs.length === 1 ? clientProjs[0].id : "";
+    const project = clientProjs.find((p) => p.id === projectId);
+    setForm((f) => ({
+      ...f,
+      clientId,
+      projectId,
+      total: project ? String(suggestedTotal(project.value, f.type)) : f.total,
+    }));
+  }
+
+  function setProjectId(projectId: string) {
+    const project = clientProjects.find((p) => p.id === projectId);
+    setForm((f) => ({
+      ...f,
+      projectId,
+      total: project ? String(suggestedTotal(project.value, f.type)) : f.total,
+    }));
+  }
+
+  function setInvoiceType(type: string) {
+    const project = clientProjects.find((p) => p.id === form.projectId);
+    setForm((f) => ({
+      ...f,
+      type,
+      total: project ? String(suggestedTotal(project.value, type)) : f.total,
+    }));
+  }
 
   async function load() {
-    const [invRes, cliRes] = await Promise.all([
+    const [invRes, cliRes, projRes] = await Promise.all([
       fetch("/api/admin/invoices", { credentials: "include" }),
       fetch("/api/admin/clients", { credentials: "include" }),
+      fetch("/api/admin/projects-erp", { credentials: "include" }),
     ]);
     if (invRes.ok) {
       const j = (await invRes.json()) as { items: InvoiceItem[] };
@@ -84,12 +170,24 @@ export function InvoicesManager({
       const j = (await cliRes.json()) as { items: ClientOption[] };
       setClients(j.items);
     }
+    if (projRes.ok) {
+      const j = (await projRes.json()) as { items: ProjectOption[] };
+      setProjects(j.items);
+    }
     setLoading(false);
   }
 
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    if (!loading && initialProjectId && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      openNewInvoiceModal();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, initialProjectId]);
 
   const filtered = useMemo(() => {
     return items.filter((r) => {
@@ -109,15 +207,32 @@ export function InvoicesManager({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
+        projectId: form.projectId || undefined,
         total: Number(form.total),
       }),
     });
     setSaving(false);
     if (res.ok) {
       setModalOpen(false);
-      setForm({ ...EMPTY_FORM, clientId: initialClientId ?? "" });
+      setForm({
+        ...EMPTY_FORM,
+        clientId: initialClientId ?? "",
+        projectId: initialProjectId ?? "",
+      });
       await load();
     }
+  }
+
+  async function linkProject(invoiceId: string, projectId: string | null) {
+    setLinkingProject(invoiceId);
+    await fetch(`/api/admin/invoices/${invoiceId}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId }),
+    });
+    setLinkingProject(null);
+    await load();
   }
 
   async function markPaid(id: string) {
@@ -146,9 +261,9 @@ export function InvoicesManager({
         <div className="flex gap-3 flex-wrap">
           <div
             className="rounded border px-4 py-2.5 text-sm"
-            style={{ borderColor: "rgba(13,13,13,0.1)", background: "#fff" }}
+            style={{ borderColor: "rgba(19,25,69,0.1)", background: "#fff" }}
           >
-            <span style={{ color: "rgba(13,13,13,0.42)" }}>Total facturas: </span>
+            <span style={{ color: "rgba(19,25,69,0.42)" }}>Total facturas: </span>
             <span className="font-medium">{filtered.length}</span>
           </div>
           {totalPendiente > 0 && (
@@ -187,12 +302,9 @@ export function InvoicesManager({
         </select>
         <span className="text-sm text-neutral-400">{filtered.length} de {items.length}</span>
         <button
-          onClick={() => {
-            setForm({ ...EMPTY_FORM, clientId: initialClientId ?? "" });
-            setModalOpen(true);
-          }}
+          onClick={openNewInvoiceModal}
           className="ml-auto rounded px-4 py-2 text-sm font-medium text-white"
-          style={{ background: "#0D0D0D" }}
+          style={{ background: "#F03172" }}
         >
           + Nueva factura
         </button>
@@ -203,7 +315,7 @@ export function InvoicesManager({
         <table className="min-w-full text-sm">
           <thead
             className="border-b border-neutral-200 text-left text-[11px] font-medium uppercase tracking-widest"
-            style={{ background: "#F9F3DB", color: "rgba(13,13,13,0.42)" }}
+            style={{ background: "#FFFFFF", color: "rgba(19,25,69,0.42)" }}
           >
             <tr>
               <th className="px-4 py-3">Número</th>
@@ -221,7 +333,7 @@ export function InvoicesManager({
             {filtered.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-neutral-100 hover:bg-[#F9F3DB]/40 transition-colors"
+                className="border-b border-neutral-100 hover:bg-brand-sky/30 transition-colors"
               >
                 <td className="px-4 py-3 font-mono text-xs font-medium">{row.number}</td>
                 {!initialClientId && (
@@ -229,7 +341,7 @@ export function InvoicesManager({
                     <Link
                       href={`/admin/clientes/${row.client.id}`}
                       className="font-medium hover:underline"
-                      style={{ color: "#0D0D0D" }}
+                      style={{ color: "#131945" }}
                     >
                       {row.client.name}
                     </Link>
@@ -238,13 +350,39 @@ export function InvoicesManager({
                     )}
                   </td>
                 )}
-                <td className="px-4 py-3 text-xs text-neutral-500">
-                  {row.project?.title ?? <span className="text-neutral-300">—</span>}
+                <td className="px-4 py-3 text-xs">
+                  <div className="flex items-center gap-2 min-w-[140px]">
+                    <select
+                      className="rounded border border-neutral-200 bg-white px-2 py-1 text-xs flex-1 max-w-[180px]"
+                      value={row.project?.id ?? ""}
+                      disabled={linkingProject === row.id}
+                      onChange={(e) => {
+                        void linkProject(row.id, e.target.value || null);
+                      }}
+                    >
+                      <option value="">Sin proyecto</option>
+                      {projectsForClient(row.client.id).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.title}
+                        </option>
+                      ))}
+                    </select>
+                    {row.project && (
+                      <Link
+                        href={`/admin/proyectos/${row.project.id}`}
+                        className="shrink-0 hover:opacity-70"
+                        style={{ color: "#323FF6" }}
+                        title="Ver proyecto"
+                      >
+                        →
+                      </Link>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <span
                     className="inline-block rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
-                    style={{ background: "#0D0D0D", color: "#F9F3DB" }}
+                    style={{ background: "rgba(19,25,69,0.08)", color: "#131945" }}
                   >
                     {TYPE_LABELS[row.type] ?? row.type}
                   </span>
@@ -290,7 +428,7 @@ export function InvoicesManager({
       {modalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(13,13,13,0.55)" }}
+          style={{ background: "rgba(19,25,69,0.2)" }}
           onClick={(e) => e.target === e.currentTarget && setModalOpen(false)}
         >
           <div className="w-full max-w-lg rounded bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -312,7 +450,7 @@ export function InvoicesManager({
                         required
                         className="fv"
                         value={form.clientId}
-                        onChange={(e) => setForm({ ...form, clientId: e.target.value })}
+                        onChange={(e) => setClientId(e.target.value)}
                       >
                         <option value="">Seleccionar cliente…</option>
                         {clients.map((c) => (
@@ -324,11 +462,47 @@ export function InvoicesManager({
                     </Field>
                   </div>
                 )}
+                <div className="col-span-2 flex flex-col gap-1">
+                  <Field
+                    label="Proyecto"
+                    required={clientProjects.length > 0}
+                  >
+                    <select
+                      className="fv"
+                      required={clientProjects.length > 0}
+                      value={form.projectId}
+                      disabled={!form.clientId}
+                      onChange={(e) => setProjectId(e.target.value)}
+                    >
+                      <option value="">
+                        {!form.clientId
+                          ? "Elegí un cliente primero…"
+                          : clientProjects.length === 0
+                            ? "Este cliente no tiene proyectos"
+                            : "Seleccionar proyecto…"}
+                      </option>
+                      {clientProjects.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.title}
+                          {SERVICE_LABELS[p.service]
+                            ? ` — ${SERVICE_LABELS[p.service]}`
+                            : ""}
+                          {" "}(${p.value.toLocaleString("es-AR")} USD)
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  {form.projectId && (
+                    <p className="text-[10px]" style={{ color: "rgba(19,25,69,0.42)" }}>
+                      Referencia al proyecto en curso. Si el cliente tiene varios contratos, elegí el que corresponde.
+                    </p>
+                  )}
+                </div>
                 <Field label="Tipo" required>
                   <select
                     className="fv"
                     value={form.type}
-                    onChange={(e) => setForm({ ...form, type: e.target.value })}
+                    onChange={(e) => setInvoiceType(e.target.value)}
                   >
                     <option value="sena">Seña (50%)</option>
                     <option value="final">Factura final</option>
@@ -388,7 +562,7 @@ export function InvoicesManager({
                   type="submit"
                   disabled={saving}
                   className="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                  style={{ background: "#0D0D0D" }}
+                  style={{ background: "#F03172" }}
                 >
                   {saving ? "Generando…" : "Generar factura"}
                 </button>
@@ -403,10 +577,10 @@ export function InvoicesManager({
           width: 100%;
           padding: 7px 10px;
           font-size: 13px;
-          border: 1px solid rgba(13,13,13,0.15);
+          border: 1px solid rgba(19,25,69,0.15);
           border-radius: 2px;
-          background: #F9F3DB;
-          color: #0D0D0D;
+          background: #FFFFFF;
+          color: #131945;
           outline: none;
         }
         .fv:focus { border-color: rgba(50,63,246,0.5); background: #fff; }
@@ -419,7 +593,7 @@ export function InvoicesManager({
 function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-[9px] font-medium uppercase tracking-widest" style={{ color: "rgba(13,13,13,0.42)" }}>
+      <label className="text-[9px] font-medium uppercase tracking-widest" style={{ color: "rgba(19,25,69,0.42)" }}>
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       {children}

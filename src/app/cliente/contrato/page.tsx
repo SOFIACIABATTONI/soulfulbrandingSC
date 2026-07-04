@@ -1,4 +1,5 @@
 import { buildPageMetadata } from "@/lib/site-metadata";
+import { brandUi } from "@/lib/brand-ui";
 import { ContractAcceptClient } from "./ContractAcceptClient";
 
 export const metadata = buildPageMetadata({
@@ -16,11 +17,8 @@ export default async function ClienteContratoPage({ searchParams }: PageProps) {
   const { token } = await searchParams;
   if (!token?.trim()) {
     return (
-      <main
-        className="min-h-screen flex items-center justify-center px-4"
-        style={{ background: "#0D0D0D" }}
-      >
-        <p className="text-sm text-center" style={{ color: "rgba(249,243,219,0.55)" }}>
+      <main className="min-h-screen flex items-center justify-center px-4 bg-brand-page">
+        <p className="text-sm text-center" style={{ color: brandUi.textMuted }}>
           Falta el enlace de acceso. Revisá el mail que te enviamos o contactá a Sofía.
         </p>
       </main>

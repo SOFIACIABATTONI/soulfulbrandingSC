@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import type { Client } from "@prisma/client";
 import { InvoicesManager } from "./InvoicesManager";
 import { NewProjectModal } from "./NewProjectModal";
+import { ProjectFlowBar } from "./ProjectFlowBar";
+import { projectHasSenaPaid, type ProjectPipelineSignals } from "@/lib/project-pipeline";
 
 // ── tipos extendidos ───────────────────────────────────────
 type ProjectSummary = {
@@ -14,6 +16,8 @@ type ProjectSummary = {
   service: string;
   status: string;
   value: number;
+  contractStatus: string;
+  phases: Record<string, { state?: string }>;
   startDate: string | null;
   deliveryDate: string | null;
 };
@@ -25,6 +29,7 @@ type InvoiceSummary = {
   total: number;
   status: string;
   issuedAt: string;
+  projectId: string | null;
 };
 
 type ClientFull = Client & {
@@ -159,11 +164,11 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
         {/* Cabecera */}
         <div
           className="rounded border bg-white p-6"
-          style={{ borderColor: "rgba(13,13,13,0.1)" }}
+          style={{ borderColor: "rgba(19,25,69,0.1)" }}
         >
           <div
             className="flex gap-4 items-start pb-5 mb-5 border-b"
-            style={{ borderColor: "rgba(13,13,13,0.1)" }}
+            style={{ borderColor: "rgba(19,25,69,0.1)" }}
           >
             <div
               className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 font-serif text-2xl text-white"
@@ -172,14 +177,14 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
               {ini}
             </div>
             <div className="flex-1">
-              <h2 className="font-serif text-2xl" style={{ color: "#0D0D0D" }}>
+              <h2 className="font-serif text-2xl" style={{ color: "#131945" }}>
                 {client.name}
               </h2>
-              <p className="text-sm mt-1" style={{ color: "rgba(13,13,13,0.42)" }}>
+              <p className="text-sm mt-1" style={{ color: "rgba(19,25,69,0.42)" }}>
                 {[client.company, client.email].filter(Boolean).join(" · ")}
               </p>
               {client.lead && (
-                <p className="text-xs mt-1.5" style={{ color: "rgba(13,13,13,0.35)" }}>
+                <p className="text-xs mt-1.5" style={{ color: "rgba(19,25,69,0.35)" }}>
                   Convertida desde lead ·{" "}
                   {SERVICE_LABELS[client.lead.service] ?? client.lead.service}
                   {client.lead.estimatedValue
@@ -242,7 +247,7 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
               <div className="flex items-center justify-between">
                 <label
                   className="text-[9px] font-medium uppercase tracking-widest"
-                  style={{ color: "rgba(13,13,13,0.42)" }}
+                  style={{ color: "rgba(19,25,69,0.42)" }}
                 >
                   Notas internas
                 </label>
@@ -263,7 +268,7 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
                     style={{
                       borderColor: "rgba(50,63,246,0.4)",
                       background: "#fff",
-                      color: "#0D0D0D",
+                      color: "#131945",
                       minHeight: 80,
                     }}
                     value={notesValue}
@@ -274,7 +279,7 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
                       onClick={() => void saveNotes()}
                       disabled={saving}
                       className="rounded px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
-                      style={{ background: "#0D0D0D" }}
+                      style={{ background: "#F03172" }}
                     >
                       {saving ? "Guardando…" : "Guardar"}
                     </button>
@@ -284,7 +289,7 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
                         setEditNotes(false);
                       }}
                       className="text-xs hover:underline"
-                      style={{ color: "rgba(13,13,13,0.42)" }}
+                      style={{ color: "rgba(19,25,69,0.42)" }}
                     >
                       Cancelar
                     </button>
@@ -293,10 +298,10 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
               ) : (
                 <div
                   className="rounded px-3 py-2 text-sm leading-relaxed min-h-[60px]"
-                  style={{ background: "#F9F3DB", color: "#0D0D0D" }}
+                  style={{ background: "#FFFFFF", color: "#131945" }}
                 >
                   {client.notes || (
-                    <span style={{ color: "rgba(13,13,13,0.35)" }}>
+                    <span style={{ color: "rgba(19,25,69,0.35)" }}>
                       Sin notas.
                     </span>
                   )}
@@ -307,16 +312,16 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
         </div>
 
         {/* Proyectos */}
-        <ProjectsSection client={client} />
+        <ProjectsSection client={client} invoices={client.invoices} />
 
         {/* Facturas */}
         <div
           className="rounded border bg-white p-5"
-          style={{ borderColor: "rgba(13,13,13,0.1)" }}
+          style={{ borderColor: "rgba(19,25,69,0.1)" }}
         >
           <h3
             className="text-[9px] font-medium uppercase tracking-widest mb-4"
-            style={{ color: "rgba(13,13,13,0.42)" }}
+            style={{ color: "rgba(19,25,69,0.42)" }}
           >
             Facturas
           </h3>
@@ -329,11 +334,11 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
         {/* Acciones */}
         <div
           className="rounded border bg-white p-4"
-          style={{ borderColor: "rgba(13,13,13,0.1)" }}
+          style={{ borderColor: "rgba(19,25,69,0.1)" }}
         >
           <p
             className="text-[9px] font-medium uppercase tracking-widest mb-3"
-            style={{ color: "rgba(13,13,13,0.42)" }}
+            style={{ color: "rgba(19,25,69,0.42)" }}
           >
             Acciones
           </p>
@@ -341,7 +346,7 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
             <a
               href={`mailto:${client.email}`}
               className="rounded border px-3 py-2 text-xs text-center hover:bg-neutral-50 transition-colors"
-              style={{ borderColor: "rgba(13,13,13,0.15)", color: "#0D0D0D" }}
+              style={{ borderColor: "rgba(19,25,69,0.15)", color: "#131945" }}
             >
               Enviar email
             </a>
@@ -349,7 +354,7 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
               <Link
                 href={`/admin/leads/${client.lead.id}`}
                 className="rounded border px-3 py-2 text-xs text-center hover:bg-neutral-50 transition-colors"
-                style={{ borderColor: "rgba(13,13,13,0.15)", color: "#323FF6" }}
+                style={{ borderColor: "rgba(19,25,69,0.15)", color: "#323FF6" }}
               >
                 Ver lead original →
               </Link>
@@ -373,29 +378,29 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
         {/* Resumen */}
         <div
           className="rounded border p-4 text-xs space-y-2"
-          style={{ borderColor: "rgba(13,13,13,0.1)", background: "#F9F3DB" }}
+          style={{ borderColor: "rgba(19,25,69,0.1)", background: "#FFFFFF" }}
         >
           <p
             className="text-[9px] font-medium uppercase tracking-widest mb-1"
-            style={{ color: "rgba(13,13,13,0.42)" }}
+            style={{ color: "rgba(19,25,69,0.42)" }}
           >
             Resumen
           </p>
           <div className="flex justify-between">
-            <span style={{ color: "rgba(13,13,13,0.42)" }}>Alta</span>
+            <span style={{ color: "rgba(19,25,69,0.42)" }}>Alta</span>
             <span className="font-medium">{formatDate(client.createdAt)}</span>
           </div>
           <div className="flex justify-between">
-            <span style={{ color: "rgba(13,13,13,0.42)" }}>Proyectos</span>
+            <span style={{ color: "rgba(19,25,69,0.42)" }}>Proyectos</span>
             <span className="font-medium">{client._count.projects}</span>
           </div>
           <div className="flex justify-between">
-            <span style={{ color: "rgba(13,13,13,0.42)" }}>Facturas</span>
+            <span style={{ color: "rgba(19,25,69,0.42)" }}>Facturas</span>
             <span className="font-medium">{client._count.invoices}</span>
           </div>
           {client.invoices.length > 0 && (
-            <div className="flex justify-between pt-1 border-t" style={{ borderColor: "rgba(13,13,13,0.1)" }}>
-              <span style={{ color: "rgba(13,13,13,0.42)" }}>Total facturado</span>
+            <div className="flex justify-between pt-1 border-t" style={{ borderColor: "rgba(19,25,69,0.1)" }}>
+              <span style={{ color: "rgba(19,25,69,0.42)" }}>Total facturado</span>
               <span className="font-medium">
                 ${client.invoices
                   .reduce((acc, inv) => acc + inv.total, 0)
@@ -411,7 +416,7 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
     {deleteOpen && (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ background: "rgba(13,13,13,0.55)" }}
+        style={{ background: "rgba(19,25,69,0.2)" }}
         onClick={(e) => e.target === e.currentTarget && !deleting && resetDeleteModal()}
       >
         <div
@@ -427,9 +432,9 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
           >
             Eliminar cliente
           </h3>
-          <p className="text-sm leading-relaxed" style={{ color: "rgba(13,13,13,0.65)" }}>
+          <p className="text-sm leading-relaxed" style={{ color: "rgba(19,25,69,0.65)" }}>
             Se borrará de forma permanente la ficha de{" "}
-            <strong style={{ color: "#0D0D0D" }}>{client.name}</strong> y todo lo asociado en el
+            <strong style={{ color: "#131945" }}>{client.name}</strong> y todo lo asociado en el
             ERP: proyectos, facturas y enlaces de acceso de este cliente. El lead en el embudo, si
             existía, no se elimina.
           </p>
@@ -441,16 +446,16 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
               disabled={deleting}
               onChange={(e) => setDeleteAck(e.target.checked)}
             />
-            <span style={{ color: "#0D0D0D" }}>
+            <span style={{ color: "#131945" }}>
               Confirmo que quiero eliminar este cliente y entiendo que no se puede deshacer.
             </span>
           </label>
           <div>
             <label
               className="block text-[9px] font-medium uppercase tracking-widest mb-1"
-              style={{ color: "rgba(13,13,13,0.42)" }}
+              style={{ color: "rgba(19,25,69,0.42)" }}
             >
-              Escribí <strong className="text-[#0D0D0D]">{DELETE_CONFIRM_PHRASE}</strong> para
+              Escribí <strong className="text-[#131945]">{DELETE_CONFIRM_PHRASE}</strong> para
               confirmar
             </label>
             <input
@@ -459,7 +464,7 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
               style={{
                 borderColor: "rgba(185,28,28,0.45)",
                 background: "#fff",
-                color: "#0D0D0D",
+                color: "#131945",
               }}
               autoComplete="off"
               disabled={deleting}
@@ -504,7 +509,13 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
 }
 
 // ── sección proyectos con modal ────────────────────────────
-function ProjectsSection({ client }: { client: ClientFull }) {
+function ProjectsSection({
+  client,
+  invoices,
+}: {
+  client: ClientFull;
+  invoices: InvoiceSummary[];
+}) {
   const [projects, setProjects] = useState(client.projects);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -514,16 +525,16 @@ function ProjectsSection({ client }: { client: ClientFull }) {
   }
 
   return (
-    <div className="rounded border bg-white p-5" style={{ borderColor: "rgba(13,13,13,0.1)" }}>
+    <div className="rounded border bg-white p-5" style={{ borderColor: "rgba(19,25,69,0.1)" }}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-[9px] font-medium uppercase tracking-widest"
-          style={{ color: "rgba(13,13,13,0.42)" }}>
+          style={{ color: "rgba(19,25,69,0.42)" }}>
           Proyectos ({projects.length})
         </h3>
         <button
           onClick={() => setModalOpen(true)}
           className="rounded px-3 py-1.5 text-[11px] font-medium text-white"
-          style={{ background: "#0D0D0D" }}
+          style={{ background: "#F03172" }}
         >
           + Nuevo proyecto
         </button>
@@ -537,26 +548,45 @@ function ProjectsSection({ client }: { client: ClientFull }) {
         <div className="space-y-2">
           {projects.map((p) => {
             const sc = PROJECT_STATUS_COLORS[p.status] ?? PROJECT_STATUS_COLORS.onboarding;
+            const signals: ProjectPipelineSignals = {
+              contractStatus: p.contractStatus ?? "borrador",
+              hasSenaPaid: projectHasSenaPaid(invoices, p.id),
+              phases: p.phases ?? {},
+              projectStatus: p.status,
+            };
             return (
-              <div key={p.id} className="flex items-center justify-between rounded px-4 py-3 border"
-                style={{ borderColor: "rgba(13,13,13,0.08)" }}>
-                <div>
-                  <p className="text-sm font-medium" style={{ color: "#0D0D0D" }}>{p.title}</p>
-                  <p className="text-xs mt-0.5" style={{ color: "rgba(13,13,13,0.42)" }}>
-                    {SERVICE_LABELS[p.service] ?? p.service}
-                    {" · "}${p.value.toLocaleString("es-AR")} USD
-                  </p>
+              <div
+                key={p.id}
+                className="rounded px-4 py-3 border space-y-2"
+                style={{ borderColor: "rgba(19,25,69,0.08)" }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: "#131945" }}>
+                      {p.title}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "rgba(19,25,69,0.42)" }}>
+                      {SERVICE_LABELS[p.service] ?? p.service}
+                      {" · "}${p.value.toLocaleString("es-AR")} USD
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span
+                      className="text-[10px] font-medium uppercase tracking-wide rounded px-2 py-0.5"
+                      style={{ background: sc.bg, color: sc.color }}
+                    >
+                      {PROJECT_STATUS_LABELS[p.status] ?? p.status}
+                    </span>
+                    <Link
+                      href={`/admin/proyectos/${p.id}`}
+                      className="text-xs font-medium hover:underline"
+                      style={{ color: "#F03172" }}
+                    >
+                      Ver →
+                    </Link>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-medium uppercase tracking-wide rounded px-2 py-0.5"
-                    style={{ background: sc.bg, color: sc.color }}>
-                    {PROJECT_STATUS_LABELS[p.status] ?? p.status}
-                  </span>
-                  <Link href={`/admin/proyectos/${p.id}`}
-                    className="text-xs font-medium hover:underline" style={{ color: "#F03172" }}>
-                    Ver →
-                  </Link>
-                </div>
+                <ProjectFlowBar signals={signals} size="compact" />
               </div>
             );
           })}
@@ -602,7 +632,7 @@ function EditableField({
       <div className="flex items-center justify-between">
         <label
           className="text-[9px] font-medium uppercase tracking-widest"
-          style={{ color: "rgba(13,13,13,0.42)" }}
+          style={{ color: "rgba(19,25,69,0.42)" }}
         >
           {label}
         </label>
@@ -624,7 +654,7 @@ function EditableField({
             style={{
               borderColor: "rgba(50,63,246,0.4)",
               background: "#fff",
-              color: "#0D0D0D",
+              color: "#131945",
             }}
             value={fieldValue}
             onChange={(e) => onChange(e.target.value)}
@@ -637,14 +667,14 @@ function EditableField({
             onClick={onSave}
             disabled={saving}
             className="rounded px-2 py-1 text-xs font-medium text-white disabled:opacity-60"
-            style={{ background: "#0D0D0D" }}
+            style={{ background: "#F03172" }}
           >
             ✓
           </button>
           <button
             onClick={onCancel}
             className="rounded px-2 py-1 text-xs"
-            style={{ color: "rgba(13,13,13,0.42)" }}
+            style={{ color: "rgba(19,25,69,0.42)" }}
           >
             ✕
           </button>
@@ -652,7 +682,7 @@ function EditableField({
       ) : (
         <div
           className="rounded px-3 py-2 text-sm"
-          style={{ background: "#F9F3DB", color: "#0D0D0D" }}
+          style={{ background: "#FFFFFF", color: "#131945" }}
         >
           {value}
         </div>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { FormMessageViewer } from "./FormMessageViewer";
@@ -26,7 +26,7 @@ const FORM_KEY_LABELS: Record<string, string> = {
 const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
   nuevo: { bg: "rgba(240,49,114,0.1)", color: "#F03172", label: "Nuevo" },
   contactado: { bg: "rgba(50,63,246,0.08)", color: "#323FF6", label: "Contactado" },
-  archivado: { bg: "rgba(13,13,13,0.06)", color: "rgba(13,13,13,0.35)", label: "Archivado" },
+  archivado: { bg: "rgba(19,25,69,0.06)", color: "rgba(19,25,69,0.35)", label: "Archivado" },
 };
 
 function formatDate(d: string) {
@@ -176,13 +176,13 @@ export function ContactInbox({ onNewCountChange }: { onNewCountChange?: (n: numb
             <div
               key={msg.id}
               className="rounded border bg-white p-4"
-              style={{ borderColor: "rgba(13,13,13,0.1)" }}
+              style={{ borderColor: "rgba(19,25,69,0.1)" }}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   {/* Cabecera */}
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="font-medium text-sm text-[#0D0D0D]">
+                    <span className="font-medium text-sm text-[#131945]">
                       {msg.name}
                     </span>
                     <span className="text-xs text-neutral-400">{msg.email}</span>
@@ -195,8 +195,8 @@ export function ContactInbox({ onNewCountChange }: { onNewCountChange?: (n: numb
                     <span
                       className="inline-block rounded px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide"
                       style={{
-                        background: "rgba(13,13,13,0.06)",
-                        color: "rgba(13,13,13,0.42)",
+                        background: "rgba(19,25,69,0.06)",
+                        color: "rgba(19,25,69,0.42)",
                       }}
                     >
                       {FORM_KEY_LABELS[msg.formKey] ?? msg.formKey}
@@ -214,7 +214,7 @@ export function ContactInbox({ onNewCountChange }: { onNewCountChange?: (n: numb
                     expanded={!!expanded[msg.id]}
                     onToggle={() => toggleExpanded(msg.id)}
                   />
-                  <p className="text-[10px] mt-1.5" style={{ color: "rgba(13,13,13,0.35)" }}>
+                  <p className="text-[10px] mt-1.5" style={{ color: "rgba(19,25,69,0.35)" }}>
                     {formatDate(msg.createdAt)}
                   </p>
                 </div>
@@ -236,7 +236,7 @@ export function ContactInbox({ onNewCountChange }: { onNewCountChange?: (n: numb
                         setModalMsg(msg);
                       }}
                       className="rounded px-3 py-1.5 text-[11px] font-medium text-white whitespace-nowrap"
-                      style={{ background: "#0D0D0D" }}
+                      style={{ background: "#F03172" }}
                     >
                       Crear lead →
                     </button>
@@ -246,8 +246,8 @@ export function ContactInbox({ onNewCountChange }: { onNewCountChange?: (n: numb
                       onClick={() => void patchStatus(msg.id, "contactado")}
                       className="rounded border px-3 py-1.5 text-[11px] text-center"
                       style={{
-                        borderColor: "rgba(13,13,13,0.15)",
-                        color: "rgba(13,13,13,0.5)",
+                        borderColor: "rgba(19,25,69,0.15)",
+                        color: "rgba(19,25,69,0.5)",
                       }}
                     >
                       Marcar contactado
@@ -258,8 +258,8 @@ export function ContactInbox({ onNewCountChange }: { onNewCountChange?: (n: numb
                       onClick={() => void patchStatus(msg.id, "archivado")}
                       className="rounded border px-3 py-1.5 text-[11px] text-center"
                       style={{
-                        borderColor: "rgba(13,13,13,0.1)",
-                        color: "rgba(13,13,13,0.3)",
+                        borderColor: "rgba(19,25,69,0.1)",
+                        color: "rgba(19,25,69,0.3)",
                       }}
                     >
                       Archivar
@@ -283,7 +283,7 @@ export function ContactInbox({ onNewCountChange }: { onNewCountChange?: (n: numb
       {modalMsg && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(13,13,13,0.55)" }}
+          style={{ background: "rgba(19,25,69,0.2)" }}
           onClick={(e) => e.target === e.currentTarget && setModalMsg(null)}
         >
           <div className="w-full max-w-lg rounded bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -301,22 +301,22 @@ export function ContactInbox({ onNewCountChange }: { onNewCountChange?: (n: numb
               {/* Datos del mensaje (solo lectura) */}
               <div
                 className="rounded p-3 text-xs space-y-1"
-                style={{ background: "#F9F3DB" }}
+                style={{ background: "#FFFFFF" }}
               >
-                <p className="text-[9px] font-medium uppercase tracking-widest mb-2" style={{ color: "rgba(13,13,13,0.42)" }}>
+                <p className="text-[9px] font-medium uppercase tracking-widest mb-2" style={{ color: "rgba(19,25,69,0.42)" }}>
                   Desde mensaje de contacto
                 </p>
                 <div className="flex gap-2">
-                  <span style={{ color: "rgba(13,13,13,0.42)" }}>Nombre:</span>
+                  <span style={{ color: "rgba(19,25,69,0.42)" }}>Nombre:</span>
                   <span className="font-medium">{modalMsg.name}</span>
                 </div>
                 <div className="flex gap-2">
-                  <span style={{ color: "rgba(13,13,13,0.42)" }}>Email:</span>
+                  <span style={{ color: "rgba(19,25,69,0.42)" }}>Email:</span>
                   <span className="font-medium">{modalMsg.email}</span>
                 </div>
                 {modalMsg.stageTitle && (
                   <div className="flex gap-2">
-                    <span style={{ color: "rgba(13,13,13,0.42)" }}>Etapa:</span>
+                    <span style={{ color: "rgba(19,25,69,0.42)" }}>Etapa:</span>
                     <span className="font-medium">{modalMsg.stageTitle}</span>
                   </div>
                 )}
@@ -390,7 +390,7 @@ export function ContactInbox({ onNewCountChange }: { onNewCountChange?: (n: numb
                   type="submit"
                   disabled={saving}
                   className="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                  style={{ background: "#0D0D0D" }}
+                  style={{ background: "#F03172" }}
                 >
                   {saving ? "Creando…" : "Crear lead →"}
                 </button>
@@ -406,16 +406,16 @@ export function ContactInbox({ onNewCountChange }: { onNewCountChange?: (n: numb
           font-weight: 500;
           text-transform: uppercase;
           letter-spacing: 0.12em;
-          color: rgba(13,13,13,0.42);
+          color: rgba(19,25,69,0.42);
         }
         .fv {
           width: 100%;
           padding: 7px 10px;
           font-size: 13px;
-          border: 1px solid rgba(13,13,13,0.15);
+          border: 1px solid rgba(19,25,69,0.15);
           border-radius: 2px;
-          background: #F9F3DB;
-          color: #0D0D0D;
+          background: #FFFFFF;
+          color: #131945;
           outline: none;
         }
         .fv:focus {

@@ -3,6 +3,7 @@ import { accessPublicUrl } from "@/lib/access-url";
 import { markdownToQuoteHtml, wrapQuoteEmailHtml } from "@/lib/quote-markdown-html";
 import type { ContractContent } from "@/lib/contract-types";
 import { normalizeContractContent } from "@/lib/contract-types";
+import { brandUi } from "@/lib/brand-ui";
 
 export type SendContractEmailPayload = {
   toEmail: string;
@@ -31,10 +32,10 @@ export async function sendContractEmailToClient(
 
   const link = accessPublicUrl("contrato", payload.token);
   const noteBlock = payload.personalNote?.trim()
-    ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:rgba(249,243,219,0.75);font-style:italic;">${payload.personalNote.trim().replace(/</g, "&lt;")}</p>`
+    ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:${brandUi.textMuted};font-style:italic;">${payload.personalNote.trim().replace(/</g, "&lt;")}</p>`
     : "";
 
-  const innerHtml = `${noteBlock}<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:rgba(249,243,219,0.88);">Te comparto el contrato para el proyecto <strong style="color:#F9F3DB;">${payload.projectTitle.replace(/</g, "&lt;")}</strong>. Podés leerlo y aceptarlo con un click desde el enlace.</p>`;
+  const innerHtml = `${noteBlock}<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:${brandUi.textMuted};">Te comparto el contrato para el proyecto <strong style="color:${brandUi.text};">${payload.projectTitle.replace(/</g, "&lt;")}</strong>. Podés leerlo y aceptarlo con un click desde el enlace.</p>`;
 
   const text = [
     `Hola ${payload.toName},`,
@@ -111,5 +112,5 @@ export function contractBodyToHtml(content: ContractContent | unknown): string {
   if (c.format === "markdown") {
     return markdownToQuoteHtml(c.body);
   }
-  return `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:rgba(249,243,219,0.88);white-space:pre-wrap;">${c.body.replace(/</g, "&lt;")}</p>`;
+  return `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:rgba(19,25,69,0.88);white-space:pre-wrap;">${c.body.replace(/</g, "&lt;")}</p>`;
 }

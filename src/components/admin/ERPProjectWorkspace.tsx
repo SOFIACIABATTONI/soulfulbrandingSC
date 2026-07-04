@@ -1,9 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ContractEditor } from "@/components/admin/ContractEditor";
+import { ProjectFlowBar } from "@/components/admin/ProjectFlowBar";
+import type { ProjectPipelineSignals } from "@/lib/project-pipeline";
 
 // ── tipos ──────────────────────────────────────────────────
 type InvoiceSummary = {
@@ -12,6 +14,7 @@ type InvoiceSummary = {
 
 type ClientProject = {
   id: string; title: string; service: string; value: number; status: string;
+  contractStatus: string;
   phases: Record<string, Record<string, string>>;
   startDate: string | null; deliveryDate: string | null; notes: string;
   client: { id: string; name: string; company: string };
@@ -72,7 +75,7 @@ const STATE_OPTIONS = [
 ];
 
 const STATE_COLORS: Record<string, { bg: string; color: string }> = {
-  pending: { bg: "rgba(13,13,13,0.06)", color: "rgba(13,13,13,0.4)" },
+  pending: { bg: "rgba(19,25,69,0.06)", color: "rgba(19,25,69,0.4)" },
   active: { bg: "rgba(240,49,114,0.1)", color: "#F03172" },
   done: { bg: "#e3f2e3", color: "#1a6b1a" },
 };
@@ -209,18 +212,25 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   const porCobrar = project.invoices.filter((i) => i.status === "pendiente").reduce((a, i) => a + i.total, 0);
   const sc = PROJECT_STATUS_COLORS[project.status] ?? PROJECT_STATUS_COLORS.onboarding;
 
+  const projectPipelineSignals: ProjectPipelineSignals = {
+    contractStatus: project.contractStatus ?? "borrador",
+    hasSenaPaid: project.invoices.some((i) => i.type === "sena" && i.status === "pagado"),
+    phases,
+    projectStatus: project.status,
+  };
+
   return (
     <>
-    <div className="rounded-[28px] border border-neutral-200/80 bg-white p-4 shadow-sm md:p-8">
+    <div className="rounded-xl border border-neutral-200/80 bg-white p-4 shadow-sm md:p-8">
 
       {/* ── Cabecera ── */}
       <div className="flex flex-col gap-3 border-b border-neutral-100 pb-6 sm:flex-row sm:items-end sm:justify-between mb-8">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.24em] text-neutral-400">Workspace del proyecto</p>
-          <h1 className="mt-2 font-serif text-3xl italic" style={{ color: "#0D0D0D" }}>
+          <h1 className="mt-2 font-serif text-3xl italic" style={{ color: "#131945" }}>
             {project.title}
           </h1>
-          <p className="mt-1 text-sm" style={{ color: "rgba(13,13,13,0.42)" }}>
+          <p className="mt-1 text-sm" style={{ color: "rgba(19,25,69,0.42)" }}>
             {project.client.name}
             {project.client.company ? ` — ${project.client.company}` : ""}
             {" · "}{SERVICE_LABELS[project.service] ?? project.service}
@@ -230,7 +240,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         <div className="flex flex-wrap items-center gap-3">
           <select
             className="rounded border px-3 py-1.5 text-sm"
-            style={{ borderColor: "rgba(50,63,246,0.4)", color: "#0D0D0D" }}
+            style={{ borderColor: "rgba(50,63,246,0.4)", color: "#131945" }}
             value={project.status}
             disabled={savingProject}
             onChange={(e) => void saveStatus(e.target.value)}
@@ -266,8 +276,22 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         projectTitle={project.title}
       />
 
+      <div className="mb-8">
+        <p
+          className="text-[9px] font-medium uppercase tracking-widest mb-2"
+          style={{ color: "rgba(19,25,69,0.42)" }}
+        >
+          Progreso de este proyecto
+        </p>
+        <ProjectFlowBar signals={projectPipelineSignals} />
+        <p className="text-[10px] mt-2" style={{ color: "rgba(19,25,69,0.38)" }}>
+          Después de la seña siguen las etapas de producción. Marcá cada fase como completada en las
+          cards de abajo.
+        </p>
+      </div>
+
       {/* ── Grilla de cards ── */}
-      <div id="phases-grid" className="rounded-[24px] bg-[#fcfcfb] p-4 md:p-6 mb-8">
+      <div id="phases-grid" className="rounded-lg border bg-white p-4 md:p-6 mb-8" style={{ borderColor: "rgba(19,25,69,0.1)" }}>
         <div className="mb-5">
           <h2 className="text-xl font-bold tracking-tight text-neutral-900">{project.title}</h2>
           <p className="mt-1 text-sm text-neutral-500">
@@ -322,7 +346,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
               <div className="relative h-[180px] overflow-hidden border-b border-neutral-200 bg-neutral-100">
                 <div className="absolute inset-0 bg-cover bg-center"
                   style={{ backgroundImage: phaseCover(ph) }} />
-                <div className="absolute inset-0 bg-black/25" />
+                <div className="absolute inset-0 bg-brand-navy/10" />
                 <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-3 px-5 pb-5">
                   <div className="max-w-2xl text-white">
                     <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/70">
@@ -412,25 +436,49 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                   )}
 
                   {/* Facturas vinculadas */}
-                  {project.invoices.length > 0 && (
-                    <div className="rounded-2xl border border-neutral-200 bg-white p-4 space-y-2">
-                      <p className="text-xs font-medium uppercase tracking-wider text-neutral-400 mb-2">
+                  <div className="rounded-2xl border border-neutral-200 bg-white p-4 space-y-2">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <p className="text-xs font-medium uppercase tracking-wider text-neutral-400">
                         Facturación
                       </p>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-neutral-500">Facturado</span>
-                        <span className="font-medium">${totalFacturado.toLocaleString("es-AR")} USD</span>
-                      </div>
-                      {porCobrar > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span style={{ color: "#b45000" }}>Por cobrar</span>
-                          <span className="font-medium" style={{ color: "#b45000" }}>
-                            ${porCobrar.toLocaleString("es-AR")} USD
-                          </span>
-                        </div>
-                      )}
+                      <Link
+                        href={`/admin/facturas?clientId=${project.client.id}&projectId=${project.id}`}
+                        className="text-[10px] font-medium hover:underline whitespace-nowrap"
+                        style={{ color: "#F03172" }}
+                      >
+                        + Factura
+                      </Link>
                     </div>
-                  )}
+                    {project.invoices.length === 0 ? (
+                      <p className="text-xs text-neutral-400">Sin facturas vinculadas a este proyecto.</p>
+                    ) : (
+                      <>
+                        {project.invoices.map((inv) => (
+                          <div key={inv.id} className="flex justify-between text-xs gap-2">
+                            <span className="text-neutral-500 font-mono">{inv.number}</span>
+                            <span className="font-medium">
+                              ${inv.total.toLocaleString("es-AR")}{" "}
+                              <span className={inv.status === "pagado" ? "text-green-700" : "text-orange-700"}>
+                                {inv.status === "pagado" ? "pagada" : "pend."}
+                              </span>
+                            </span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between text-sm pt-2 border-t border-neutral-100">
+                          <span className="text-neutral-500">Facturado</span>
+                          <span className="font-medium">${totalFacturado.toLocaleString("es-AR")} USD</span>
+                        </div>
+                        {porCobrar > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span style={{ color: "#b45000" }}>Por cobrar</span>
+                            <span className="font-medium" style={{ color: "#b45000" }}>
+                              ${porCobrar.toLocaleString("es-AR")} USD
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
 
                   <Link href={`/admin/clientes/${project.client.id}`}
                     className="block text-center rounded-2xl border border-neutral-200 px-4 py-2.5 text-xs font-medium hover:bg-neutral-50 transition-colors"
@@ -448,7 +496,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
     {deleteOpen && (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ background: "rgba(13,13,13,0.55)" }}
+        style={{ background: "rgba(19,25,69,0.2)" }}
         onClick={(e) => e.target === e.currentTarget && !deleting && resetDeleteModal()}
       >
         <div
@@ -464,10 +512,10 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
           >
             Eliminar proyecto
           </h3>
-          <p className="text-sm leading-relaxed" style={{ color: "rgba(13,13,13,0.65)" }}>
+          <p className="text-sm leading-relaxed" style={{ color: "rgba(19,25,69,0.65)" }}>
             Se borrará de forma permanente el proyecto{" "}
-            <strong style={{ color: "#0D0D0D" }}>{project.title}</strong> de{" "}
-            <strong style={{ color: "#0D0D0D" }}>{project.client.name}</strong>, incluyendo
+            <strong style={{ color: "#131945" }}>{project.title}</strong> de{" "}
+            <strong style={{ color: "#131945" }}>{project.client.name}</strong>, incluyendo
             facturas y tokens de acceso vinculados solo a este proyecto. El cliente y sus otros
             proyectos no se eliminan.
           </p>
@@ -479,16 +527,16 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
               disabled={deleting}
               onChange={(e) => setDeleteAck(e.target.checked)}
             />
-            <span style={{ color: "#0D0D0D" }}>
+            <span style={{ color: "#131945" }}>
               Confirmo que quiero eliminar este proyecto y entiendo que no se puede deshacer.
             </span>
           </label>
           <div>
             <label
               className="block text-[9px] font-medium uppercase tracking-widest mb-1"
-              style={{ color: "rgba(13,13,13,0.42)" }}
+              style={{ color: "rgba(19,25,69,0.42)" }}
             >
-              Escribí <strong className="text-[#0D0D0D]">{DELETE_CONFIRM_PHRASE}</strong> para
+              Escribí <strong className="text-[#131945]">{DELETE_CONFIRM_PHRASE}</strong> para
               confirmar
             </label>
             <input
@@ -497,7 +545,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
               style={{
                 borderColor: "rgba(185,28,28,0.45)",
                 background: "#fff",
-                color: "#0D0D0D",
+                color: "#131945",
               }}
               autoComplete="off"
               disabled={deleting}
