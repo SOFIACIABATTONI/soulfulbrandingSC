@@ -29,3 +29,24 @@ export async function PATCH(req: Request, ctx: RouteParams) {
     return NextResponse.json({ error: "No encontrado" }, { status: 404 });
   }
 }
+
+export async function DELETE(_req: Request, ctx: RouteParams) {
+  if (!(await isAdminRequest())) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+  const { id } = await ctx.params;
+  const existing = await prisma.contactMessage.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+  }
+  try {
+    await prisma.contactMessage.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[admin/contact-messages DELETE]", e);
+    return NextResponse.json(
+      { error: "No se pudo eliminar el mensaje" },
+      { status: 409 },
+    );
+  }
+}
