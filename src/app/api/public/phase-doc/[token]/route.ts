@@ -13,6 +13,10 @@ import {
 } from "@/lib/phase-client-store";
 import { parseProjectPhases } from "@/lib/prebrief-service";
 import { sendPhaseResponseNotificationToAdmin } from "@/lib/send-phase-doc-email";
+import { isPermanentAccessPurpose } from "@/lib/access-token";
+import { brandKitFromPhaseData, brandKitHasContent } from "@/lib/brand-kit";
+import { getManualPdfFromPhase, hasManualPdf } from "@/lib/manual-pdf";
+import { resolveClientPortalHtmlBody } from "@/lib/phase-client-portal";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
@@ -47,22 +51,46 @@ export async function GET(_req: Request, ctx: RouteParams) {
   const phaseData = phases[storageKey] ?? {};
   const meta = getPhaseClientMeta(phaseData);
   const html = phaseData.body ?? "";
+  const brandKit = brandKitFromPhaseData(phaseData);
+  const hasBrandKit = phaseKey === "identidad" && brandKitHasContent(brandKit);
+  const clientHtmlBody = resolveClientPortalHtmlBody(phaseKey, html, { hasBrandKit });
   const used = isAccessTokenUsed(record);
-  const received = meta.clientStatus === "recibido" || used;
+  const permanentLink = isPermanentAccessPurpose(record.purpose);
+  const received =
+    meta.clientStatus === "recibido" || (!permanentLink && used);
+  const downloadUrl = `/api/public/phase-doc/${encodeURIComponent(token)}/download`;
+  const brandKitZipUrl = `/api/public/phase-doc/${encodeURIComponent(token)}/download-zip`;
+  const manualPdf = getManualPdfFromPhase(phaseData);
+  const hasPdf = phaseKey === "manual" && hasManualPdf(phaseData);
+  const manualPdfDownloadUrl = hasPdf
+    ? `/api/public/phase-doc/${encodeURIComponent(token)}/manual-pdf`
+    : null;
 
   return NextResponse.json({
     clientName: record.client.name,
     projectTitle: project.title,
     portalTitle: config.portalTitle,
-    htmlBody: html,
-    canAcknowledge: !received && Boolean(html.trim()),
+    htmlBody: clientHtmlBody,
+    canAcknowledge:
+      !received && (Boolean(clientHtmlBody.trim()) || hasBrandKit || hasPdf),
     done: received,
     ackButton: config.ackButton,
     ackSuccessTitle: config.ackSuccessTitle,
     ackSuccessBody: config.ackSuccessBody,
     sentAt: meta.clientSentAt || null,
     receivedAt: meta.clientReceivedAt || null,
-    expiresAt: record.expiresAt,
+    expiresAt: permanentLink ? null : record.expiresAt,
+    permanentLink,
+    canDownload:
+      (Boolean(clientHtmlBody.trim()) && clientHtmlBody !== "<p></p>") || hasBrandKit || hasPdf,
+    downloadUrl,
+    brandKitZipUrl: hasBrandKit ? brandKitZipUrl : null,
+    brandKit: hasBrandKit ? brandKit : undefined,
+    hasBrandKit,
+    manualPdf: manualPdf
+      ? { fileName: manualPdf.fileName, downloadUrl: manualPdfDownloadUrl }
+      : null,
+    hasManualPdf: hasPdf,
   });
 }
 
@@ -82,10 +110,6 @@ export async function POST(_req: Request, ctx: RouteParams) {
     return NextResponse.json({ error: "Este enlace expiró." }, { status: 410 });
   }
 
-  if (isAccessTokenUsed(record)) {
-    return NextResponse.json({ error: "Ya confirmaste la recepción." }, { status: 409 });
-  }
-
   const config = HTML_PHASE_SEND[phaseKey];
   const storageKey = storageKeyForHtmlPhase(phaseKey);
 
@@ -103,6 +127,11 @@ export async function POST(_req: Request, ctx: RouteParams) {
     return NextResponse.json({ error: "Ya fue confirmado." }, { status: 409 });
   }
 
+  const permanentLink = isPermanentAccessPurpose(record.purpose);
+  if (isAccessTokenUsed(record) && !permanentLink) {
+    return NextResponse.json({ error: "Ya confirmaste la recepción." }, { status: 409 });
+  }
+
   const now = new Date();
   const nextPhases = applyPhaseClientReceived(phases, storageKey);
 
@@ -116,6 +145,9 @@ export async function POST(_req: Request, ctx: RouteParams) {
       data: { usedAt: now },
     });
   });
+
+  const { syncProjectPhasesFromProgress } = await import("@/lib/project-phase-sync");
+  await syncProjectPhasesFromProgress(record.projectId);
 
   void sendPhaseResponseNotificationToAdmin({
     subject: config.adminNotifySubject,

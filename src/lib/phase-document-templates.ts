@@ -15,7 +15,7 @@ export const PHASE_DOCUMENT_HINTS: Record<PhaseDocumentKey, string> = {
   narrativa:
     "Notas de sesión y seguimiento. El documento para el cliente se edita y envía en el panel de arriba.",
   identidad:
-    "Registrá dirección creativa, entregables y links de Figma o Drive.",
+    "Mensaje breve para el cliente (aparece debajo del Brand ID). Las notas de desarrollo van en otras fases o en Drive.",
   manual:
     "Checklist del manual de marca y link al PDF o Notion de entrega.",
 };
@@ -24,7 +24,7 @@ export const PHASE_DOCUMENT_TITLES: Record<PhaseDocumentKey, string> = {
   onboarding: "Guía de onboarding",
   prebrief: "Notas del pre-brief",
   narrativa: "Notas de la narrativa",
-  identidad: "Desarrollo de identidad visual",
+  identidad: "Mensaje al cliente — identidad visual",
   manual: "Manual de marca",
 };
 

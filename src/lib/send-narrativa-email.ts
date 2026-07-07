@@ -52,7 +52,7 @@ export async function sendNarrativaEmailToClient(
     .filter(Boolean)
     .join("\n");
 
-  const html = wrapQuoteEmailHtml(innerHtml, "Ver narrativa de marca →", link);
+  const html = wrapQuoteEmailHtml(innerHtml, "", link, "Ver narrativa de marca →");
 
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({

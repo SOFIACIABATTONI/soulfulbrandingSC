@@ -65,11 +65,14 @@ export async function POST(req: Request, ctx: RouteParams) {
     });
   } else if (purpose === "pre-brief") {
     const { sendPrebriefEmailToClient } = await import("@/lib/send-prebrief-email");
+    const { resolvePrebriefTemplate } = await import("@/lib/prebrief-template");
+    const template = resolvePrebriefTemplate(project.phases);
     emailed = await sendPrebriefEmailToClient({
       toEmail: client.email,
       toName: client.name,
       projectTitle: project.title,
       token: plain,
+      emailWelcome: template.emailWelcome,
       personalNote,
     });
   } else if (purpose === "narrativa") {

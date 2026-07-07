@@ -33,7 +33,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 pb-12 pt-8">
+    <div className="mx-auto flex w-full max-w-md flex-col justify-center pb-12 pt-8">
       <div className="text-center">
         <p className="font-serif text-sm italic text-neutral-500">Soulful Branding®</p>
         <h1 className="mt-2 font-serif text-3xl font-medium tracking-tight text-brand-navy">
@@ -44,7 +44,7 @@ function LoginForm() {
 
       <form
         onSubmit={onSubmit}
-        className="mt-10 space-y-5 rounded-xl border border-neutral-200/80 bg-white p-6 shadow-md"
+        className="mt-10 space-y-5 rounded-xl border border-neutral-200/80 bg-white/95 p-6 shadow-md backdrop-blur-sm"
       >
         {/* Evita el aviso del navegador sobre formularios solo-contraseña y mejora autofill */}
         <label htmlFor="admin-username" className="sr-only">

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { QuoteFormattedBody } from "@/components/quote/QuoteFormattedBody";
 import { PortalCard, PortalShell } from "@/components/portal/PortalShell";
 import { brandUi } from "@/lib/brand-ui";
+import "@/components/admin/rich-text-editor.css";
 
 type NarrativaPayload = {
   clientName: string;
@@ -93,7 +93,10 @@ export function NarrativaClient({ token }: { token: string }) {
       subtitle={`${data.clientName} · ${data.projectTitle}`}
     >
       <PortalCard className="max-w-3xl mx-auto mb-8">
-        <QuoteFormattedBody body={data.content.body} format="markdown" theme="light" />
+        <div
+          className="phase-doc-html max-w-none"
+          dangerouslySetInnerHTML={{ __html: data.content.body }}
+        />
       </PortalCard>
 
       {done ? (

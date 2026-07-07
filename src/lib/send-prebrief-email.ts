@@ -1,12 +1,7 @@
 import { Resend } from "resend";
 import { accessPublicUrl } from "@/lib/access-url";
-import { markdownToQuoteHtml, wrapQuoteEmailHtml } from "@/lib/quote-markdown-html";
-import {
-  PREBRIEF_FIELDS,
-  PREBRIEF_INTRO_DIAGNOSTIC,
-  PREBRIEF_INTRO_PROCESS,
-  PREBRIEF_INTRO_WELCOME,
-} from "@/lib/prebrief-content";
+import { prebriefHtmlForEmail } from "@/lib/prebrief-html-templates";
+import { wrapAdminNotificationEmailHtml, wrapQuoteEmailHtml } from "@/lib/quote-markdown-html";
 import { brandUi } from "@/lib/brand-ui";
 
 export type SendPrebriefEmailPayload = {
@@ -14,50 +9,9 @@ export type SendPrebriefEmailPayload = {
   toName: string;
   projectTitle: string;
   token: string;
+  emailWelcome: string;
   personalNote?: string;
 };
-
-function emptyResponseBoxHtml(): string {
-  return `<div style="margin:0 0 20px;min-height:72px;border:1px solid rgba(19,25,69,0.15);border-radius:8px;background:#FAFAFA;">&nbsp;</div>`;
-}
-
-function buildPrebriefQuestionsEmailHtml(): string {
-  const parts: string[] = [];
-  let qNum = 0;
-
-  for (const field of PREBRIEF_FIELDS) {
-    if (field.sectionTitle) {
-      parts.push(
-        `<h3 style="margin:28px 0 12px;font-family:Georgia,serif;font-size:20px;font-weight:400;font-style:italic;color:${brandUi.text};">${field.sectionTitle.replace(/</g, "&lt;")}</h3>`,
-      );
-    }
-    if (field.sectionIntro) {
-      parts.push(markdownToQuoteHtml(field.sectionIntro));
-    }
-    if (field.id.startsWith("q")) {
-      qNum += 1;
-      parts.push(
-        `<p style="margin:20px 0 6px;font-size:15px;line-height:1.6;color:${brandUi.text};font-weight:600;">${qNum}. ${field.label.replace(/</g, "&lt;")}</p>`,
-      );
-    } else if (!field.sectionTitle) {
-      parts.push(
-        `<p style="margin:16px 0 6px;font-size:15px;line-height:1.6;color:${brandUi.text};font-weight:600;">${field.label.replace(/</g, "&lt;")}</p>`,
-      );
-    } else {
-      parts.push(
-        `<p style="margin:16px 0 6px;font-size:15px;line-height:1.6;color:${brandUi.text};font-weight:600;">${field.label.replace(/</g, "&lt;")}</p>`,
-      );
-    }
-    if (field.hint) {
-      parts.push(
-        `<p style="margin:0 0 8px;font-size:13px;line-height:1.55;color:${brandUi.textMuted};font-style:italic;">${field.hint.replace(/</g, "&lt;")}</p>`,
-      );
-    }
-    parts.push(emptyResponseBoxHtml());
-  }
-
-  return parts.join("\n");
-}
 
 export async function sendPrebriefEmailToClient(
   payload: SendPrebriefEmailPayload,
@@ -81,15 +35,10 @@ export async function sendPrebriefEmailToClient(
     ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:${brandUi.textMuted};font-style:italic;">${payload.personalNote.trim().replace(/</g, "&lt;")}</p>`
     : "";
 
-  const introHtml = [
-    markdownToQuoteHtml(PREBRIEF_INTRO_WELCOME),
-    markdownToQuoteHtml(PREBRIEF_INTRO_PROCESS),
-    markdownToQuoteHtml(PREBRIEF_INTRO_DIAGNOSTIC),
-  ].join("\n");
+  const welcomeHtml = prebriefHtmlForEmail(payload.emailWelcome);
+  const ctaIntro = `<p style="margin:16px 0 0;font-size:15px;line-height:1.7;color:${brandUi.textMuted};">El cuestionario completo está en el enlace. Podés responder con calma y enviarlo cuando esté listo.</p>`;
 
-  const ctaBlock = `<p style="margin:0 0 20px;font-size:14px;line-height:1.65;color:${brandUi.textMuted};">Debajo encontrarás cada pregunta con un espacio para tu respuesta. Para <strong style="color:${brandUi.text};">enviarlas al estudio</strong>, completá el formulario online:</p>`;
-
-  const innerHtml = `${noteBlock}${introHtml}${ctaBlock}${buildPrebriefQuestionsEmailHtml()}<p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:${brandUi.textMuted};">Cuando termines, enviá tus respuestas desde el enlace. Sofía las recibirá en el ERP del proyecto.</p>`;
+  const innerHtml = `${noteBlock}${welcomeHtml}${ctaIntro}`;
 
   const text = [
     `Hola ${payload.toName},`,
@@ -104,7 +53,7 @@ export async function sendPrebriefEmailToClient(
     .filter(Boolean)
     .join("\n");
 
-  const html = wrapQuoteEmailHtml(innerHtml, "", link);
+  const html = wrapQuoteEmailHtml(innerHtml, "", link, "Completar pre-brief →");
 
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
@@ -148,12 +97,24 @@ export async function sendPrebriefSubmittedNotificationToAdmin(payload: {
     `Ver respuestas: ${base}/admin/proyectos/${payload.projectId}#fase-prebrief`,
   ].join("\n");
 
+  const adminLink = `${base}/admin/proyectos/${payload.projectId}#fase-prebrief`;
+  const innerHtml = `<p style="margin:0 0 10px;font-size:15px;line-height:1.65;color:rgba(19,25,69,0.65);"><strong style="color:#131945;">Cliente:</strong> ${payload.clientName.replace(/</g, "&lt;")}</p>
+<p style="margin:0 0 10px;font-size:15px;line-height:1.65;color:rgba(19,25,69,0.65);"><strong style="color:#131945;">Email:</strong> ${payload.clientEmail.replace(/</g, "&lt;")}</p>
+<p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:rgba(19,25,69,0.65);"><strong style="color:#131945;">Proyecto:</strong> ${payload.projectTitle.replace(/</g, "&lt;")}</p>
+<p style="margin:0;font-size:14px;line-height:1.6;"><a href="${adminLink.replace(/"/g, "")}" style="color:#323FF6;text-decoration:underline;">Ver respuestas en el ERP →</a></p>`;
+
+  const html = wrapAdminNotificationEmailHtml(
+    `Pre-brief recibido — ${payload.clientName}`,
+    innerHtml,
+  );
+
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
     from,
     to: [to],
     subject: `Pre-brief recibido — ${payload.clientName}`,
     text,
+    html,
   });
 
   if (error) {

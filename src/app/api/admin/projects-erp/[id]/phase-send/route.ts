@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
-import { generateAccessToken, accessExpiryFromNow } from "@/lib/access-token";
-import { ACCESS_EXPIRY_DAYS } from "@/lib/contract-types";
+import { generateAccessToken, accessExpiryForPurpose } from "@/lib/access-token";
 import { accessPublicUrl } from "@/lib/access-url";
 import { HTML_PHASE_SEND, type HtmlPhaseKey } from "@/lib/phase-client-flow";
 import { applyPhaseClientSent, storageKeyForHtmlPhase } from "@/lib/phase-client-store";
 import { parseProjectPhases } from "@/lib/prebrief-service";
+import { brandKitFromPhaseData, brandKitHasContent } from "@/lib/brand-kit";
+import { getManualPdfFromPhase, hasManualPdf } from "@/lib/manual-pdf";
+import { syncProjectPhasesFromProgress } from "@/lib/project-phase-sync";
 import { sendPhaseDocEmailToClient } from "@/lib/send-phase-doc-email";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -45,47 +47,88 @@ export async function POST(req: Request, ctx: RouteParams) {
   const phases = parseProjectPhases(project.phases);
   const phaseData = phases[storageKey] ?? {};
   const html = (parsed.data.html ?? phaseData.body ?? "").trim();
-  if (!html || html === "<p></p>") {
+  const brandKit = brandKitFromPhaseData(phaseData);
+  const manualPdf = getManualPdfFromPhase(phaseData);
+  const hasDoc = Boolean(html && html !== "<p></p>");
+  const hasKit = brandKitHasContent(brandKit);
+  const hasPdf = hasManualPdf(phaseData);
+
+  if (phase === "manual") {
+    if (!hasPdf) {
+      return NextResponse.json(
+        { error: "Subí el PDF del manual antes de enviar." },
+        { status: 400 },
+      );
+    }
+  } else if (!hasDoc && !hasKit) {
     return NextResponse.json(
-      { error: "Completá el documento de la fase antes de enviar." },
+      { error: "Completá el documento o el brand kit antes de enviar." },
       { status: 400 },
     );
   }
 
   const plain = generateAccessToken();
-  const expiresAt = accessExpiryFromNow(ACCESS_EXPIRY_DAYS);
+  const expiresAt = accessExpiryForPurpose(config.purpose);
   const nextPhases = applyPhaseClientSent(phases, storageKey);
-  nextPhases[storageKey] = { ...nextPhases[storageKey], body: html, bodyFormat: "html" };
+  nextPhases[storageKey] = {
+    ...nextPhases[storageKey],
+    ...(hasDoc ? { body: html, bodyFormat: "html" as const } : {}),
+    ...(phase === "manual" && manualPdf
+      ? {
+          manualPdfUrl: manualPdf.url,
+          manualPdfFileName: manualPdf.fileName,
+          manualPdfMime: manualPdf.mime,
+        }
+      : {}),
+  };
+
+  let clientToken = plain;
 
   await prisma.$transaction(async (tx) => {
     await tx.clientProject.update({
       where: { id: projectId },
       data: { phases: nextPhases },
     });
-    await tx.clientAccessToken.create({
-      data: {
-        token: plain,
-        purpose: config.purpose,
-        expiresAt,
-        clientId: project.clientId,
-        projectId,
-      },
+
+    const existing = await tx.clientAccessToken.findFirst({
+      where: { projectId, purpose: config.purpose },
+      orderBy: { createdAt: "desc" },
     });
+
+    if (existing) {
+      clientToken = existing.token;
+      await tx.clientAccessToken.update({
+        where: { id: existing.id },
+        data: { expiresAt, usedAt: null },
+      });
+    } else {
+      await tx.clientAccessToken.create({
+        data: {
+          token: plain,
+          purpose: config.purpose,
+          expiresAt,
+          clientId: project.clientId,
+          projectId,
+        },
+      });
+    }
   });
+
+  await syncProjectPhasesFromProgress(projectId);
 
   const emailed = await sendPhaseDocEmailToClient({
     config,
     toEmail: project.client.email,
     toName: project.client.name,
     projectTitle: project.title,
-    token: plain,
+    token: clientToken,
     personalNote: parsed.data.personalNote,
   });
 
   return NextResponse.json({
     ok: true,
     emailed,
-    publicUrl: accessPublicUrl(config.purpose, plain),
-    publicToken: process.env.NODE_ENV === "development" ? plain : undefined,
+    publicUrl: accessPublicUrl(config.purpose, clientToken),
+    publicToken: process.env.NODE_ENV === "development" ? clientToken : undefined,
   });
 }

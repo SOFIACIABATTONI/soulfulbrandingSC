@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
+import { syncProjectPhasesFromProgress } from "@/lib/project-phase-sync";
 import { z } from "zod";
 
 // PATCH /api/admin/projects-erp/[id]/phases
@@ -20,6 +21,10 @@ const patchSchema = z.object({
       endDate: z.string().optional(),
       body: z.string().optional(),
       bodyFormat: z.enum(["html"]).optional(),
+      brandKit: z.string().optional(),
+      manualPdfUrl: z.string().optional(),
+      manualPdfFileName: z.string().optional(),
+      manualPdfMime: z.string().optional(),
       clientStatus: z.string().optional(),
       clientSentAt: z.string().optional(),
       clientReceivedAt: z.string().optional(),
@@ -42,7 +47,7 @@ export async function PATCH(req: Request, ctx: RouteParams) {
       { status: 400 }
     );
   }
-  const { phase, state, content } = parsed.data;
+  const { phase, content } = parsed.data;
   try {
     const project = await prisma.clientProject.findUnique({
       where: { id },
@@ -51,19 +56,19 @@ export async function PATCH(req: Request, ctx: RouteParams) {
     if (!project) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
     const phases = (project.phases as Record<string, Record<string, string> | string>) ?? {};
-    // migrar formato viejo (string) al nuevo (objeto)
     const current = typeof phases[phase] === "object" ? (phases[phase] as Record<string, string>) : {};
     phases[phase] = {
       ...current,
-      ...(state !== undefined ? { state } : {}),
       ...(content ?? {}),
     };
 
-    const updated = await prisma.clientProject.update({
+    await prisma.clientProject.update({
       where: { id },
       data: { phases },
     });
-    return NextResponse.json({ ok: true, phases: updated.phases });
+
+    const syncedPhases = await syncProjectPhasesFromProgress(id);
+    return NextResponse.json({ ok: true, phases: syncedPhases ?? phases });
   } catch {
     return NextResponse.json({ error: "No encontrado" }, { status: 404 });
   }

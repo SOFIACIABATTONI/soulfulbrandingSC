@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -10,6 +10,7 @@ import { ProjectFlowBar } from "./ProjectFlowBar";
 import { SERVICE_LABELS, SOURCE_LABELS, STATUS_LABELS } from "./LeadsManager";
 import { FormMessageViewer, isFormMessage } from "./FormMessageViewer";
 import { LeadQuotePanel } from "./LeadQuotePanel";
+import { gmailWebComposeUrl } from "@/lib/gmail-compose";
 
 // ── Barra de progreso del flujo ────────────────────────────
 const FLOW_STEPS = [
@@ -493,12 +494,14 @@ export function LeadDetail({
             </p>
             <div className="flex flex-col gap-2">
               <a
-                href={`mailto:${lead.email}`}
+                href={gmailWebComposeUrl(lead.email)}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="rounded border px-3 py-2 text-xs text-center hover:bg-neutral-50 transition-colors"
                 style={{ borderColor: "rgba(19,25,69,0.15)", color: "#131945" }}
-                title="Abre tu cliente de correo con el email cargado"
+                title="Abre Gmail en una pestaña nueva con el email del lead"
               >
-                Escribirle por email →
+                Escribir en Gmail →
               </a>
               {lead.status !== "perdido" && (
                 <button

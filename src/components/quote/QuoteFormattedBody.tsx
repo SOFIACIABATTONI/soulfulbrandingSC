@@ -123,6 +123,8 @@ type Props = {
   currency?: string;
   /** light = sitio web / portales; dark = legacy email preview */
   theme?: "light" | "dark";
+  /** portal = link cliente; preview = panel admin */
+  deckVariant?: "portal" | "preview";
 };
 
 export function QuoteVideoEmbed({
@@ -166,12 +168,13 @@ export function QuoteFormattedBody({
   total,
   currency,
   theme = "light",
+  deckVariant = "portal",
 }: Props) {
   if (isBbbDeckFormat(format)) {
     return (
       <div>
         <QuoteVideoEmbed videoUrl={videoUrl} theme={theme} />
-        <QuoteBBBDeck />
+        <QuoteBBBDeck variant={deckVariant} />
       </div>
     );
   }

@@ -7,7 +7,7 @@ import { ACCESS_EXPIRY_DAYS } from "@/lib/contract-types";
 import { accessPublicUrl } from "@/lib/access-url";
 import { sendNarrativaEmailToClient } from "@/lib/send-narrativa-email";
 import { narrativaContentSchema, normalizeNarrativaContent } from "@/lib/narrativa-types";
-import { parseProjectPhases, setPhaseState } from "@/lib/prebrief-service";
+import { syncProjectPhasesFromProgress } from "@/lib/project-phase-sync";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -41,7 +41,6 @@ export async function POST(req: Request, ctx: RouteParams) {
     parsed.data.content ?? normalizeNarrativaContent(project.narrativaContent);
   const plain = generateAccessToken();
   const expiresAt = accessExpiryFromNow(ACCESS_EXPIRY_DAYS);
-  const phases = setPhaseState(parseProjectPhases(project.phases), "narrativa", "active");
 
   await prisma.$transaction(async (tx) => {
     await tx.clientProject.update({
@@ -50,7 +49,6 @@ export async function POST(req: Request, ctx: RouteParams) {
         narrativaContent: content,
         narrativaStatus: "enviado",
         narrativaSentAt: now,
-        phases,
       },
     });
     await tx.clientAccessToken.create({
@@ -63,6 +61,8 @@ export async function POST(req: Request, ctx: RouteParams) {
       },
     });
   });
+
+  await syncProjectPhasesFromProgress(projectId);
 
   const emailed = await sendNarrativaEmailToClient({
     toEmail: project.client.email,

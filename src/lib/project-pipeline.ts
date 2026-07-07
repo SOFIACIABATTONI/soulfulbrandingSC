@@ -15,6 +15,9 @@ export type ProjectFlowStepKey = (typeof PROJECT_FLOW_STEPS)[number]["key"];
 export type ProjectPipelineSignals = {
   contractStatus: string;
   hasSenaPaid: boolean;
+  prebriefSubmittedAt?: Date | string | null;
+  narrativaStatus?: string;
+  narrativaAcknowledgedAt?: Date | string | null;
   phases: Record<string, { state?: string } | undefined>;
   projectStatus: string;
 };
@@ -33,11 +36,15 @@ export function isProjectStepDone(
     case "sena":
       return signals.hasSenaPaid;
     case "onboarding":
-      return phaseDone(signals.phases, "onboarding");
+      return signals.hasSenaPaid || phaseDone(signals.phases, "onboarding");
     case "prebrief":
-      return phaseDone(signals.phases, "prebrief");
+      return Boolean(signals.prebriefSubmittedAt) || phaseDone(signals.phases, "prebrief");
     case "narrativa":
-      return phaseDone(signals.phases, "narrativa");
+      return (
+        Boolean(signals.narrativaAcknowledgedAt) ||
+        signals.narrativaStatus === "recibido" ||
+        phaseDone(signals.phases, "narrativa")
+      );
     case "identidad":
       return phaseDone(signals.phases, "identidad");
     case "manual":
@@ -57,6 +64,38 @@ export function deriveProjectActiveIndex(signals: ProjectPipelineSignals): numbe
     }
   }
   return PROJECT_FLOW_STEPS.length - 1;
+}
+
+export type ProjectStatus = "onboarding" | "diseno" | "implementacion" | "entregado";
+
+export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+  onboarding: "Onboarding",
+  diseno: "Diseño",
+  implementacion: "Implementación",
+  entregado: "Entregado",
+};
+
+/** Estado global del proyecto según el hito activo del pipeline. */
+export function deriveProjectStatus(signals: ProjectPipelineSignals): ProjectStatus {
+  if (signals.projectStatus === "entregado") return "entregado";
+
+  const step = PROJECT_FLOW_STEPS[deriveProjectActiveIndex(signals)]?.key;
+
+  switch (step) {
+    case "contrato":
+    case "sena":
+    case "onboarding":
+    case "prebrief":
+      return "onboarding";
+    case "narrativa":
+    case "identidad":
+      return "diseno";
+    case "manual":
+    case "entregado":
+      return "implementacion";
+    default:
+      return "onboarding";
+  }
 }
 
 export function projectHasSenaPaid(

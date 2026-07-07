@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { FormMessageViewer } from "./FormMessageViewer";
@@ -405,7 +405,7 @@ export function ContactInbox({ onNewCountChange }: { onNewCountChange?: (n: numb
                   <input
                     type="number"
                     className="fv"
-                    placeholder="3200"
+                    placeholder="Valor en USD"
                     value={leadForm.estimatedValue}
                     onChange={(e) =>
                       setLeadForm({ ...leadForm, estimatedValue: e.target.value })

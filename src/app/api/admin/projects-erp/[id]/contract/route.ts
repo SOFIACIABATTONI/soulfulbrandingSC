@@ -25,6 +25,7 @@ export async function GET(_req: Request, ctx: RouteParams) {
     where: { id },
     include: {
       client: { select: { id: true, name: true, company: true, email: true } },
+      contractAcceptance: true,
     },
   });
   if (!project) {
@@ -53,6 +54,18 @@ export async function GET(_req: Request, ctx: RouteParams) {
       service: project.service,
       value: project.value,
     },
+    acceptance: project.contractAcceptance
+      ? {
+          id: project.contractAcceptance.id,
+          typedName: project.contractAcceptance.typedName,
+          clientEmail: project.contractAcceptance.clientEmail,
+          ipAddress: project.contractAcceptance.ipAddress,
+          userAgent: project.contractAcceptance.userAgent,
+          contentHash: project.contractAcceptance.contentHash,
+          acceptedAt: project.contractAcceptance.acceptedAt,
+          pdfUrl: `/api/admin/projects-erp/${project.id}/contract/acceptance/pdf`,
+        }
+      : null,
   });
 }
 

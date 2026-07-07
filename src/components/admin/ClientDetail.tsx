@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { InvoicesManager } from "./InvoicesManager";
 import { NewProjectModal } from "./NewProjectModal";
 import { ProjectFlowBar } from "./ProjectFlowBar";
 import { projectHasSenaPaid, type ProjectPipelineSignals } from "@/lib/project-pipeline";
+import { gmailWebComposeUrl } from "@/lib/gmail-compose";
 
 // ── tipos extendidos ───────────────────────────────────────
 type ProjectSummary = {
@@ -344,11 +345,14 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
           </p>
           <div className="flex flex-col gap-2">
             <a
-              href={`mailto:${client.email}`}
+              href={gmailWebComposeUrl(client.email)}
+              target="_blank"
+              rel="noopener noreferrer"
               className="rounded border px-3 py-2 text-xs text-center hover:bg-neutral-50 transition-colors"
               style={{ borderColor: "rgba(19,25,69,0.15)", color: "#131945" }}
+              title="Abre Gmail en una pestaña nueva con el email del cliente"
             >
-              Enviar email
+              Escribir en Gmail →
             </a>
             {client.lead && (
               <Link

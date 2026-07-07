@@ -1,0 +1,158 @@
+import { z } from "zod";
+import {
+  PREBRIEF_FIELDS,
+  type PrebriefField,
+} from "@/lib/prebrief-content";
+import {
+  PREBRIEF_EMAIL_WELCOME_HTML,
+  PREBRIEF_OUTRO_HTML,
+  PREBRIEF_QUESTIONNAIRE_INTRO_HTML,
+  PREBRIEF_SECTION_INFO_HTML,
+  PREBRIEF_SECTION_RESONANCIA_HTML,
+  resolvePrebriefHtml,
+} from "@/lib/prebrief-html-templates";
+import { parseProjectPhases } from "@/lib/prebrief-service";
+
+const prebriefFieldSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  hint: z.string().optional(),
+  rows: z.number().optional(),
+  sectionTitle: z.string().optional(),
+  sectionIntro: z.string().optional(),
+});
+
+const prebriefTemplateStoredSchema = z.object({
+  contentFormat: z.enum(["html", "markdown"]).optional(),
+  emailWelcome: z.string().optional(),
+  questionnaireIntro: z.string().optional(),
+  /** @deprecated Usar questionnaireIntro */
+  processIntro: z.string().optional(),
+  /** @deprecated Usar questionnaireIntro */
+  diagnosticIntro: z.string().optional(),
+  outro: z.string().optional(),
+  fields: z.array(prebriefFieldSchema).optional(),
+});
+
+export const prebriefTemplateSchema = z.object({
+  contentFormat: z.enum(["html", "markdown"]).optional(),
+  emailWelcome: z.string(),
+  questionnaireIntro: z.string(),
+  outro: z.string(),
+  fields: z.array(prebriefFieldSchema),
+});
+
+export type PrebriefTemplate = z.infer<typeof prebriefTemplateSchema>;
+
+export function getDefaultPrebriefTemplate(): PrebriefTemplate {
+  const fields = PREBRIEF_FIELDS.map((f) => {
+    const copy = { ...f };
+    if (f.id === "resonancia_visual" && f.sectionIntro) {
+      copy.sectionIntro = PREBRIEF_SECTION_RESONANCIA_HTML;
+    }
+    if (f.id === "info_servicios" && f.sectionIntro) {
+      copy.sectionIntro = PREBRIEF_SECTION_INFO_HTML;
+    }
+    return copy;
+  });
+
+  return {
+    contentFormat: "html",
+    emailWelcome: PREBRIEF_EMAIL_WELCOME_HTML,
+    questionnaireIntro: PREBRIEF_QUESTIONNAIRE_INTRO_HTML,
+    outro: PREBRIEF_OUTRO_HTML,
+    fields,
+  };
+}
+
+function resolveBlock(value: string | undefined, fallback: string): string {
+  const raw = value?.trim() || fallback;
+  return resolvePrebriefHtml(raw);
+}
+
+function resolveQuestionnaireIntro(
+  stored: z.infer<typeof prebriefTemplateStoredSchema>,
+  defaults: PrebriefTemplate,
+): string {
+  if (stored.questionnaireIntro?.trim()) {
+    return resolveBlock(stored.questionnaireIntro, defaults.questionnaireIntro);
+  }
+
+  const hasLegacy = Boolean(stored.processIntro?.trim() || stored.diagnosticIntro?.trim());
+  if (hasLegacy) {
+    const process = stored.processIntro?.trim()
+      ? resolvePrebriefHtml(stored.processIntro)
+      : "";
+    const diagnostic = stored.diagnosticIntro?.trim()
+      ? resolvePrebriefHtml(stored.diagnosticIntro)
+      : "";
+    return `${process}${diagnostic}` || defaults.questionnaireIntro;
+  }
+
+  return defaults.questionnaireIntro;
+}
+
+function readTemplateFromPhaseBlock(
+  block: Record<string, string> | undefined,
+): z.infer<typeof prebriefTemplateStoredSchema> {
+  if (!block) return {};
+  const raw = block.template;
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    const result = prebriefTemplateStoredSchema.safeParse(parsed);
+    return result.success ? result.data : {};
+  } catch {
+    return {};
+  }
+}
+
+export function resolvePrebriefTemplate(phasesRaw: unknown): PrebriefTemplate {
+  const phases = parseProjectPhases(phasesRaw);
+  const stored = readTemplateFromPhaseBlock(phases.prebrief);
+  const defaults = getDefaultPrebriefTemplate();
+  const format = stored.contentFormat ?? defaults.contentFormat;
+
+  const fields =
+    stored.fields && stored.fields.length > 0
+      ? mergePrebriefFields(defaults.fields, stored.fields)
+      : defaults.fields;
+
+  return {
+    contentFormat: format,
+    emailWelcome: resolveBlock(stored.emailWelcome, defaults.emailWelcome),
+    questionnaireIntro: resolveQuestionnaireIntro(stored, defaults),
+    outro: resolveBlock(stored.outro, defaults.outro),
+    fields,
+  };
+}
+
+function mergePrebriefFields(
+  defaults: PrebriefField[],
+  stored: PrebriefField[],
+): PrebriefField[] {
+  const byId = new Map(stored.map((f) => [f.id, f]));
+  return defaults.map((def) => {
+    const custom = byId.get(def.id);
+    if (!custom) return { ...def };
+    const merged = {
+      ...def,
+      ...custom,
+      id: def.id,
+    };
+    if (merged.sectionIntro) {
+      merged.sectionIntro = resolveBlock(custom.sectionIntro, def.sectionIntro ?? "");
+    }
+    return merged;
+  });
+}
+
+export function serializePrebriefTemplateForPhases(
+  phasesRaw: unknown,
+  template: PrebriefTemplate,
+): Record<string, Record<string, string>> {
+  const phases = parseProjectPhases(phasesRaw);
+  const prebrief = { ...(phases.prebrief ?? {}) };
+  prebrief.template = JSON.stringify(template);
+  return { ...phases, prebrief };
+}

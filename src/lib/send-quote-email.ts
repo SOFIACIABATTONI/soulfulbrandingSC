@@ -7,6 +7,7 @@ import { isBbbDeckFormat } from "@/lib/quote-bbb-deck";
 import {
   buildVideoEmailBlock,
   markdownToQuoteHtml,
+  wrapAdminNotificationEmailHtml,
   wrapQuoteEmailHtml,
 } from "@/lib/quote-markdown-html";
 
@@ -118,12 +119,24 @@ export async function sendQuoteResponseNotificationToAdmin(payload: {
     .filter(Boolean)
     .join("\n");
 
+  const innerHtml = `<p style="margin:0 0 10px;font-size:15px;line-height:1.65;color:rgba(19,25,69,0.65);"><strong style="color:#131945;">Lead:</strong> ${payload.leadName.replace(/</g, "&lt;")}</p>
+<p style="margin:0 0 10px;font-size:15px;line-height:1.65;color:rgba(19,25,69,0.65);"><strong style="color:#131945;">Email:</strong> ${payload.leadEmail.replace(/</g, "&lt;")}</p>
+<p style="margin:0 0 10px;font-size:15px;line-height:1.65;color:rgba(19,25,69,0.65);"><strong style="color:#131945;">Respuesta:</strong> ${payload.response.replace(/</g, "&lt;")}</p>
+${payload.comment ? `<p style="margin:0 0 10px;font-size:15px;line-height:1.65;color:rgba(19,25,69,0.65);"><strong style="color:#131945;">Comentario:</strong> ${payload.comment.replace(/</g, "&lt;")}</p>` : ""}
+<p style="margin:0;font-size:14px;line-height:1.6;color:rgba(19,25,69,0.45);">ID presupuesto: ${payload.quoteId.replace(/</g, "&lt;")}</p>`;
+
+  const html = wrapAdminNotificationEmailHtml(
+    `Presupuesto — ${payload.response}`,
+    innerHtml,
+  );
+
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
     from,
     to: [to],
     subject: `Presupuesto — ${payload.response} — ${payload.leadName}`,
     text,
+    html,
   });
 
   if (error) {

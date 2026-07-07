@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
-import { syncLeadPipelineOnSenaPaid } from "@/lib/lead-pipeline";
+import { syncOnSenaPaidInvoice } from "@/lib/project-phase-sync";
 import { z } from "zod";
 
 const createSchema = z.object({
@@ -86,8 +86,8 @@ export async function POST(req: Request) {
     },
   });
   if (invoice.type === "sena" && invoice.status === "pagado") {
-    void syncLeadPipelineOnSenaPaid(invoice.clientId).catch((err) => {
-      console.error("[invoice] syncLeadPipelineOnSenaPaid:", err);
+    void syncOnSenaPaidInvoice(invoice).catch((err) => {
+      console.error("[invoice] syncOnSenaPaidInvoice:", err);
     });
   }
   return NextResponse.json({ ok: true, item: invoice }, { status: 201 });

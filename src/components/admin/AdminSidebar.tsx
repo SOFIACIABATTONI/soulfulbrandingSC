@@ -122,16 +122,13 @@ export function AdminSidebar() {
         className="flex items-center gap-2.5 px-4 py-3 flex-shrink-0"
         style={{ borderTop: `1px solid ${brandUi.border}` }}
       >
-        <div
-          className="flex-shrink-0 rounded-md px-1.5 py-1 flex items-center justify-center"
-          style={{ background: brandUi.text }}
-        >
+        <div className="flex-shrink-0 flex items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/brand/logoclaro.png"
+            src="/brand/sc-so-logo.svg"
             alt="SO — Soulful Branding"
-            width={320}
-            height={72}
+            width={125}
+            height={113}
             className="block h-5 w-auto max-w-[52px] object-contain"
             decoding="async"
           />

@@ -1,16 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { QuoteFormattedBody } from "@/components/quote/QuoteFormattedBody";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
 import { Topbar } from "@/components/admin/ui/Topbar";
+import {
+  getNarrativaHtmlTemplate,
+  resolveNarrativaHtml,
+} from "@/lib/narrativa-html-templates";
 import {
   NARRATIVA_STATUS_LABELS,
   type NarrativaContent,
   type NarrativaStatus,
 } from "@/lib/narrativa-types";
 import { brandUi } from "@/lib/brand-ui";
+import "@/components/admin/rich-text-editor.css";
 
 type NarrativaPanelProps = {
   projectId: string;
@@ -21,12 +26,12 @@ type NarrativaPanelProps = {
 };
 
 type NarrativaData = {
-  content: NarrativaContent;
   status: NarrativaStatus;
   statusLabel: string;
   narrativaSentAt: string | null;
   narrativaAcknowledgedAt: string | null;
   client: { name: string; email: string };
+  project: { id: string; title: string };
 };
 
 export function NarrativaPanel({
@@ -37,24 +42,47 @@ export function NarrativaPanel({
   embedded = false,
 }: NarrativaPanelProps) {
   const [data, setData] = useState<NarrativaData | null>(null);
-  const [body, setBody] = useState("");
+  const [html, setHtml] = useState("");
   const [personalNote, setPersonalNote] = useState("");
-  const [showPreview, setShowPreview] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [lastLink, setLastLink] = useState<string | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const projectInput = useMemo(
+    () =>
+      data
+        ? {
+            title: data.project.title,
+            client: { name: data.client.name },
+          }
+        : null,
+    [data],
+  );
+
+  const defaultHtml = useMemo(
+    () => (projectInput ? getNarrativaHtmlTemplate(projectInput) : ""),
+    [projectInput],
+  );
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/admin/projects-erp/${projectId}/narrativa`, {
       credentials: "include",
     });
     if (res.ok) {
-      const j = (await res.json()) as NarrativaData;
+      const j = (await res.json()) as NarrativaData & {
+        content: NarrativaContent;
+      };
       setData(j);
-      setBody(j.content.body ?? "");
+      setHtml(
+        resolveNarrativaHtml(j.content, {
+          title: j.project.title,
+          client: j.client,
+        }),
+      );
     }
     setLoading(false);
   }, [projectId]);
@@ -63,7 +91,19 @@ export function NarrativaPanel({
     void load();
   }, [load]);
 
-  async function saveDraft() {
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
+
+  const isLocked = data?.status === "recibido";
+  const canEdit = data?.status === "borrador" || data?.status === "enviado";
+
+  async function saveDraft(nextHtml = html) {
+    if (!canEdit || isLocked) return;
+    const trimmed = nextHtml.trim();
+    if (!trimmed) return;
     setSaving(true);
     setMessage(null);
     const res = await fetch(`/api/admin/projects-erp/${projectId}/narrativa`, {
@@ -71,7 +111,7 @@ export function NarrativaPanel({
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        content: { body: body.trim(), format: "markdown" as const },
+        content: { body: trimmed, format: "html" as const },
       }),
     });
     setSaving(false);
@@ -84,7 +124,15 @@ export function NarrativaPanel({
     }
   }
 
+  function persistDraft(nextHtml: string) {
+    setHtml(nextHtml);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => void saveDraft(nextHtml), 900);
+  }
+
   async function sendNarrativa() {
+    if (isLocked) return;
+    await saveDraft(html);
     setSending(true);
     setMessage(null);
     setLastLink(null);
@@ -93,7 +141,7 @@ export function NarrativaPanel({
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        content: { body: body.trim(), format: "markdown" as const },
+        content: { body: html.trim(), format: "html" as const },
         personalNote: personalNote.trim() || undefined,
       }),
     });
@@ -114,6 +162,19 @@ export function NarrativaPanel({
       const j = (await res.json().catch(() => ({}))) as { error?: string };
       setMessage(j.error ?? "No se pudo enviar.");
     }
+  }
+
+  function restoreTemplate() {
+    if (!projectInput || isLocked) return;
+    if (
+      !window.confirm(
+        "¿Volver al modelo original de la narrativa?\n\nSe reemplazará el texto actual por la plantilla inicial.",
+      )
+    ) {
+      return;
+    }
+    setHtml(defaultHtml);
+    void saveDraft(defaultHtml);
   }
 
   const cardClass = embedded ? "rounded-2xl border shadow-sm" : "mb-6";
@@ -185,7 +246,7 @@ export function NarrativaPanel({
             </p>
           ) : (
             <p style={{ color: brandUi.textFaint }}>
-              Completá el documento con la plantilla guía. Reemplazá cada{" "}
+              Editá con el mismo editor visual que contrato y pre-brief. Reemplazá cada{" "}
               <strong style={{ color: brandUi.textMuted }}>[Completar]</strong> y enviá al cliente
               cuando esté listo.
             </p>
@@ -203,30 +264,55 @@ export function NarrativaPanel({
       </div>
 
       {editorOpen && (
-        <div
-          className="mt-4 pt-4 border-t grid grid-cols-1 lg:grid-cols-2 gap-4"
-          style={{ borderColor: brandUi.border }}
-        >
-          <div className="space-y-3">
-            <label className="block">
-              <span
-                className="text-[9px] font-medium uppercase tracking-widest"
-                style={{ color: brandUi.textFaint }}
-              >
-                Documento (Markdown)
-              </span>
-              <textarea
-                className="mt-1 w-full rounded border p-3 text-sm font-mono leading-relaxed min-h-[360px]"
-                style={{
-                  borderColor: brandUi.borderStrong,
-                  background: brandUi.surface,
-                  color: brandUi.text,
-                }}
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-              />
-            </label>
+        <div className="mt-4 pt-4 border-t space-y-4" style={{ borderColor: brandUi.border }}>
+          <div
+            className="rounded-2xl border px-4 py-3"
+            style={{ borderColor: brandUi.border, background: "rgba(240,49,114,0.04)" }}
+          >
+            <p className="text-sm font-medium" style={{ color: brandUi.text }}>
+              Documento estratégico
+            </p>
+            <p className="text-xs mt-1 leading-relaxed" style={{ color: brandUi.textMuted }}>
+              Mismo editor que contrato y pre-brief: negritas, listas, tablas y checkboxes. El
+              cliente lo ve igual en el enlace del mail.
+            </p>
+          </div>
 
+          {!isLocked && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={restoreTemplate}
+                className="rounded-full px-3 py-1.5 text-xs font-medium border transition-colors hover:bg-neutral-50"
+                style={{ borderColor: brandUi.border, color: brandUi.textMuted }}
+              >
+                Volver al modelo original
+              </button>
+              {saving && (
+                <span className="text-[11px] ml-auto" style={{ color: brandUi.blue }}>
+                  Guardando…
+                </span>
+              )}
+            </div>
+          )}
+
+          {isLocked ? (
+            <div
+              className="phase-doc-html max-w-none rounded-lg border p-4 bg-white"
+              style={{ borderColor: brandUi.border }}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          ) : (
+            <RichTextEditor
+              value={html}
+              ariaLabel="Narrativa de marca"
+              placeholder="Completá la narrativa…"
+              onChange={persistDraft}
+              onBlur={() => void saveDraft()}
+            />
+          )}
+
+          {!isLocked && (
             <label className="block">
               <span
                 className="text-[9px] font-medium uppercase tracking-widest"
@@ -242,42 +328,61 @@ export function NarrativaPanel({
                 onChange={(e) => setPersonalNote(e.target.value)}
               />
             </label>
+          )}
 
+          {!isLocked && (
             <div className="flex flex-wrap gap-2 pt-1">
-              <Button variant="ghost" onClick={() => setShowPreview((v) => !v)}>
-                {showPreview ? "Ocultar vista previa" : "Vista previa"}
-              </Button>
               <Button variant="secondary" disabled={saving} onClick={() => void saveDraft()}>
                 {saving ? "Guardando…" : "Guardar borrador"}
               </Button>
               <Button
                 variant="primary"
-                disabled={sending || !body.trim()}
+                disabled={sending || !html.trim()}
                 onClick={() => void sendNarrativa()}
               >
                 {sending ? "Enviando…" : "Enviar al cliente →"}
               </Button>
             </div>
+          )}
 
-            {message && (
-              <p className="text-xs" style={{ color: brandUi.textMuted }}>
-                {message}
-              </p>
-            )}
-            {lastLink && (
-              <p className="text-[10px] break-all" style={{ color: brandUi.blue }}>
-                {lastLink}
-              </p>
-            )}
-          </div>
-
-          {showPreview && (
+          <details
+            className="rounded-lg border group"
+            style={{ borderColor: brandUi.border, background: "#FAFAFA" }}
+          >
+            <summary
+              className="cursor-pointer list-none px-4 py-3 text-xs font-medium uppercase tracking-wider select-none [&::-webkit-details-marker]:hidden"
+              style={{ color: brandUi.accent }}
+            >
+              Vista previa (como la ve el cliente){" "}
+              <span className="text-[10px] normal-case tracking-normal" style={{ color: brandUi.textMuted }}>
+                — desplegar
+              </span>
+            </summary>
             <div
-              className="rounded-lg border p-4 min-h-[360px] overflow-auto bg-white"
+              className="border-t px-4 py-4 bg-white"
               style={{ borderColor: brandUi.border }}
             >
-              <QuoteFormattedBody body={body} format="markdown" theme="light" />
+              <p className="text-[10px] mb-3 leading-relaxed" style={{ color: brandUi.textFaint }}>
+                Así verá el documento al abrir el enlace del mail (no va el texto completo en el
+                correo).
+              </p>
+              <div
+                className="phase-doc-html max-w-none rounded-lg border p-4 bg-white max-h-[480px] overflow-y-auto"
+                style={{ borderColor: brandUi.border }}
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
             </div>
+          </details>
+
+          {message && (
+            <p className="text-xs" style={{ color: brandUi.textMuted }}>
+              {message}
+            </p>
+          )}
+          {lastLink && (
+            <p className="text-[10px] break-all" style={{ color: brandUi.blue }}>
+              {lastLink}
+            </p>
           )}
         </div>
       )}

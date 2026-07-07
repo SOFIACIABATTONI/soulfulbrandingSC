@@ -80,31 +80,9 @@ ${task([
   PLACEHOLDER,
 ])}`,
 
-  identidad: `<h1>Identidad visual — desarrollo</h1>
-<h2>Dirección creativa acordada</h2>
-<p><em>${PLACEHOLDER} — concepto, mood, referencias visuales validadas</em></p>
-<h2>Sistema visual</h2>
-<p><strong>Paleta</strong></p>
-${table(["Rol", "Color", "Notas"], [
-  ["Primario", PLACEHOLDER, PLACEHOLDER],
-  ["Secundario", PLACEHOLDER, PLACEHOLDER],
-  ["Acento", PLACEHOLDER, PLACEHOLDER],
-])}
-<p><strong>Tipografía</strong></p>
-<ul><li><p>Titulares: ${PLACEHOLDER}</p></li><li><p>Cuerpo: ${PLACEHOLDER}</p></li></ul>
-<h2>Entregables</h2>
-${task([
-  "Logo / isotipo / variantes",
-  "Paleta y tipografías exportadas",
-  "Aplicaciones (mockups, piezas clave)",
-  "Archivos finales en Drive / Figma",
-])}
-<h2>Links</h2>
-${table(["Recurso", "URL"], [
-  ["Figma", PLACEHOLDER],
-  ["Drive", PLACEHOLDER],
-  ["Referencias", PLACEHOLDER],
-])}`,
+  identidad: `<h1>Tu identidad visual</h1>
+<p>Acá está tu Brand ID: logos, colores, tipografías y recursos listos para descargar.</p>
+<p><em>Personalizá este mensaje antes de enviar al cliente.</em></p>`,
 
   manual: `<h1>Manual de marca — entrega</h1>
 <h2>Contenido del manual</h2>

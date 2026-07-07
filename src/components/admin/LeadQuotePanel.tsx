@@ -17,6 +17,9 @@ import {
 } from "@/lib/quote-default-content";
 import { isBbbDeckFormat } from "@/lib/quote-bbb-deck";
 import { buildPresupuestoMarkdown } from "@/lib/quote-templates";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
+
+type PendingConfirm = "send" | "delete" | null;
 
 type QuoteRow = {
   id: string;
@@ -54,6 +57,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
   const [message, setMessage] = useState<string | null>(null);
   const [lastLink, setLastLink] = useState<string | null>(null);
   const [resolvedClientId, setResolvedClientId] = useState<string | null>(clientId ?? null);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/admin/leads/${leadId}/quotes`, {
@@ -189,8 +193,6 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
 
   async function sendQuote() {
     if (!active || active.status !== "borrador") return;
-    if (!confirm("¿Enviar presupuesto por correo al cliente? Se generará un enlace nuevo."))
-      return;
     await saveDraft();
     setSending(true);
     setMessage(null);
@@ -226,7 +228,6 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
 
   async function deleteDraft() {
     if (!active || active.status !== "borrador") return;
-    if (!confirm("¿Eliminar este borrador?")) return;
     const res = await fetch(`/api/admin/leads/${leadId}/quotes/${active.id}`, {
       method: "DELETE",
       credentials: "include",
@@ -239,6 +240,18 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
       setTotal("");
       await load();
       setMessage("Borrador eliminado.");
+    }
+  }
+
+  async function handleConfirmAction() {
+    if (pendingConfirm === "send") {
+      setPendingConfirm(null);
+      await sendQuote();
+      return;
+    }
+    if (pendingConfirm === "delete") {
+      setPendingConfirm(null);
+      await deleteDraft();
     }
   }
 
@@ -469,9 +482,13 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                       </div>
                       {showPreview && (
                         <div
-                          className="rounded-lg border max-h-[560px] overflow-y-auto"
+                          className={
+                            isDeck
+                              ? "rounded-lg border overflow-y-auto max-h-[85vh]"
+                              : "rounded-lg border max-h-[560px] overflow-y-auto"
+                          }
                           style={{
-                            background: "#0D0D0D",
+                            background: isDeck ? "#FFFFFF" : "#0D0D0D",
                             borderColor: "rgba(13,13,13,0.2)",
                             padding: isDeck ? 0 : undefined,
                           }}
@@ -483,6 +500,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                               videoUrl={videoUrl || undefined}
                               total={total.trim() ? Number(total) : undefined}
                               currency="USD"
+                              deckVariant="preview"
                             />
                           </div>
                         </div>
@@ -501,7 +519,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                     </button>
                     <button
                       type="button"
-                      onClick={() => void sendQuote()}
+                      onClick={() => setPendingConfirm("send")}
                       disabled={sending || (!isDeck && !body.trim())}
                       className="rounded px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
                       style={{ background: "#F03172" }}
@@ -510,7 +528,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                     </button>
                     <button
                       type="button"
-                      onClick={() => void deleteDraft()}
+                      onClick={() => setPendingConfirm("delete")}
                       className="rounded border px-3 py-2 text-xs"
                       style={{ borderColor: "rgba(13,13,13,0.15)" }}
                     >
@@ -520,8 +538,17 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                 </>
               ) : (
                 <div
-                  className="rounded-lg border px-5 py-6"
-                  style={{ background: "#0D0D0D", borderColor: "rgba(13,13,13,0.15)" }}
+                  className={
+                    isBbbDeckFormat(normalizeQuoteContent(active.content).format)
+                      ? "rounded-lg border overflow-hidden"
+                      : "rounded-lg border px-5 py-6"
+                  }
+                  style={{
+                    background: isBbbDeckFormat(normalizeQuoteContent(active.content).format)
+                      ? "#FFFFFF"
+                      : "#0D0D0D",
+                    borderColor: "rgba(13,13,13,0.15)",
+                  }}
                 >
                   <QuoteFormattedBody
                     body={normalizeQuoteContent(active.content).body}
@@ -529,6 +556,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                     videoUrl={normalizeQuoteContent(active.content).videoUrl}
                     total={normalizeQuoteContent(active.content).total}
                     currency={normalizeQuoteContent(active.content).currency}
+                    deckVariant="preview"
                   />
                 </div>
               ))}
@@ -575,6 +603,32 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
           </Link>
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingConfirm === "send"}
+        title="Enviar presupuesto"
+        description={
+          <>
+            Se enviará por correo a{" "}
+            <strong style={{ color: "#131945" }}>{lead.email}</strong> y se generará un enlace
+            nuevo para que el cliente vea la propuesta.
+          </>
+        }
+        confirmLabel="Enviar presupuesto"
+        loading={sending}
+        onConfirm={() => void handleConfirmAction()}
+        onCancel={() => setPendingConfirm(null)}
+      />
+
+      <ConfirmDialog
+        open={pendingConfirm === "delete"}
+        title="Eliminar borrador"
+        description="Se borrará este borrador del presupuesto. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar borrador"
+        confirmVariant="danger"
+        onConfirm={() => void handleConfirmAction()}
+        onCancel={() => setPendingConfirm(null)}
+      />
     </div>
   );
 }

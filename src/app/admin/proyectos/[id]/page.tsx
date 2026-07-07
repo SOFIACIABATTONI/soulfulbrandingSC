@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { ADMIN_COOKIE_NAME, verifyAdminToken } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { syncProjectPhasesFromProgress } from "@/lib/project-phase-sync";
 import { ERPProjectWorkspace } from "@/components/admin/ERPProjectWorkspace";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -21,13 +22,23 @@ export default async function AdminProyectoDetailPage({ params }: PageProps) {
       client: { select: { id: true, name: true, company: true, email: true } },
       invoices: {
         orderBy: { createdAt: "desc" },
-        select: { id: true, number: true, type: true, total: true, status: true, issuedAt: true },
+        select: { id: true, number: true, type: true, total: true, status: true, issuedAt: true, projectId: true },
       },
       _count: { select: { invoices: true } },
     },
   });
 
   if (!project) notFound();
+
+  const syncedPhases = await syncProjectPhasesFromProgress(project.id);
+  if (syncedPhases) {
+    project.phases = syncedPhases;
+    const refreshed = await prisma.clientProject.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+    if (refreshed) project.status = refreshed.status;
+  }
 
   return (
     <div className="px-6 py-8 max-w-5xl mx-auto">

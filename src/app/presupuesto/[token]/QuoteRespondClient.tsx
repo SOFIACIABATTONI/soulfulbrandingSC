@@ -99,23 +99,27 @@ export function QuoteRespondClient({ token }: { token: string }) {
 
   return (
     <PortalShell
+      layout={isDeck ? "wide" : "default"}
       eyebrow="Soulful Branding®"
       subtitle={`Hola, ${data.clientName}`}
       footer={
-        <p className="text-[10px] text-center mt-10" style={{ color: brandUi.textFaint }}>
+        <p className="text-[10px] text-center mt-10 px-4" style={{ color: brandUi.textFaint }}>
           Válido hasta{" "}
           {new Date(data.expiresAt).toLocaleDateString("es-AR", { dateStyle: "long" })}
         </p>
       }
     >
-      <div className={isDeck ? "max-w-3xl mx-auto" : undefined}>
+      <div className={isDeck ? "w-full" : undefined}>
         {isDeck && (
-          <p className="text-[10px] uppercase tracking-[0.2em] text-center mb-4" style={{ color: brandUi.textFaint }}>
+          <p
+            className="text-[10px] uppercase tracking-[0.2em] text-center mb-4 px-4 sm:px-0"
+            style={{ color: brandUi.textFaint }}
+          >
             Born & Be · Brand ID
           </p>
         )}
 
-        <PortalCard className={isDeck ? "border-0 shadow-none p-0 bg-transparent" : "mb-8"}>
+        <PortalCard className={isDeck ? "border-0 shadow-none p-0 bg-transparent rounded-none" : "mb-8"}>
           <QuoteFormattedBody
             body={data.content.body}
             format={data.content.format}
@@ -128,7 +132,7 @@ export function QuoteRespondClient({ token }: { token: string }) {
 
         {done || !data.canRespond ? (
           <div
-            className="rounded-lg border p-4 text-sm text-center mt-8 bg-white"
+            className={`rounded-lg border p-4 text-sm text-center mt-8 bg-white ${isDeck ? "mx-4 sm:mx-0" : ""}`}
             style={{ borderColor: brandUi.border, color: brandUi.textMuted }}
           >
             {data.clientResponse
@@ -138,7 +142,7 @@ export function QuoteRespondClient({ token }: { token: string }) {
                 : "Este enlace ya fue cerrado."}
           </div>
         ) : (
-          <div className="mt-10">
+          <div className={`mt-10 ${isDeck ? "px-4 sm:px-0" : ""}`}>
             <p
               className="text-xs mb-4 text-center uppercase tracking-widest"
               style={{ color: brandUi.textFaint }}

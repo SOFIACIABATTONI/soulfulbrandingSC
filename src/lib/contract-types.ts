@@ -23,7 +23,7 @@ export const ACCESS_EXPIRY_DAYS = 7;
 
 export const contractContentSchema = z.object({
   body: z.string(),
-  format: z.enum(["markdown", "plain"]).optional(),
+  format: z.enum(["markdown", "plain", "html"]).optional(),
 });
 
 export type ContractContent = z.infer<typeof contractContentSchema>;

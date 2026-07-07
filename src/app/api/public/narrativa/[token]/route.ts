@@ -6,7 +6,8 @@ import {
   isAccessTokenUsed,
 } from "@/lib/access-service";
 import { resolveNarrativaContent } from "@/lib/narrativa-default-content";
-import { setPhaseState, parseProjectPhases } from "@/lib/prebrief-service";
+import { resolveNarrativaHtml } from "@/lib/narrativa-html-templates";
+import { syncProjectPhasesFromProgress } from "@/lib/project-phase-sync";
 import { sendNarrativaAckNotificationToAdmin } from "@/lib/send-phase-doc-email";
 
 type RouteParams = { params: Promise<{ token: string }> };
@@ -41,6 +42,11 @@ export async function GET(_req: Request, ctx: RouteParams) {
     narrativaContent: project.narrativaContent,
     client: { name: record.client.name },
   });
+  const htmlBody = resolveNarrativaHtml(content, {
+    title: project.title,
+    narrativaContent: project.narrativaContent,
+    client: { name: record.client.name },
+  });
 
   const received =
     project.narrativaStatus === "recibido" ||
@@ -50,7 +56,7 @@ export async function GET(_req: Request, ctx: RouteParams) {
   return NextResponse.json({
     clientName: record.client.name,
     projectTitle: project.title,
-    content,
+    content: { body: htmlBody, format: "html" as const },
     sentAt: project.narrativaSentAt,
     acknowledgedAt: project.narrativaAcknowledgedAt,
     canAcknowledge: !received,
@@ -87,7 +93,6 @@ export async function POST(_req: Request, ctx: RouteParams) {
   }
 
   const now = new Date();
-  const phases = setPhaseState(parseProjectPhases(project.phases), "narrativa", "done");
 
   await prisma.$transaction(async (tx) => {
     await tx.clientProject.update({
@@ -95,7 +100,6 @@ export async function POST(_req: Request, ctx: RouteParams) {
       data: {
         narrativaStatus: "recibido",
         narrativaAcknowledgedAt: now,
-        phases,
       },
     });
     await tx.clientAccessToken.update({
@@ -103,6 +107,8 @@ export async function POST(_req: Request, ctx: RouteParams) {
       data: { usedAt: now },
     });
   });
+
+  await syncProjectPhasesFromProgress(record.projectId);
 
   void sendNarrativaAckNotificationToAdmin({
     clientName: project.client.name,

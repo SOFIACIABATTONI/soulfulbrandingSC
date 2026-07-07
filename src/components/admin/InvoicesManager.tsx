@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -320,7 +320,7 @@ export function InvoicesManager({
             <tr>
               <th className="px-4 py-3">Número</th>
               {!initialClientId && <th className="px-4 py-3">Cliente</th>}
-              <th className="px-4 py-3">Proyecto</th>
+              <th className="px-4 py-3 min-w-[280px]">Proyecto</th>
               <th className="px-4 py-3">Tipo</th>
               <th className="px-4 py-3">Total</th>
               <th className="px-4 py-3">Estado</th>
@@ -350,33 +350,41 @@ export function InvoicesManager({
                     )}
                   </td>
                 )}
-                <td className="px-4 py-3 text-xs">
-                  <div className="flex items-center gap-2 min-w-[140px]">
-                    <select
-                      className="rounded border border-neutral-200 bg-white px-2 py-1 text-xs flex-1 max-w-[180px]"
-                      value={row.project?.id ?? ""}
-                      disabled={linkingProject === row.id}
-                      onChange={(e) => {
-                        void linkProject(row.id, e.target.value || null);
-                      }}
-                    >
-                      <option value="">Sin proyecto</option>
-                      {projectsForClient(row.client.id).map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.title}
-                        </option>
-                      ))}
-                    </select>
-                    {row.project && (
+                <td className="px-4 py-3 text-xs min-w-[280px]">
+                  <div className="space-y-1.5">
+                    {row.project ? (
                       <Link
                         href={`/admin/proyectos/${row.project.id}`}
-                        className="shrink-0 hover:opacity-70"
-                        style={{ color: "#323FF6" }}
-                        title="Ver proyecto"
+                        className="block font-medium leading-snug hover:underline"
+                        style={{ color: "#131945" }}
+                        title={row.project.title}
                       >
-                        →
+                        {row.project.title}
                       </Link>
+                    ) : (
+                      <span className="block text-neutral-400 italic">Sin proyecto</span>
                     )}
+                    <div className="flex items-center gap-2">
+                      <select
+                        className="rounded border border-neutral-200 bg-white px-2 py-1 text-[11px] w-full min-w-[200px]"
+                        value={row.project?.id ?? ""}
+                        disabled={linkingProject === row.id}
+                        aria-label={`Proyecto de factura ${row.number}`}
+                        onChange={(e) => {
+                          void linkProject(row.id, e.target.value || null);
+                        }}
+                      >
+                        <option value="">Sin proyecto</option>
+                        {projectsForClient(row.client.id).map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.title}
+                          </option>
+                        ))}
+                      </select>
+                      {linkingProject === row.id && (
+                        <span className="text-[10px] text-neutral-400 shrink-0">…</span>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td className="px-4 py-3">
@@ -515,7 +523,7 @@ export function InvoicesManager({
                     min="0"
                     step="0.01"
                     className="fv"
-                    placeholder="1600"
+                    placeholder="Valor en USD"
                     value={form.total}
                     onChange={(e) => setForm({ ...form, total: e.target.value })}
                   />

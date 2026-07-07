@@ -1,12 +1,16 @@
 ﻿"use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LazyPhaseMount } from "@/components/admin/LazyPhaseMount";
 import { PhaseDocumentEditor } from "@/components/admin/PhaseDocumentEditor";
 import { PhaseClientSendBar } from "@/components/admin/PhaseClientSendBar";
+import { BrandKitPanel } from "@/components/admin/BrandKitPanel";
+import { ManualPdfPanel } from "@/components/admin/ManualPdfPanel";
+import { getManualPdfFromPhase } from "@/lib/manual-pdf";
+import { PhaseNotesEmailBar } from "@/components/admin/PhaseNotesEmailBar";
 import { ProjectFlowBar } from "@/components/admin/ProjectFlowBar";
 import { getPhaseClientMeta } from "@/lib/phase-client-store";
 import type { HtmlPhaseKey } from "@/lib/phase-client-flow";
@@ -15,7 +19,11 @@ import {
   PHASE_DOCUMENT_TITLES,
   type PhaseDocumentKey,
 } from "@/lib/phase-document-templates";
-import type { ProjectPipelineSignals } from "@/lib/project-pipeline";
+import {
+  deriveProjectStatus,
+  PROJECT_STATUS_LABELS,
+  type ProjectPipelineSignals,
+} from "@/lib/project-pipeline";
 
 const PanelLoading = ({ label }: { label: string }) => (
   <p className="text-xs py-4 text-center" style={{ color: "rgba(19,25,69,0.42)" }}>
@@ -46,10 +54,21 @@ type InvoiceSummary = {
 type ClientProject = {
   id: string; title: string; service: string; value: number; status: string;
   contractStatus: string;
+  prebriefSubmittedAt: string | null;
+  narrativaStatus: string;
+  narrativaAcknowledgedAt: string | null;
   phases: Record<string, Record<string, string>>;
   startDate: string | null; deliveryDate: string | null; notes: string;
   client: { id: string; name: string; company: string; email: string };
   invoices: InvoiceSummary[];
+};
+
+type PhaseSyncProgress = {
+  contractStatus: string;
+  prebriefSubmittedAt: string | Date | null;
+  narrativaStatus: string;
+  narrativaAcknowledgedAt: string | Date | null;
+  status?: string;
 };
 
 type PhaseContent = {
@@ -58,6 +77,10 @@ type PhaseContent = {
   endDate: string;
   body: string;
   bodyFormat: string;
+  brandKit: string;
+  manualPdfUrl: string;
+  manualPdfFileName: string;
+  manualPdfMime: string;
   owner: string;
   clientStatus: string;
   clientSentAt: string;
@@ -130,6 +153,10 @@ function emptyPhaseContent(): PhaseContent {
     endDate: "",
     body: "",
     bodyFormat: "",
+    brandKit: "",
+    manualPdfUrl: "",
+    manualPdfFileName: "",
+    manualPdfMime: "",
     owner: "",
     clientStatus: "",
     clientSentAt: "",
@@ -147,6 +174,10 @@ function parsePhases(raw: Record<string, Record<string, string>>): Record<string
       endDate: saved.endDate ?? "",
       body: saved.body ?? "",
       bodyFormat: saved.bodyFormat ?? "",
+      brandKit: saved.brandKit ?? "",
+      manualPdfUrl: saved.manualPdfUrl ?? "",
+      manualPdfFileName: saved.manualPdfFileName ?? "",
+      manualPdfMime: saved.manualPdfMime ?? "",
       owner: saved.owner ?? "",
       clientStatus: saved.clientStatus ?? "",
       clientSentAt: saved.clientSentAt ?? "",
@@ -191,24 +222,78 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
     parsePhases(initial.phases ?? {})
   );
   const [savingPhase, setSavingPhase] = useState<string | null>(null);
-  const [savingProject, setSavingProject] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteAck, setDeleteAck] = useState(false);
   const [deletePhrase, setDeletePhrase] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [syncingPhases, setSyncingPhases] = useState(false);
+
+  const refreshPhaseStates = useCallback(async () => {
+    setSyncingPhases(true);
+    try {
+      const res = await fetch(`/api/admin/projects-erp/${project.id}/phases/sync`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) return;
+      const j = (await res.json()) as {
+        phases: Record<string, Record<string, string>>;
+        progress?: PhaseSyncProgress | null;
+      };
+      if (j.phases) {
+        setPhases(parsePhases(j.phases));
+      }
+      if (j.progress) {
+        setProject((p) => ({
+          ...p,
+          contractStatus: j.progress!.contractStatus,
+          prebriefSubmittedAt: j.progress!.prebriefSubmittedAt
+            ? String(j.progress!.prebriefSubmittedAt)
+            : null,
+          narrativaStatus: j.progress!.narrativaStatus,
+          narrativaAcknowledgedAt: j.progress!.narrativaAcknowledgedAt
+            ? String(j.progress!.narrativaAcknowledgedAt)
+            : null,
+          ...(j.progress!.status ? { status: j.progress!.status } : {}),
+        }));
+      }
+    } finally {
+      setSyncingPhases(false);
+    }
+  }, [project.id]);
+
+  useEffect(() => {
+    void refreshPhaseStates();
+  }, [refreshPhaseStates]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      if (document.visibilityState !== "visible") return;
+      void refreshPhaseStates();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refreshPhaseStates]);
 
   const savePhaseContent = useCallback(
-    async (key: string, data: Partial<PhaseContent>) => {
+    async (key: string, data: Partial<PhaseContent>): Promise<boolean> => {
       setSavingPhase(key);
-      const { state, ...content } = data;
-      await fetch(`/api/admin/projects-erp/${project.id}/phases`, {
+      const { state: _state, ...content } = data;
+      const res = await fetch(`/api/admin/projects-erp/${project.id}/phases`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phase: key, ...(state ? { state } : {}), content }),
+        body: JSON.stringify({ phase: key, content }),
       });
+      if (res.ok) {
+        const j = (await res.json()) as { phases?: Record<string, Record<string, string>> };
+        if (j.phases) {
+          setPhases(parsePhases(j.phases));
+        }
+      }
       setSavingPhase(null);
+      return res.ok;
     },
     [project.id]
   );
@@ -218,21 +303,6 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
       ...prev,
       [phaseKey]: { ...prev[phaseKey], [field]: value },
     }));
-  }
-
-  async function saveStatus(value: string) {
-    setSavingProject(true);
-    const res = await fetch(`/api/admin/projects-erp/${project.id}`, {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: value }),
-    });
-    if (res.ok) {
-      const j = (await res.json()) as { item: ClientProject };
-      setProject((p) => ({ ...p, status: j.item.status }));
-    }
-    setSavingProject(false);
   }
 
   function resetDeleteModal() {
@@ -266,16 +336,20 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
     setDeleteError(msg);
   }
 
-  const totalFacturado = project.invoices.reduce((a, i) => a + i.total, 0);
-  const porCobrar = project.invoices.filter((i) => i.status === "pendiente").reduce((a, i) => a + i.total, 0);
-  const sc = PROJECT_STATUS_COLORS[project.status] ?? PROJECT_STATUS_COLORS.onboarding;
-
   const projectPipelineSignals: ProjectPipelineSignals = {
     contractStatus: project.contractStatus ?? "borrador",
     hasSenaPaid: project.invoices.some((i) => i.type === "sena" && i.status === "pagado"),
+    prebriefSubmittedAt: project.prebriefSubmittedAt,
+    narrativaStatus: project.narrativaStatus ?? "borrador",
+    narrativaAcknowledgedAt: project.narrativaAcknowledgedAt,
     phases,
     projectStatus: project.status,
   };
+
+  const displayProjectStatus = deriveProjectStatus(projectPipelineSignals);
+  const sc = PROJECT_STATUS_COLORS[displayProjectStatus] ?? PROJECT_STATUS_COLORS.onboarding;
+  const totalFacturado = project.invoices.reduce((a, i) => a + i.total, 0);
+  const porCobrar = project.invoices.filter((i) => i.status === "pendiente").reduce((a, i) => a + i.total, 0);
 
   return (
     <>
@@ -296,21 +370,12 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <select
-            className="rounded border px-3 py-1.5 text-sm"
-            style={{ borderColor: "rgba(50,63,246,0.4)", color: "#131945" }}
-            value={project.status}
-            disabled={savingProject}
-            onChange={(e) => void saveStatus(e.target.value)}
+          <span
+            className="inline-block rounded-full px-3 py-1.5 text-xs font-medium uppercase tracking-wide"
+            style={{ background: sc.bg, color: sc.color }}
+            title="Se actualiza según el avance del proyecto"
           >
-            <option value="onboarding">Onboarding</option>
-            <option value="diseno">Diseño</option>
-            <option value="implementacion">Implementación</option>
-            <option value="entregado">Entregado</option>
-          </select>
-          <span className="inline-block rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
-            style={{ background: sc.bg, color: sc.color }}>
-            {project.status}
+            {PROJECT_STATUS_LABELS[displayProjectStatus]}
           </span>
           <button
             type="button"
@@ -338,8 +403,8 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         <ProjectFlowBar signals={projectPipelineSignals} />
         <p className="text-[10px] mt-2" style={{ color: "rgba(19,25,69,0.38)" }}>
           Contrato y seña en <strong>1) Onboarding</strong>. Pre-brief en{" "}
-          <strong>2) Pre-brief</strong>. Narrativa en <strong>3) Narrativa</strong>. Hacé clic en
-          cada card para ir a su sección.
+          <strong>2) Pre-brief</strong>. Narrativa en <strong>3) Narrativa</strong>. Los estados
+          se actualizan solos según cada hito.{syncingPhases ? " Sincronizando…" : ""}
         </p>
       </div>
 
@@ -499,48 +564,111 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                 </div>
               )}
 
-              {/* Contenido editable — editor visual por fase */}
+              {/* Notas internas + seguimiento por fase */}
               <div className="grid gap-6 p-5 md:grid-cols-[1.2fr_0.8fr] md:p-6">
-                <div className="space-y-4">
-                  <PhaseDocumentEditor
-                    phaseKey={ph.key as PhaseDocumentKey}
-                    title={PHASE_DOCUMENT_TITLES[ph.key as PhaseDocumentKey]}
-                    hint={PHASE_DOCUMENT_HINTS[ph.key as PhaseDocumentKey]}
-                    saved={{ body: pc.body, bodyFormat: pc.bodyFormat }}
-                    saving={isSaving}
-                    onSave={({ body, bodyFormat }) => {
-                      setPhases((prev) => ({
-                        ...prev,
-                        [ph.key]: { ...prev[ph.key], body, bodyFormat },
-                      }));
-                      void savePhaseContent(ph.key, { body, bodyFormat });
-                    }}
-                  />
-                  {(ph.key === "identidad" || ph.key === "manual") && (
-                    <PhaseClientSendBar
-                      projectId={project.id}
-                      phaseKey={ph.key as HtmlPhaseKey}
-                      htmlBody={pc.body}
-                      clientEmail={project.client.email}
-                      meta={getPhaseClientMeta({
-                        clientStatus: pc.clientStatus,
-                        clientSentAt: pc.clientSentAt,
-                        clientReceivedAt: pc.clientReceivedAt,
-                      })}
-                      onSent={() => {
-                        const now = new Date().toISOString();
+                <div className="space-y-3">
+                    {ph.key === "identidad" && (
+                      <BrandKitPanel
+                        phaseLabel="Identidad visual"
+                        brandKitJson={pc.brandKit}
+                        saving={isSaving}
+                        onSave={async (brandKit) => {
+                          setPhases((prev) => ({
+                            ...prev,
+                            [ph.key]: { ...prev[ph.key], brandKit },
+                          }));
+                          return savePhaseContent(ph.key, { brandKit });
+                        }}
+                      />
+                    )}
+                    {ph.key === "manual" && (
+                      <ManualPdfPanel
+                        pdf={getManualPdfFromPhase(pc)}
+                        saving={isSaving}
+                        onSave={async (meta) => {
+                          const payload = meta
+                            ? {
+                                manualPdfUrl: meta.url,
+                                manualPdfFileName: meta.fileName,
+                                manualPdfMime: meta.mime,
+                              }
+                            : {
+                                manualPdfUrl: "",
+                                manualPdfFileName: "",
+                                manualPdfMime: "",
+                              };
+                          setPhases((prev) => ({
+                            ...prev,
+                            [ph.key]: { ...prev[ph.key], ...payload },
+                          }));
+                          return savePhaseContent(ph.key, payload);
+                        }}
+                      />
+                    )}
+                    <PhaseDocumentEditor
+                      phaseKey={ph.key as PhaseDocumentKey}
+                      title={PHASE_DOCUMENT_TITLES[ph.key as PhaseDocumentKey]}
+                      hint={PHASE_DOCUMENT_HINTS[ph.key as PhaseDocumentKey]}
+                      saved={{ body: pc.body, bodyFormat: pc.bodyFormat }}
+                      saving={isSaving}
+                      onSave={async ({ body, bodyFormat }) => {
                         setPhases((prev) => ({
                           ...prev,
-                          [ph.key]: {
-                            ...prev[ph.key],
-                            clientStatus: "enviado",
-                            clientSentAt: now,
-                            state: "active",
-                          },
+                          [ph.key]: { ...prev[ph.key], body, bodyFormat },
                         }));
+                        return savePhaseContent(ph.key, { body, bodyFormat });
                       }}
                     />
-                  )}
+                    {(ph.key === "onboarding" || ph.key === "prebrief" || ph.key === "narrativa") && (
+                      <PhaseNotesEmailBar
+                        projectId={project.id}
+                        phaseKey={ph.key as PhaseDocumentKey}
+                        htmlBody={pc.body}
+                        projectTitle={project.title}
+                      />
+                    )}
+                    {(ph.key === "identidad" || ph.key === "manual") && (
+                      <PhaseClientSendBar
+                        projectId={project.id}
+                        phaseKey={ph.key as HtmlPhaseKey}
+                        htmlBody={pc.body}
+                        brandKitJson={pc.brandKit}
+                        manualPdfUrl={pc.manualPdfUrl}
+                        clientEmail={project.client.email}
+                        meta={getPhaseClientMeta({
+                          clientStatus: pc.clientStatus,
+                          clientSentAt: pc.clientSentAt,
+                          clientReceivedAt: pc.clientReceivedAt,
+                        })}
+                        onSent={() => {
+                          const now = new Date().toISOString();
+                          setPhases((prev) => ({
+                            ...prev,
+                            [ph.key]: {
+                              ...prev[ph.key],
+                              clientStatus: "enviado",
+                              clientSentAt: now,
+                              clientReceivedAt: "",
+                              state: "active",
+                            },
+                          }));
+                          void refreshPhaseStates();
+                        }}
+                        onMetaChange={(meta) => {
+                          setPhases((prev) => ({
+                            ...prev,
+                            [ph.key]: {
+                              ...prev[ph.key],
+                              clientStatus: meta.clientStatus,
+                              clientSentAt: meta.clientSentAt,
+                              clientReceivedAt: meta.clientReceivedAt,
+                              state: meta.clientStatus === "recibido" ? "done" : "active",
+                            },
+                          }));
+                          void refreshPhaseStates();
+                        }}
+                      />
+                    )}
                 </div>
 
                 {/* Sidebar de seguimiento */}
@@ -596,21 +724,22 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                     </label>
                   </div>
 
-                  <label className="block">
+                  <div className="block">
                     <span className="mb-1.5 block text-sm font-medium text-neutral-800">Estado</span>
-                    <select
-                      className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-800 outline-none transition focus:border-[#323FF6]"
-                      value={pc.state}
-                      onChange={(e) => {
-                        updateField(ph.key, "state", e.target.value);
-                        void savePhaseContent(ph.key, { state: e.target.value });
+                    <div
+                      className="inline-flex rounded-full px-3 py-1.5 text-sm font-medium"
+                      style={{
+                        background: (STATE_COLORS[pc.state] ?? STATE_COLORS.pending).bg,
+                        color: (STATE_COLORS[pc.state] ?? STATE_COLORS.pending).color,
                       }}
                     >
-                      {STATE_OPTIONS.map((s) => (
-                        <option key={s.value} value={s.value}>{s.label}</option>
-                      ))}
-                    </select>
-                  </label>
+                      {STATE_OPTIONS.find((s) => s.value === pc.state)?.label ?? "Pendiente"}
+                    </div>
+                    <p className="mt-2 text-[11px] leading-relaxed text-neutral-400">
+                      Se calcula automáticamente según contrato, seña, envíos y respuestas del
+                      cliente.
+                    </p>
+                  </div>
 
                   {/* Fechas del proyecto */}
                   <div className="rounded-2xl border border-dashed border-neutral-200 bg-white p-4 text-sm text-neutral-600">

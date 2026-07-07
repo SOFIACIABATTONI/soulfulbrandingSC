@@ -103,6 +103,7 @@ model Client {
   projects  ClientProject[]
   invoices  Invoice[]
   tokens    ClientAccessToken[]
+  contractAcceptances ContractAcceptance[]
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
 }
@@ -139,6 +140,7 @@ model ClientProject {
   client       Client              @relation(fields: [clientId], references: [id])
   invoices     Invoice[]
   tokens       ClientAccessToken[]
+  contractAcceptance ContractAcceptance?
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 }
@@ -175,4 +177,23 @@ model ClientAccessToken {
   projectId String
   project   ClientProject @relation(fields: [projectId], references: [id])
   createdAt DateTime      @default(now())
+}
+
+model ContractAcceptance {
+  id            String        @id @default(cuid())
+  projectId     String        @unique
+  project       ClientProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId      String
+  client        Client        @relation(fields: [clientId], references: [id])
+  clientEmail   String
+  typedName     String
+  termsAccepted Boolean       @default(true)
+  ipAddress     String        @default("")
+  userAgent     String        @default("")
+  /// SHA-256 hex del HTML del contrato aceptado
+  contentHash   String
+  /// Snapshot inmutable del HTML aceptado
+  contractHtml  String        @db.Text
+  acceptedAt    DateTime      @default(now())
+  createdAt     DateTime      @default(now())
 }

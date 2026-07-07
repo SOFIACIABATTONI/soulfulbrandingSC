@@ -38,7 +38,7 @@ export const HTML_PHASE_SEND: Record<HtmlPhaseKey, PhaseSendConfig> = {
     emailSubject: "Tu manual de marca — Soulful Branding®",
     portalTitle: "Manual de marca",
     emailIntro:
-      "Tu **manual de marca** está listo para revisar. Confirmá la recepción cuando lo hayas visto.",
+      "Tu **manual de marca** en PDF está listo. Descargalo desde el enlace y confirmá la recepción cuando lo hayas recibido.",
     ackButton: "Confirmar recibido",
     ackSuccessTitle: "Manual recibido",
     ackSuccessBody:

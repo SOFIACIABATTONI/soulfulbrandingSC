@@ -1,19 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { QuoteFormattedBody } from "@/components/quote/QuoteFormattedBody";
 import { PortalCard, PortalShell } from "@/components/portal/PortalShell";
 import { brandUi } from "@/lib/brand-ui";
 import type { PrebriefField } from "@/lib/prebrief-content";
+import "@/components/admin/rich-text-editor.css";
 
 type PrebriefPayload = {
   clientName: string;
   projectTitle: string;
   fields: PrebriefField[];
   intro: {
-    welcome: string;
-    process: string;
-    diagnostic: string;
+    questionnaire: string;
     outro: string;
   };
   answers: Record<string, string>;
@@ -22,6 +20,16 @@ type PrebriefPayload = {
   canSubmit: boolean;
   error?: string;
 };
+
+function PrebriefHtmlBody({ html }: { html: string }) {
+  if (!html.trim()) return null;
+  return (
+    <div
+      className="phase-doc-html max-w-none"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
 
 function PrebriefSuccessView({
   data,
@@ -178,9 +186,12 @@ export function PrebriefClient({ token }: { token: string }) {
       subtitle={`${data.clientName} · ${data.projectTitle}`}
     >
       <PortalCard className="max-w-2xl mx-auto space-y-8">
-        <QuoteFormattedBody body={data.intro.welcome} format="markdown" theme="light" />
-        <QuoteFormattedBody body={data.intro.process} format="markdown" theme="light" />
-        <QuoteFormattedBody body={data.intro.diagnostic} format="markdown" theme="light" />
+        <div
+          className="rounded-xl border px-4 py-4 sm:px-5 sm:py-5"
+          style={{ borderColor: brandUi.border, background: "rgba(249,243,219,0.35)" }}
+        >
+          <PrebriefHtmlBody html={data.intro.questionnaire} />
+        </div>
 
         <div className="space-y-8">
           {data.fields.map((field) => {
@@ -196,11 +207,7 @@ export function PrebriefClient({ token }: { token: string }) {
                       {field.sectionTitle}
                     </h2>
                     {field.sectionIntro && (
-                      <QuoteFormattedBody
-                        body={field.sectionIntro}
-                        format="markdown"
-                        theme="light"
-                      />
+                      <PrebriefHtmlBody html={field.sectionIntro} />
                     )}
                   </div>
                 )}
@@ -238,7 +245,7 @@ export function PrebriefClient({ token }: { token: string }) {
             );
           })}
 
-          <QuoteFormattedBody body={data.intro.outro} format="markdown" theme="light" />
+          <PrebriefHtmlBody html={data.intro.outro} />
           {error && (
             <p
               className="text-sm rounded px-3 py-2"

@@ -7,6 +7,7 @@ import { generateAccessToken, accessExpiryFromNow } from "@/lib/access-token";
 import { ACCESS_EXPIRY_DAYS } from "@/lib/contract-types";
 import { accessPublicUrl } from "@/lib/access-url";
 import { sendContractEmailToClient } from "@/lib/send-contract-email";
+import { syncProjectPhasesFromProgress } from "@/lib/project-phase-sync";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -73,6 +74,8 @@ export async function POST(req: Request, ctx: RouteParams) {
       });
     }
   });
+
+  await syncProjectPhasesFromProgress(projectId);
 
   const emailed = await sendContractEmailToClient({
     toEmail: project.client.email,

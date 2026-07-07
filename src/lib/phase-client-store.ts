@@ -53,6 +53,22 @@ export function applyPhaseClientReceived(
   return next;
 }
 
+/** Vuelve a esperar confirmación del cliente (sin nuevo envío). */
+export function applyPhaseClientReopened(
+  phases: PhaseMap,
+  storageKey: string,
+): PhaseMap {
+  const next = { ...phases };
+  const current = next[storageKey] ?? {};
+  next[storageKey] = {
+    ...current,
+    state: "active",
+    clientStatus: "enviado",
+    clientReceivedAt: "",
+  };
+  return next;
+}
+
 export function storageKeyForHtmlPhase(phase: HtmlPhaseKey): string {
   return phase;
 }

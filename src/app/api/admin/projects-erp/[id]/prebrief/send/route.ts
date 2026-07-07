@@ -6,7 +6,8 @@ import { generateAccessToken, accessExpiryFromNow } from "@/lib/access-token";
 import { ACCESS_EXPIRY_DAYS } from "@/lib/contract-types";
 import { accessPublicUrl } from "@/lib/access-url";
 import { sendPrebriefEmailToClient } from "@/lib/send-prebrief-email";
-import { parseProjectPhases, setPhaseState } from "@/lib/prebrief-service";
+import { syncProjectPhasesFromProgress } from "@/lib/project-phase-sync";
+import { resolvePrebriefTemplate } from "@/lib/prebrief-template";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -43,13 +44,8 @@ export async function POST(req: Request, ctx: RouteParams) {
 
   const plain = generateAccessToken();
   const expiresAt = accessExpiryFromNow(ACCESS_EXPIRY_DAYS);
-  const phases = setPhaseState(parseProjectPhases(project.phases), "prebrief", "active");
 
   await prisma.$transaction(async (tx) => {
-    await tx.clientProject.update({
-      where: { id: projectId },
-      data: { phases },
-    });
     await tx.clientAccessToken.create({
       data: {
         token: plain,
@@ -61,11 +57,16 @@ export async function POST(req: Request, ctx: RouteParams) {
     });
   });
 
+  await syncProjectPhasesFromProgress(projectId);
+
+  const template = resolvePrebriefTemplate(project.phases);
+
   const emailed = await sendPrebriefEmailToClient({
     toEmail: project.client.email,
     toName: project.client.name,
     projectTitle: project.title,
     token: plain,
+    emailWelcome: template.emailWelcome,
     personalNote: parsed.data.personalNote,
   });
 

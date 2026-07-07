@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 
@@ -112,7 +112,7 @@ export function NewProjectModal({
                 <input
                   required
                   className="fv"
-                  placeholder="Identidad de marca — Valentina R."
+                  placeholder="Nombre del proyecto"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                 />
@@ -136,7 +136,7 @@ export function NewProjectModal({
                 min="1"
                 step="0.01"
                 className="fv"
-                placeholder="3200"
+                placeholder="Valor en USD"
                 value={form.value}
                 onChange={(e) => setForm({ ...form, value: e.target.value })}
               />

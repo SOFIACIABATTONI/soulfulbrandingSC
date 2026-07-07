@@ -33,6 +33,7 @@ type RichTextEditorProps = {
   onChange: (html: string) => void;
   onBlur?: () => void;
   ariaLabel?: string;
+  compact?: boolean;
 };
 
 function ToolbarButton({
@@ -68,6 +69,7 @@ export function RichTextEditor({
   onChange,
   onBlur,
   ariaLabel,
+  compact = false,
 }: RichTextEditorProps) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastEmitted = useRef(value);
@@ -131,11 +133,11 @@ export function RichTextEditor({
 
   return (
     <div
-      className="rich-text-editor rounded-2xl border overflow-hidden bg-white"
+      className={`rich-text-editor rounded-2xl border bg-white${compact ? " rich-text-editor--compact" : ""}`}
       style={{ borderColor: brandUi.borderStrong }}
     >
       <div
-        className="flex flex-wrap items-center gap-1 px-2 py-2 border-b"
+        className={`rich-text-editor__toolbar flex flex-wrap items-center gap-1 border-b ${compact ? "px-1.5 py-1" : "px-2 py-2"}`}
         style={{ borderColor: brandUi.border, background: "#FAFAFA" }}
       >
         <ToolbarButton
@@ -265,7 +267,9 @@ export function RichTextEditor({
         </ToolbarButton>
       </div>
 
-      <EditorContent editor={editor} />
+      <div className="rich-text-editor__scroll">
+        <EditorContent editor={editor} />
+      </div>
     </div>
   );
 }

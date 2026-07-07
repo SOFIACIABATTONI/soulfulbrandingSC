@@ -1,4 +1,4 @@
-/** Contenido oficial del pre-brief (private-notes/prebrief.md). */
+/** Contenido oficial del pre-brief (private-notes/pre-brief.md). */
 
 export type PrebriefField = {
   id: string;
@@ -9,7 +9,7 @@ export type PrebriefField = {
   sectionIntro?: string;
 };
 
-export const PREBRIEF_INTRO_WELCOME = `# Bienvenido al proceso Soulful Branding®
+export const PREBRIEF_EMAIL_WELCOME = `# Bienvenido al proceso Soulful Branding®
 
 Estás a punto de iniciar un proceso de co-creación donde vamos a revelar, articular y materializar la esencia de tu marca.
 
@@ -20,6 +20,9 @@ Consiste en **activar el campo creativo de tu proyecto y traducir su esencia en 
 Este proceso combina **estrategia, percepción y alquimia creativa**.
 
 El ejercicio que encontrarás a continuación es el primer paso.`;
+
+/** @deprecated Usar PREBRIEF_EMAIL_WELCOME */
+export const PREBRIEF_INTRO_WELCOME = PREBRIEF_EMAIL_WELCOME;
 
 export const PREBRIEF_INTRO_PROCESS = `### Cómo funciona este proceso
 

@@ -4,20 +4,21 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
 import { Topbar } from "@/components/admin/ui/Topbar";
-import { PREBRIEF_FIELDS } from "@/lib/prebrief-content";
+import { PrebriefTemplateEditor } from "@/components/admin/PrebriefTemplateEditor";
+import { getDefaultPrebriefTemplate, type PrebriefTemplate } from "@/lib/prebrief-template";
 import { brandUi } from "@/lib/brand-ui";
 
 type PrebriefPanelProps = {
   projectId: string;
   clientName: string;
   clientEmail: string;
-  /** Dentro de la sección #fase-prebrief (sin margen externo). */
   embedded?: boolean;
 };
 
 type PrebriefData = {
   submittedAt: string | null;
   answers: Record<string, string>;
+  template: PrebriefTemplate;
 };
 
 export function PrebriefPanel({
@@ -27,6 +28,7 @@ export function PrebriefPanel({
   embedded = false,
 }: PrebriefPanelProps) {
   const [data, setData] = useState<PrebriefData | null>(null);
+  const [template, setTemplate] = useState<PrebriefTemplate>(getDefaultPrebriefTemplate());
   const [personalNote, setPersonalNote] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,9 @@ export function PrebriefPanel({
       credentials: "include",
     });
     if (res.ok) {
-      setData((await res.json()) as PrebriefData);
+      const j = (await res.json()) as PrebriefData;
+      setData(j);
+      setTemplate(j.template ?? getDefaultPrebriefTemplate());
     }
     setLoading(false);
   }, [projectId]);
@@ -50,6 +54,7 @@ export function PrebriefPanel({
 
   const submitted = Boolean(data?.submittedAt);
   const hasAnswers = data?.answers && Object.values(data.answers).some((v) => v.trim());
+  const fieldsForDisplay = template.fields;
 
   async function sendPrebrief() {
     if (submitted) return;
@@ -66,7 +71,6 @@ export function PrebriefPanel({
     if (res.ok) {
       const j = (await res.json()) as {
         publicUrl?: string;
-        publicToken?: string;
         emailed?: boolean;
       };
       setLastLink(j.publicUrl ?? null);
@@ -99,7 +103,7 @@ export function PrebriefPanel({
         subtitle={
           submitted
             ? `Recibido · ${new Date(data!.submittedAt!).toLocaleDateString("es-AR")}`
-            : `${clientName} · enviar cuestionario`
+            : `${clientName} · editar y enviar cuestionario`
         }
         actions={
           <span
@@ -120,8 +124,8 @@ export function PrebriefPanel({
       >
         <p className="text-xs flex-1" style={{ color: brandUi.textMuted }}>
           {submitted
-            ? "Las respuestas del cliente están abajo. Podés copiarlas para la sesión Deep Dive."
-            : `El mail incluye cada pregunta con espacio visual y un enlace para que ${clientName} complete y envíe.`}
+            ? "Las respuestas del cliente están abajo."
+            : "Editá el cuestionario antes de enviar. El mail lleva solo la bienvenida + enlace; el formulario no repite ese texto."}
         </p>
         <button
           type="button"
@@ -130,7 +134,7 @@ export function PrebriefPanel({
           style={{ color: brandUi.accent, background: "none", border: "none", cursor: "pointer" }}
           aria-expanded={panelOpen}
         >
-          {submitted ? "Ver respuestas" : "Enviar / ver opciones"} {panelOpen ? "↑" : "↓"}
+          {submitted ? "Ver respuestas" : "Editar / enviar"} {panelOpen ? "↑" : "↓"}
         </button>
       </div>
 
@@ -139,7 +143,7 @@ export function PrebriefPanel({
           className="mt-4 rounded border p-4 space-y-3 max-h-48 overflow-y-auto text-sm"
           style={{ borderColor: brandUi.border, background: "#FAFAFA" }}
         >
-          {PREBRIEF_FIELDS.map((field) => {
+          {fieldsForDisplay.map((field) => {
             const val = data?.answers[field.id]?.trim();
             if (!val) return null;
             return (
@@ -157,9 +161,15 @@ export function PrebriefPanel({
       )}
 
       {panelOpen && (
-        <div className="mt-4 pt-4 border-t space-y-4" style={{ borderColor: brandUi.border }}>
+        <div className="mt-4 pt-4 border-t space-y-6" style={{ borderColor: brandUi.border }}>
           {!submitted && (
             <>
+              <PrebriefTemplateEditor
+                projectId={projectId}
+                template={template}
+                onSaved={setTemplate}
+              />
+
               <label className="block">
                 <span
                   className="text-[9px] font-medium uppercase tracking-widest"
@@ -185,7 +195,7 @@ export function PrebriefPanel({
 
           {submitted && hasAnswers && (
             <div className="space-y-4 max-h-[480px] overflow-y-auto">
-              {PREBRIEF_FIELDS.map((field) => {
+              {fieldsForDisplay.map((field) => {
                 const val = data?.answers[field.id]?.trim();
                 if (!val) return null;
                 return (

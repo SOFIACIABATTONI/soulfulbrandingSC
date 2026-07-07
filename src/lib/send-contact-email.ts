@@ -1,4 +1,6 @@
 import { Resend } from "resend";
+import { wrapAdminNotificationEmailHtml } from "@/lib/quote-markdown-html";
+import { brandUi } from "@/lib/brand-ui";
 
 export type ContactEmailPayload = {
   name: string;
@@ -51,6 +53,17 @@ export async function sendContactEmailNotification(
     message,
   ].join("\n");
 
+  const innerHtml = `<p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:${brandUi.textMuted};"><strong style="color:${brandUi.text};">Origen:</strong> ${stageTitle.replace(/</g, "&lt;")}</p>
+<p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:${brandUi.textMuted};"><strong style="color:${brandUi.text};">Formulario:</strong> ${formKey.replace(/</g, "&lt;")}</p>
+<p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:${brandUi.textMuted};"><strong style="color:${brandUi.text};">Nombre:</strong> ${name.replace(/</g, "&lt;")}</p>
+<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:${brandUi.textMuted};"><strong style="color:${brandUi.text};">Email:</strong> <a href="mailto:${email.replace(/"/g, "")}" style="color:${brandUi.accent};text-decoration:underline;">${email.replace(/</g, "&lt;")}</a></p>
+<div style="margin:0;padding:16px;border-radius:8px;background:#FAFAFA;border:1px solid rgba(19,25,69,0.1);">
+<p style="margin:0 0 8px;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:${brandUi.textFaint};">Mensaje</p>
+<p style="margin:0;font-size:15px;line-height:1.7;color:${brandUi.text};white-space:pre-wrap;">${message.replace(/</g, "&lt;")}</p>
+</div>`;
+
+  const html = wrapAdminNotificationEmailHtml(`Contacto web — ${stageTitle}`, innerHtml);
+
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
     from,
@@ -58,6 +71,7 @@ export async function sendContactEmailNotification(
     replyTo: email,
     subject: `Contacto web — ${stageTitle}`,
     text,
+    html,
   });
 
   if (error) {

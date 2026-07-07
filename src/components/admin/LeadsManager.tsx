@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -286,7 +286,7 @@ export function LeadsManager() {
                   <input
                     required
                     className="fv"
-                    placeholder="Valentina Rossi"
+                    placeholder="Nombre"
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                   />
@@ -294,7 +294,7 @@ export function LeadsManager() {
                 <Field label="Empresa / Marca">
                   <input
                     className="fv"
-                    placeholder="Studio Rossi"
+                    placeholder="Empresa o marca"
                     value={form.company}
                     onChange={(e) => setForm({ ...form, company: e.target.value })}
                   />
@@ -304,7 +304,7 @@ export function LeadsManager() {
                     required
                     type="email"
                     className="fv"
-                    placeholder="valentina@..."
+                    placeholder="Email"
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                   />
@@ -312,7 +312,7 @@ export function LeadsManager() {
                 <Field label="Teléfono">
                   <input
                     className="fv"
-                    placeholder="+54 9 11..."
+                    placeholder="Teléfono"
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   />
@@ -332,7 +332,7 @@ export function LeadsManager() {
                   <input
                     type="number"
                     className="fv"
-                    placeholder="3200"
+                    placeholder="Valor en USD"
                     value={form.estimatedValue}
                     onChange={(e) => setForm({ ...form, estimatedValue: e.target.value })}
                   />
@@ -351,7 +351,7 @@ export function LeadsManager() {
                 <Field label="Referido por">
                   <input
                     className="fv"
-                    placeholder="Ana García"
+                    placeholder="Referido por"
                     value={form.referredBy}
                     onChange={(e) => setForm({ ...form, referredBy: e.target.value })}
                   />

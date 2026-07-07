@@ -9,15 +9,34 @@ type PortalShellProps = {
   title?: string;
   subtitle?: string;
   footer?: ReactNode;
+  /** default = formularios; wide = decks / documentos visuales a pantalla casi completa */
+  layout?: "default" | "wide";
 };
 
 /** Layout minimalista para portales cliente (presupuesto, contrato). */
-export function PortalShell({ children, eyebrow, title, subtitle, footer }: PortalShellProps) {
+export function PortalShell({
+  children,
+  eyebrow,
+  title,
+  subtitle,
+  footer,
+  layout = "default",
+}: PortalShellProps) {
+  const isWide = layout === "wide";
+
   return (
-    <main className="min-h-screen bg-brand-page text-brand-navy font-sans py-10 px-4">
-      <article className="max-w-xl mx-auto">
+    <main
+      className={`min-h-screen bg-brand-page text-brand-navy font-sans ${
+        isWide ? "py-6 px-0 sm:py-8 sm:px-4" : "py-10 px-4"
+      }`}
+    >
+      <article
+        className={
+          isWide ? "w-full max-w-none sm:max-w-5xl lg:max-w-6xl mx-auto" : "max-w-xl mx-auto"
+        }
+      >
         {(eyebrow || title || subtitle) && (
-          <header className="mb-8 text-center">
+          <header className={`mb-8 text-center ${isWide ? "px-4 sm:px-0" : ""}`}>
             {eyebrow && (
               <p className="text-[10px] uppercase tracking-[0.25em] mb-3 text-brand-magenta">
                 {eyebrow}

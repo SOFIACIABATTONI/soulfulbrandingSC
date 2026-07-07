@@ -1,0 +1,548 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { brandUi } from "@/lib/brand-ui";
+import {
+  cardHasContent,
+  cardPreviewBackground,
+  cardColorCount,
+  createBrandKitId,
+  getBrandKitCardDef,
+  hexToRgb,
+  isImageAssetFile,
+  isValidHex,
+  normalizeHex,
+  parseBrandKit,
+  serializeBrandKit,
+  type BrandKit,
+  type BrandKitAssetFile,
+  type BrandKitCard,
+  type BrandKitCardKey,
+  type BrandKitColor,
+  type BrandKitFileGroup,
+} from "@/lib/brand-kit";
+
+type BrandKitPanelProps = {
+  phaseLabel: string;
+  brandKitJson: string;
+  saving?: boolean;
+  onSave: (brandKitJson: string) => Promise<boolean> | boolean;
+};
+
+async function uploadBrandAsset(file: File): Promise<{ url: string; fileName: string; mime: string }> {
+  const fd = new FormData();
+  fd.set("file", file);
+  const res = await fetch("/api/admin/brand-asset-upload", {
+    method: "POST",
+    body: fd,
+    credentials: "include",
+  });
+  const j = (await res.json().catch(() => ({}))) as {
+    url?: string;
+    fileName?: string;
+    mime?: string;
+    error?: string;
+  };
+  if (!res.ok || !j.url) throw new Error(j.error ?? "No se pudo subir el archivo.");
+  return { url: j.url, fileName: j.fileName ?? file.name, mime: j.mime ?? file.type };
+}
+
+export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave }: BrandKitPanelProps) {
+  const [kit, setKit] = useState<BrandKit>(() => parseBrandKit(brandKitJson));
+  const [activeKey, setActiveKey] = useState<BrandKitCardKey | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPersistedRef = useRef(serializeBrandKit(parseBrandKit(brandKitJson)));
+
+  useEffect(() => {
+    const next = parseBrandKit(brandKitJson);
+    setKit(next);
+    lastPersistedRef.current = serializeBrandKit(next);
+  }, [brandKitJson]);
+
+  useEffect(() => () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+  }, []);
+
+  const activeCard = activeKey ? kit.cards.find((c) => c.key === activeKey) : null;
+
+  async function persist(nextKit: BrandKit, opts?: { silent?: boolean }) {
+    const serialized = serializeBrandKit(nextKit);
+    if (serialized === lastPersistedRef.current) return true;
+    const ok = await onSave(serialized);
+    if (ok) {
+      lastPersistedRef.current = serialized;
+      if (!opts?.silent) setMessage("Brand ID guardado.");
+    } else if (!opts?.silent) {
+      setMessage("No se pudo guardar.");
+    }
+    return ok;
+  }
+
+  function updateKit(updater: (prev: BrandKit) => BrandKit) {
+    setKit((prev) => {
+      const next = updater(prev);
+      setMessage(null);
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => void persist(next, { silent: true }), 900);
+      return next;
+    });
+  }
+
+  function updateCard(key: BrandKitCardKey, updater: (card: BrandKitCard) => BrandKitCard) {
+    updateKit((prev) => ({
+      ...prev,
+      cards: prev.cards.map((c) => (c.key === key ? updater(c) : c)),
+    }));
+  }
+
+  async function uploadToGroup(cardKey: BrandKitCardKey, groupId: string, fileList: FileList | null) {
+    if (!fileList?.length) return;
+    setUploadingKey(`${cardKey}-${groupId}`);
+    setMessage(null);
+    try {
+      const uploaded: BrandKitAssetFile[] = [];
+      for (const file of Array.from(fileList)) {
+        const u = await uploadBrandAsset(file);
+        uploaded.push({
+          id: createBrandKitId(),
+          url: u.url,
+          fileName: u.fileName,
+          mime: u.mime,
+        });
+      }
+      updateCard(cardKey, (card) => ({
+        ...card,
+        fileGroups: card.fileGroups.map((g) =>
+          g.id === groupId ? { ...g, files: [...g.files, ...uploaded] } : g,
+        ),
+      }));
+      setMessage(`${uploaded.length} archivo(s) subido(s).`);
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Error al subir.");
+    } finally {
+      setUploadingKey(null);
+    }
+  }
+
+  return (
+    <div
+      className="rounded-2xl border p-4 space-y-4"
+      style={{ borderColor: brandUi.border, background: brandUi.surface }}
+    >
+      <div>
+        <p className="text-sm font-medium" style={{ color: brandUi.text }}>
+          Brand ID — {phaseLabel}
+        </p>
+        <p className="text-xs mt-1" style={{ color: brandUi.textMuted }}>
+          Fuente principal de la identidad: paleta de colores y archivos en cada card. Tocá una card para
+          editarla; volvé a tocarla para cerrarla.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {kit.cards.map((card) => {
+          const preview = cardPreviewBackground(card);
+          const filled = cardHasContent(card);
+          const previewStyle =
+            preview.type === "image"
+              ? { background: `url("${preview.value}") center/cover no-repeat` }
+              : preview.type === "palette" || preview.type === "color"
+                ? { background: preview.value }
+                : { background: "linear-gradient(135deg, rgba(50,63,246,0.08), rgba(240,49,114,0.08))" };
+          return (
+            <button
+              key={card.key}
+              type="button"
+              onClick={() => setActiveKey((prev) => (prev === card.key ? null : card.key))}
+              className="rounded-xl border overflow-hidden text-left transition"
+              style={{
+                borderColor: activeKey === card.key ? brandUi.blue : brandUi.border,
+                boxShadow: activeKey === card.key ? `0 0 0 1px ${brandUi.blue}` : undefined,
+              }}
+              aria-expanded={activeKey === card.key}
+            >
+              <div className="h-20 flex items-center justify-center" style={previewStyle}>
+                {preview.type === "empty" && (
+                  <span className="text-[10px] uppercase tracking-widest" style={{ color: brandUi.textFaint }}>
+                    {filled ? "Con contenido" : "Vacío"}
+                  </span>
+                )}
+              </div>
+              <p className="px-2 py-2 text-[11px] font-medium truncate" style={{ color: brandUi.text }}>
+                {card.title}
+                {cardColorCount(card) > 0 && (
+                  <span className="font-normal" style={{ color: brandUi.textFaint }}>
+                    {" "}
+                    · {cardColorCount(card)} colores
+                  </span>
+                )}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+
+      {activeCard && (
+        <CardEditor
+          card={activeCard}
+          uploadingKey={uploadingKey}
+          onUpdate={(next) => updateCard(activeCard.key, () => next)}
+          onUpload={(groupId, files) => void uploadToGroup(activeCard.key, groupId, files)}
+          onClose={() => setActiveKey(null)}
+        />
+      )}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void persist(kit)}
+          className="rounded-full px-4 py-2 text-xs font-medium border disabled:opacity-50"
+          style={{ borderColor: brandUi.borderStrong, color: brandUi.text }}
+        >
+          {saving ? "Guardando…" : "Guardar Brand ID"}
+        </button>
+        {message && (
+          <p className="text-xs" style={{ color: brandUi.textMuted }}>
+            {message}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CardEditor({
+  card,
+  uploadingKey,
+  onUpdate,
+  onUpload,
+  onClose,
+}: {
+  card: BrandKitCard;
+  uploadingKey: string | null;
+  onUpdate: (next: BrandKitCard) => void;
+  onUpload: (groupId: string, files: FileList | null) => void;
+  onClose: () => void;
+}) {
+  const def = getBrandKitCardDef(card.key);
+
+  return (
+    <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: brandUi.border }}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium" style={{ color: brandUi.text }}>
+          {card.title}
+        </p>
+        <button
+          type="button"
+          className="text-xs shrink-0"
+          style={{ color: brandUi.textMuted }}
+          onClick={onClose}
+        >
+          Cerrar
+        </button>
+      </div>
+
+      <PaletteEditor card={card} onUpdate={onUpdate} emphasize={def.kind === "palette"} />
+
+      {def.kind === "link" && (
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-widest" style={{ color: brandUi.textFaint }}>
+            Link Canva (opcional)
+          </span>
+          <input
+            className="mt-1 w-full rounded border px-2 py-1.5 text-sm"
+            style={{ borderColor: brandUi.borderStrong }}
+            placeholder="https://canva.com/…"
+            value={card.sourceUrl}
+            onChange={(e) => onUpdate({ ...card, sourceUrl: e.target.value })}
+          />
+        </label>
+      )}
+
+      {def.kind === "fonts" && (
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-widest" style={{ color: brandUi.textFaint }}>
+            Link fuente online (opcional)
+          </span>
+          <input
+            className="mt-1 w-full rounded border px-2 py-1.5 text-sm"
+            style={{ borderColor: brandUi.borderStrong }}
+            placeholder="Google Fonts, Adobe Fonts…"
+            value={card.sourceUrl}
+            onChange={(e) => onUpdate({ ...card, sourceUrl: e.target.value })}
+          />
+        </label>
+      )}
+
+      {card.fileGroups.map((group) => (
+        <FileGroupEditor
+          key={group.id}
+          group={group}
+          cardKey={card.key}
+          uploading={uploadingKey === `${card.key}-${group.id}`}
+          gridPreview={group.label === "Presentación" || (card.key === "trama" && group.label === "Versión PNG")}
+          onUpdate={(next) =>
+            onUpdate({
+              ...card,
+              fileGroups: card.fileGroups.map((g) => (g.id === group.id ? next : g)),
+            })
+          }
+          onUpload={(files) => onUpload(group.id, files)}
+        />
+      ))}
+
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-widest" style={{ color: brandUi.textFaint }}>
+          Link Drive (opcional — complemento)
+        </span>
+        <input
+          className="mt-1 w-full rounded border px-2 py-1.5 text-sm"
+          style={{ borderColor: brandUi.borderStrong }}
+          placeholder="https://drive.google.com/…"
+          value={card.driveUrl}
+          onChange={(e) => onUpdate({ ...card, driveUrl: e.target.value })}
+        />
+      </label>
+    </div>
+  );
+}
+
+function PaletteEditor({
+  card,
+  onUpdate,
+  emphasize,
+}: {
+  card: BrandKitCard;
+  onUpdate: (next: BrandKitCard) => void;
+  emphasize?: boolean;
+}) {
+  return (
+    <div
+      className="rounded-lg border p-3 space-y-3"
+      style={{
+        borderColor: emphasize ? brandUi.blue : brandUi.border,
+        background: emphasize ? "rgba(50,63,246,0.04)" : "transparent",
+      }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-medium" style={{ color: brandUi.text }}>
+            Paleta de colores
+          </p>
+          <p className="text-[10px] mt-0.5" style={{ color: brandUi.textMuted }}>
+            Cargá cada tono con hex, RGB y CMYK. Es la fuente principal — no depende del Drive.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="text-[11px] shrink-0"
+          style={{ color: brandUi.blue }}
+          onClick={() =>
+            onUpdate({
+              ...card,
+              colors: [
+                ...card.colors,
+                { id: createBrandKitId(), name: "", hex: "#131945", rgb: "19, 25, 69", cmyk: "" },
+              ],
+            })
+          }
+        >
+          + Tono
+        </button>
+      </div>
+
+      {card.colors.length > 0 && (
+        <div className="flex h-3 rounded-full overflow-hidden border" style={{ borderColor: brandUi.border }}>
+          {card.colors
+            .filter((c) => isValidHex(c.hex))
+            .map((c) => (
+              <div key={c.id} className="flex-1" style={{ background: normalizeHex(c.hex) }} aria-hidden />
+            ))}
+        </div>
+      )}
+
+      {card.colors.length === 0 ? (
+        <p className="text-[11px]" style={{ color: brandUi.textFaint }}>
+          Sin tonos cargados todavía.
+        </p>
+      ) : (
+        card.colors.map((color) => (
+          <ColorSpecRow
+            key={color.id}
+            color={color}
+            onChange={(next) =>
+              onUpdate({
+                ...card,
+                colors: card.colors.map((c) => (c.id === color.id ? next : c)),
+              })
+            }
+            onRemove={() => onUpdate({ ...card, colors: card.colors.filter((c) => c.id !== color.id) })}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+function FileGroupEditor({
+  group,
+  cardKey,
+  uploading,
+  gridPreview,
+  onUpdate,
+  onUpload,
+}: {
+  group: BrandKitFileGroup;
+  cardKey: BrandKitCardKey;
+  uploading: boolean;
+  gridPreview?: boolean;
+  onUpdate: (next: BrandKitFileGroup) => void;
+  onUpload: (files: FileList | null) => void;
+}) {
+  const fileAccept =
+    group.label === "Presentación"
+      ? "image/*,.svg"
+      : cardKey === "tipografias"
+        ? ".ttf,.otf,.woff,.woff2,.eot,.ttc,font/*"
+        : undefined;
+
+  return (
+    <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: brandUi.border }}>
+      <p className="text-xs font-medium" style={{ color: brandUi.text }}>
+        {group.label}
+        {group.label === "Presentación" && (
+          <span className="font-normal" style={{ color: brandUi.textMuted }}>
+            {" "}
+            — imagen de la card
+          </span>
+        )}
+      </p>
+
+      {gridPreview && group.files.length > 0 && (
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+          {group.files
+            .filter((f) => f.url.trim() && isImageAssetFile(f))
+            .map((file) => (
+              <div key={file.id} className="relative aspect-[4/3] rounded-lg overflow-hidden border" style={{ borderColor: brandUi.border }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={file.url} alt={file.fileName} className="h-full w-full object-cover" />
+              </div>
+            ))}
+        </div>
+      )}
+
+      <ul className="space-y-1">
+        {group.files.map((file) => (
+          <li key={file.id} className="flex items-center justify-between gap-2 text-[11px]">
+            <span className="truncate" style={{ color: brandUi.textMuted }}>
+              {file.fileName || "archivo"}
+            </span>
+            <button
+              type="button"
+              style={{ color: brandUi.accent }}
+              onClick={() =>
+                onUpdate({ ...group, files: group.files.filter((f) => f.id !== file.id) })
+              }
+            >
+              Quitar
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="file"
+          multiple
+          accept={fileAccept}
+          className="text-xs"
+          disabled={uploading}
+          onChange={(e) => {
+            onUpload(e.target.files);
+            e.target.value = "";
+          }}
+        />
+        {uploading && <span className="text-[11px]" style={{ color: brandUi.textFaint }}>Subiendo…</span>}
+        {cardKey === "tipografias" && group.label !== "Presentación" && (
+          <span className="text-[10px]" style={{ color: brandUi.textFaint }}>
+            .ttf, .otf, .woff, .woff2
+          </span>
+        )}
+        {cardKey === "trama" && (
+          <span className="text-[10px]" style={{ color: brandUi.textFaint }}>
+            Podés subir varios cuadraditos a la vez
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ColorSpecRow({
+  color,
+  onChange,
+  onRemove,
+}: {
+  color: BrandKitColor;
+  onChange: (next: BrandKitColor) => void;
+  onRemove: () => void;
+}) {
+  const hex = normalizeHex(color.hex);
+  const swatch = isValidHex(hex) ? hex : "#ccc";
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-[auto_1fr_auto] rounded-lg border p-2" style={{ borderColor: brandUi.border }}>
+      <input
+        type="color"
+        value={isValidHex(hex) ? hex : "#131945"}
+        onChange={(e) => {
+          const nextHex = e.target.value;
+          onChange({ ...color, hex: nextHex, rgb: hexToRgb(nextHex) || color.rgb });
+        }}
+        className="h-10 w-10 rounded border cursor-pointer self-start"
+        style={{ borderColor: brandUi.borderStrong }}
+        aria-label="Selector de color"
+      />
+      <div className="grid gap-2 sm:grid-cols-2">
+        <input
+          className="rounded border px-2 py-1 text-sm sm:col-span-2"
+          style={{ borderColor: brandUi.borderStrong }}
+          placeholder="Nombre (ej. Soft Lilac)"
+          value={color.name}
+          onChange={(e) => onChange({ ...color, name: e.target.value })}
+        />
+        <input
+          className="rounded border px-2 py-1 text-sm font-mono"
+          style={{ borderColor: brandUi.borderStrong }}
+          placeholder="#E1ADFF"
+          value={color.hex}
+          onChange={(e) => {
+            const nextHex = e.target.value;
+            onChange({ ...color, hex: nextHex, rgb: hexToRgb(nextHex) || color.rgb });
+          }}
+        />
+        <input
+          className="rounded border px-2 py-1 text-sm"
+          style={{ borderColor: brandUi.borderStrong }}
+          placeholder="RGB · 225, 173, 255"
+          value={color.rgb}
+          onChange={(e) => onChange({ ...color, rgb: e.target.value })}
+        />
+        <input
+          className="rounded border px-2 py-1 text-sm sm:col-span-2"
+          style={{ borderColor: brandUi.borderStrong }}
+          placeholder="CMYK · 12, 32, 0, 0"
+          value={color.cmyk}
+          onChange={(e) => onChange({ ...color, cmyk: e.target.value })}
+        />
+      </div>
+      <button type="button" onClick={onRemove} className="text-[11px] self-start" style={{ color: brandUi.accent }}>
+        Quitar
+      </button>
+      <div className="sm:col-span-3 h-2 rounded-full" style={{ background: swatch }} aria-hidden />
+    </div>
+  );
+}
