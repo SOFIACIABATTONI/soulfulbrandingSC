@@ -193,7 +193,7 @@ export function ContractEditor({
 
   if (loading) {
     return (
-      <Card id={embedded ? undefined : "contrato"} className={cardClass}>
+      <Card id={embedded ? undefined : "contrato"} className={cardClass} frameVariant={embedded ? "client" : "default"}>
         <Topbar title="Contrato" subtitle={`${clientName} · ${projectTitle}`} />
         <p className="text-xs" style={{ color: brandUi.textMuted }}>
           Cargando…
@@ -211,7 +211,7 @@ export function ContractEditor({
       : "Editar contrato";
 
   return (
-    <Card id={embedded ? undefined : "contrato"} className={cardClass}>
+    <Card id={embedded ? undefined : "contrato"} className={cardClass} frameVariant={embedded ? "client" : "default"}>
       <Topbar
         title="Contrato"
         subtitle={`${clientName} · ${projectTitle}`}
@@ -334,11 +334,11 @@ export function ContractEditor({
       {editorOpen && (
         <div className="mt-4 pt-4 border-t space-y-4" style={{ borderColor: brandUi.border }}>
           <div
-            className="rounded-2xl border px-4 py-3"
-            style={{ borderColor: brandUi.border, background: "rgba(240,49,114,0.04)" }}
+            className="rounded-2xl border-2 px-4 py-3"
+            style={{ borderColor: "#F03172", background: "rgba(240,49,114,0.06)" }}
           >
-            <p className="text-sm font-medium" style={{ color: brandUi.text }}>
-              Texto del contrato
+            <p className="text-sm font-medium" style={{ color: "#F03172" }}>
+              Documento para el cliente — contrato
             </p>
             <p className="text-xs mt-1 leading-relaxed" style={{ color: brandUi.textMuted }}>
               Mismo editor que pre-brief y narrativa: negritas, listas, tablas y checkboxes. El
@@ -375,6 +375,7 @@ export function ContractEditor({
               value={html}
               ariaLabel="Texto del contrato"
               placeholder="Completá el contrato…"
+              frameVariant="client"
               onChange={persistDraft}
               onBlur={() => void saveDraft()}
             />

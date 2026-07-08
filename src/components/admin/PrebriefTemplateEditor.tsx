@@ -5,7 +5,7 @@ import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { Button } from "@/components/admin/ui/Button";
 import type { PrebriefField } from "@/lib/prebrief-content";
 import { getDefaultPrebriefTemplate, type PrebriefTemplate } from "@/lib/prebrief-template";
-import { brandUi } from "@/lib/brand-ui";
+import { brandUi, clientFrame } from "@/lib/brand-ui";
 import "@/components/admin/rich-text-editor.css";
 
 type PrebriefTemplateEditorProps = {
@@ -76,14 +76,15 @@ function RichBlock({
         </p>
       )}
       <div
-        className="mt-1 rounded-xl border overflow-hidden"
-        style={{ borderColor: brandUi.borderStrong, background: brandUi.surface }}
+        className="mt-1 rounded-xl border-2 overflow-hidden"
+        style={{ borderColor: clientFrame.border, background: clientFrame.background }}
       >
         <RichTextEditor
           value={value}
           onChange={onChange}
           ariaLabel={ariaLabel}
           placeholder="Escribí acá…"
+          frameVariant="client"
         />
       </div>
     </div>
@@ -171,11 +172,11 @@ export function PrebriefTemplateEditor({
   return (
     <div className="space-y-5">
       <div
-        className="rounded-2xl border px-4 py-3"
-        style={{ borderColor: brandUi.border, background: "rgba(50,63,246,0.04)" }}
+        className="rounded-2xl border-2 px-4 py-3"
+        style={{ borderColor: clientFrame.border, background: clientFrame.headerBackground }}
       >
-        <p className="text-sm font-medium" style={{ color: brandUi.text }}>
-          Editar cuestionario
+        <p className="text-sm font-medium" style={{ color: clientFrame.border }}>
+          Documento para el cliente — cuestionario pre-brief
         </p>
         <p className="text-xs mt-1 leading-relaxed" style={{ color: brandUi.textMuted }}>
           Usá el editor visual (negritas, títulos, listas). La <strong>bienvenida</strong> va solo en

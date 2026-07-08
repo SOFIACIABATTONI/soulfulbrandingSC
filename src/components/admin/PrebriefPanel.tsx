@@ -97,7 +97,7 @@ export function PrebriefPanel({
   }
 
   return (
-    <Card className={cardClass}>
+    <Card className={cardClass} frameVariant={embedded ? "client" : "default"}>
       <Topbar
         title="Pre-brief (cliente)"
         subtitle={

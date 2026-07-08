@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { brandUi } from "@/lib/brand-ui";
+import { brandUi, clientFrame } from "@/lib/brand-ui";
+import { uploadBrandAssetFile } from "@/lib/admin-client-upload";
 import {
   cardHasContent,
   cardPreviewBackground,
@@ -28,24 +29,6 @@ type BrandKitPanelProps = {
   saving?: boolean;
   onSave: (brandKitJson: string) => Promise<boolean> | boolean;
 };
-
-async function uploadBrandAsset(file: File): Promise<{ url: string; fileName: string; mime: string }> {
-  const fd = new FormData();
-  fd.set("file", file);
-  const res = await fetch("/api/admin/brand-asset-upload", {
-    method: "POST",
-    body: fd,
-    credentials: "include",
-  });
-  const j = (await res.json().catch(() => ({}))) as {
-    url?: string;
-    fileName?: string;
-    mime?: string;
-    error?: string;
-  };
-  if (!res.ok || !j.url) throw new Error(j.error ?? "No se pudo subir el archivo.");
-  return { url: j.url, fileName: j.fileName ?? file.name, mime: j.mime ?? file.type };
-}
 
 export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave }: BrandKitPanelProps) {
   const [kit, setKit] = useState<BrandKit>(() => parseBrandKit(brandKitJson));
@@ -104,7 +87,7 @@ export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave
     try {
       const uploaded: BrandKitAssetFile[] = [];
       for (const file of Array.from(fileList)) {
-        const u = await uploadBrandAsset(file);
+        const u = await uploadBrandAssetFile(file);
         uploaded.push({
           id: createBrandKitId(),
           url: u.url,
@@ -128,16 +111,16 @@ export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave
 
   return (
     <div
-      className="rounded-2xl border p-4 space-y-4"
-      style={{ borderColor: brandUi.border, background: brandUi.surface }}
+      className="rounded-2xl border-2 p-4 space-y-4"
+      style={{ borderColor: clientFrame.border, background: clientFrame.background }}
     >
       <div>
-        <p className="text-sm font-medium" style={{ color: brandUi.text }}>
-          Brand ID — {phaseLabel}
+        <p className="text-sm font-medium" style={{ color: clientFrame.border }}>
+          Documento para el cliente — Brand ID · {phaseLabel}
         </p>
         <p className="text-xs mt-1" style={{ color: brandUi.textMuted }}>
-          Fuente principal de la identidad: paleta de colores y archivos en cada card. Tocá una card para
-          editarla; volvé a tocarla para cerrarla.
+          En cada card podés elegir la portada con colores o con imagen (Presentación), y después subir los
+          archivos. Tocá una card para editarla; volvé a tocarla para cerrarla.
         </p>
       </div>
 
@@ -333,7 +316,8 @@ function PaletteEditor({
             Paleta de colores
           </p>
           <p className="text-[10px] mt-0.5" style={{ color: brandUi.textMuted }}>
-            Cargá cada tono con hex, RGB y CMYK. Es la fuente principal — no depende del Drive.
+            Nombre y color de cada tono. Si no hay imagen en Presentación, estos colores son la portada de la
+            card en el grid.
           </p>
         </div>
         <button
@@ -416,7 +400,7 @@ function FileGroupEditor({
         {group.label === "Presentación" && (
           <span className="font-normal" style={{ color: brandUi.textMuted }}>
             {" "}
-            — imagen de la card
+            — portada con imagen (tiene prioridad sobre los colores)
           </span>
         )}
       </p>
@@ -494,19 +478,28 @@ function ColorSpecRow({
   const swatch = isValidHex(hex) ? hex : "#ccc";
 
   return (
-    <div className="grid gap-2 sm:grid-cols-[auto_1fr_auto] rounded-lg border p-2" style={{ borderColor: brandUi.border }}>
-      <input
-        type="color"
-        value={isValidHex(hex) ? hex : "#131945"}
-        onChange={(e) => {
-          const nextHex = e.target.value;
-          onChange({ ...color, hex: nextHex, rgb: hexToRgb(nextHex) || color.rgb });
-        }}
-        className="h-10 w-10 rounded border cursor-pointer self-start"
-        style={{ borderColor: brandUi.borderStrong }}
-        aria-label="Selector de color"
-      />
-      <div className="grid gap-2 sm:grid-cols-2">
+    <div
+      className="rounded-xl border p-3 flex flex-wrap gap-3 items-start"
+      style={{ borderColor: brandUi.border }}
+    >
+      <label className="relative shrink-0 cursor-pointer" title="Elegir color">
+        <div
+          className="h-14 w-14 rounded-lg border shadow-sm"
+          style={{ background: swatch, borderColor: brandUi.borderStrong }}
+          aria-hidden
+        />
+        <input
+          type="color"
+          value={isValidHex(hex) ? hex : "#131945"}
+          onChange={(e) => {
+            const nextHex = e.target.value;
+            onChange({ ...color, hex: nextHex, rgb: hexToRgb(nextHex) || color.rgb });
+          }}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          aria-label="Selector de color"
+        />
+      </label>
+      <div className="min-w-0 flex-1 grid gap-2 sm:grid-cols-2">
         <input
           className="rounded border px-2 py-1 text-sm sm:col-span-2"
           style={{ borderColor: brandUi.borderStrong }}
@@ -539,10 +532,9 @@ function ColorSpecRow({
           onChange={(e) => onChange({ ...color, cmyk: e.target.value })}
         />
       </div>
-      <button type="button" onClick={onRemove} className="text-[11px] self-start" style={{ color: brandUi.accent }}>
+      <button type="button" onClick={onRemove} className="text-[11px] shrink-0" style={{ color: brandUi.accent }}>
         Quitar
       </button>
-      <div className="sm:col-span-3 h-2 rounded-full" style={{ background: swatch }} aria-hidden />
     </div>
   );
 }

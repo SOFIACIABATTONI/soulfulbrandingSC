@@ -117,7 +117,7 @@ function CardClientDetail({ card, onClose }: { card: BrandKitCard; onClose: () =
       </div>
 
       {paletteColors.length > 0 && (
-        <PaletteClientSection colors={paletteColors} emphasize={card.key === "brand-sheet"} />
+        <PaletteClientSection colors={paletteColors} emphasize={card.key === "paleta-colores" || card.key === "brand-sheet"} />
       )}
 
       {card.key === "trama" && squares.length > 0 && (

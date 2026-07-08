@@ -1,31 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-async function uploadFile(file: File, minWidth?: number, minHeight?: number): Promise<string> {
-  const fd = new FormData();
-  fd.set("file", file);
-  if (minWidth) fd.set("minWidth", String(minWidth));
-  if (minHeight) fd.set("minHeight", String(minHeight));
-  const res = await fetch("/api/upload", { method: "POST", body: fd, credentials: "include" });
-  const raw = await res.text();
-  let j: { url?: string; error?: string } | null = null;
-  try {
-    j = raw ? (JSON.parse(raw) as { url?: string; error?: string }) : null;
-  } catch {
-    j = null;
-  }
-  if (!res.ok) {
-    // Vercel can return non-JSON bodies (e.g. 413 payload too large).
-    const fallback =
-      res.status === 413
-        ? "El archivo es demasiado grande para Vercel. Usa una imagen más liviana (recomendado: < 4MB)."
-        : `Error al subir (HTTP ${res.status}).`;
-    throw new Error(j?.error || fallback);
-  }
-  if (!j?.url) throw new Error("Respuesta inválida del servidor al subir imagen.");
-  return j.url;
-}
+import { uploadAdminImageFile } from "@/lib/admin-client-upload";
 
 async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -190,7 +166,7 @@ export function ImageField({ label, value, onChange, helpText, minWidth, minHeig
                 setErr(dims.error);
                 return;
               }
-              const url = await uploadFile(uploadCandidate, minWidth, minHeight);
+              const url = await uploadAdminImageFile(uploadCandidate, { minWidth, minHeight });
               if (localPreview?.startsWith("blob:")) URL.revokeObjectURL(localPreview);
               setLocalPreview(null);
               onChange(url);

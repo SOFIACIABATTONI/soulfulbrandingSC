@@ -5,11 +5,14 @@ export type BrandKitCardKey =
   | "trama"
   | "recursos-graficos"
   | "tipografias"
+  | "paleta-colores"
   | "sugerencias-uso"
   | "direccion-creativa"
   | "manual-marca"
   | "brand-sheet"
   | "kit-canva";
+
+export const PALETTE_CARD_KEY = "paleta-colores" as const satisfies BrandKitCardKey;
 
 export type BrandKitColor = {
   id: string;
@@ -66,13 +69,19 @@ export const BRAND_KIT_CARD_CATALOG: Array<{
   },
   { key: "recursos-graficos", title: "Recursos gráficos", kind: "files", defaultGroups: ["Presentación", "Archivos"] },
   { key: "tipografias", title: "Tipografías", kind: "fonts", defaultGroups: ["Presentación", "Archivos de fuente"] },
+  {
+    key: "paleta-colores",
+    title: "Paleta de colores",
+    kind: "palette",
+    defaultGroups: ["Presentación", "Referencia visual"],
+  },
   { key: "sugerencias-uso", title: "Sugerencias de uso", kind: "files", defaultGroups: ["Presentación", "Archivos"] },
   { key: "direccion-creativa", title: "Dirección creativa", kind: "files", defaultGroups: ["Presentación", "Archivos"] },
   { key: "manual-marca", title: "Manual de marca completo", kind: "files", defaultGroups: ["Presentación", "PDF / presentación"] },
   {
     key: "brand-sheet",
     title: "Brand Sheet",
-    kind: "palette",
+    kind: "files",
     defaultGroups: ["Presentación", "Archivo brand sheet"],
   },
   { key: "kit-canva", title: "Kit de marca → Canva", kind: "link", defaultGroups: ["Presentación"] },
@@ -224,8 +233,8 @@ function migrateLegacyBrandKit(raw: Record<string, unknown>): BrandKit {
 
   const legacyColors = Array.isArray(raw.colors) ? raw.colors : [];
   if (legacyColors.length > 0) {
-    const brandSheet = byKey.get("brand-sheet")!;
-    brandSheet.colors = legacyColors
+    const paletteCard = byKey.get(PALETTE_CARD_KEY)!;
+    paletteCard.colors = legacyColors
       .filter((c): c is Record<string, unknown> => !!c && typeof c === "object")
       .map((c) =>
         parseColor({
@@ -281,6 +290,27 @@ function migrateLegacyBrandKit(raw: Record<string, unknown>): BrandKit {
   return { version: 2, cards: kit.cards };
 }
 
+function consolidatePaletteColors(cards: BrandKitCard[]): BrandKitCard[] {
+  const palette = cards.find((c) => c.key === PALETTE_CARD_KEY);
+  const brandSheet = cards.find((c) => c.key === "brand-sheet");
+  if (!palette) return cards;
+
+  const paletteHasColors = palette.colors.some((c) => c.name.trim() || isValidHex(c.hex));
+  if (paletteHasColors) return cards;
+
+  const donor =
+    brandSheet?.colors.some((c) => c.name.trim() || isValidHex(c.hex)) ? brandSheet : null;
+  if (!donor) return cards;
+
+  return cards.map((c) =>
+    c.key === PALETTE_CARD_KEY ? { ...c, colors: donor.colors.map((color) => ({ ...color })) } : c,
+  );
+}
+
+export function getPaletteCard(kit: BrandKit): BrandKitCard {
+  return kit.cards.find((c) => c.key === PALETTE_CARD_KEY) ?? createDefaultBrandKitCard(PALETTE_CARD_KEY);
+}
+
 export function parseBrandKit(raw: unknown): BrandKit {
   if (typeof raw === "string") {
     if (!raw.trim()) return emptyBrandKit();
@@ -299,7 +329,9 @@ export function parseBrandKit(raw: unknown): BrandKit {
       .map(parseCard)
       .filter((c): c is BrandKitCard => c != null);
     const byKey = new Map(parsed.map((c) => [c.key, c]));
-    const cards = BRAND_KIT_CARD_CATALOG.map((def) => byKey.get(def.key) ?? createDefaultBrandKitCard(def.key));
+    const cards = consolidatePaletteColors(
+      BRAND_KIT_CARD_CATALOG.map((def) => byKey.get(def.key) ?? createDefaultBrandKitCard(def.key)),
+    );
     return { version: 2, cards };
   }
 

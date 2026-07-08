@@ -6,17 +6,24 @@ import { HTML_PHASE_SEND, type HtmlPhaseKey } from "@/lib/phase-client-flow";
 import {
   applyPhaseClientReceived,
   applyPhaseClientReopened,
-  storageKeyForHtmlPhase,
 } from "@/lib/phase-client-store";
 import { parseProjectPhases } from "@/lib/prebrief-service";
-import { syncProjectPhasesFromProgress } from "@/lib/project-phase-sync";
+import {
+  syncProjectPhasesFromProgress,
+  WORKSPACE_PHASE_KEYS,
+  type WorkspacePhaseKey,
+} from "@/lib/project-phase-sync";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 const bodySchema = z.object({
-  phase: z.enum(["identidad", "manual"]),
+  phase: z.enum(WORKSPACE_PHASE_KEYS),
   action: z.enum(["mark_received", "reopen_ack"]),
 });
+
+function isHtmlPhaseKey(phase: WorkspacePhaseKey): phase is HtmlPhaseKey {
+  return phase === "identidad" || phase === "manual";
+}
 
 export async function POST(req: Request, ctx: RouteParams) {
   if (!(await isAdminRequest())) {
@@ -30,9 +37,8 @@ export async function POST(req: Request, ctx: RouteParams) {
     return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
   }
 
-  const phase = parsed.data.phase as HtmlPhaseKey;
-  const config = HTML_PHASE_SEND[phase];
-  const storageKey = storageKeyForHtmlPhase(phase);
+  const phase = parsed.data.phase;
+  const storageKey = phase;
 
   const project = await prisma.clientProject.findUnique({
     where: { id: projectId },
@@ -44,6 +50,7 @@ export async function POST(req: Request, ctx: RouteParams) {
 
   const phases = parseProjectPhases(project.phases);
   const now = new Date();
+  const htmlConfig = isHtmlPhaseKey(phase) ? HTML_PHASE_SEND[phase] : null;
 
   if (parsed.data.action === "mark_received") {
     const nextPhases = applyPhaseClientReceived(phases, storageKey);
@@ -52,15 +59,17 @@ export async function POST(req: Request, ctx: RouteParams) {
         where: { id: projectId },
         data: { phases: nextPhases },
       });
-      const token = await tx.clientAccessToken.findFirst({
-        where: { projectId, purpose: config.purpose },
-        orderBy: { createdAt: "desc" },
-      });
-      if (token) {
-        await tx.clientAccessToken.update({
-          where: { id: token.id },
-          data: { usedAt: now },
+      if (htmlConfig) {
+        const token = await tx.clientAccessToken.findFirst({
+          where: { projectId, purpose: htmlConfig.purpose },
+          orderBy: { createdAt: "desc" },
         });
+        if (token) {
+          await tx.clientAccessToken.update({
+            where: { id: token.id },
+            data: { usedAt: now },
+          });
+        }
       }
     });
   } else {
@@ -70,15 +79,17 @@ export async function POST(req: Request, ctx: RouteParams) {
         where: { id: projectId },
         data: { phases: nextPhases },
       });
-      const token = await tx.clientAccessToken.findFirst({
-        where: { projectId, purpose: config.purpose },
-        orderBy: { createdAt: "desc" },
-      });
-      if (token) {
-        await tx.clientAccessToken.update({
-          where: { id: token.id },
-          data: { usedAt: null },
+      if (htmlConfig) {
+        const token = await tx.clientAccessToken.findFirst({
+          where: { projectId, purpose: htmlConfig.purpose },
+          orderBy: { createdAt: "desc" },
         });
+        if (token) {
+          await tx.clientAccessToken.update({
+            where: { id: token.id },
+            data: { usedAt: null },
+          });
+        }
       }
     });
   }

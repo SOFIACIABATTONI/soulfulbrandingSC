@@ -9,12 +9,12 @@ import {
   PHASE_CLIENT_STATUS_LABELS,
   type PhaseClientMeta,
 } from "@/lib/phase-client-store";
-import { brandUi, clientFrame } from "@/lib/brand-ui";
+import { brandUi } from "@/lib/brand-ui";
 
-type PhaseClientSendBarProps = {
+export type PhaseClientSendActionsProps = {
   projectId: string;
   phaseKey: HtmlPhaseKey;
-  htmlBody: string;
+  htmlBody?: string;
   brandKitJson?: string;
   manualPdfUrl?: string;
   manualPdfFileName?: string;
@@ -24,10 +24,10 @@ type PhaseClientSendBarProps = {
   onSent?: () => void;
 };
 
-export function PhaseClientSendBar({
+export function PhaseClientSendActions({
   projectId,
   phaseKey,
-  htmlBody,
+  htmlBody = "",
   brandKitJson = "",
   manualPdfUrl = "",
   manualPdfFileName = "",
@@ -35,14 +35,13 @@ export function PhaseClientSendBar({
   clientEmail,
   meta,
   onSent,
-}: PhaseClientSendBarProps) {
+}: PhaseClientSendActionsProps) {
   const config = HTML_PHASE_SEND[phaseKey];
   const isPermanent = isPermanentAccessPurpose(config.purpose);
   const isManual = phaseKey === "manual";
   const canSend = isManual
     ? Boolean(manualPdfUrl.trim())
     : Boolean(htmlBody.trim()) || brandKitHasContent(parseBrandKit(brandKitJson));
-  const [personalNote, setPersonalNote] = useState("");
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [lastLink, setLastLink] = useState<string | null>(null);
@@ -59,7 +58,6 @@ export function PhaseClientSendBar({
       body: JSON.stringify({
         phase: phaseKey,
         html: htmlBody.trim(),
-        personalNote: personalNote.trim() || undefined,
         ...(phaseKey === "identidad" ? { brandKit: brandKitJson } : {}),
         ...(phaseKey === "manual"
           ? {
@@ -78,15 +76,9 @@ export function PhaseClientSendBar({
       setMessage(
         j.emailed
           ? isManual
-            ? `Enviado a ${clientEmail}. El cliente puede descargar el PDF desde el mail (enlace permanente).`
-            : isPermanent
-              ? `Enviado a ${clientEmail}. El enlace no vence: el cliente puede consultarlo y descargarlo cuando quiera.`
-              : `Enviado a ${clientEmail}. El cliente puede confirmar recibido desde el mail.`
-          : isManual
-            ? "Link generado. Configurá Resend para enviar el mail automáticamente."
-            : isPermanent
-              ? "Link permanente generado. Configurá Resend para enviar el mail automáticamente."
-              : `Link generado. Configurá Resend para enviar el mail automáticamente.`,
+            ? `Mail enviado a ${clientEmail}.`
+            : `Mail enviado a ${clientEmail}.`
+          : "Link generado. Configurá Resend para enviar el mail automáticamente.",
       );
       onSent?.();
     } else {
@@ -97,24 +89,19 @@ export function PhaseClientSendBar({
 
   return (
     <div
-      className="rounded-2xl border-2 p-4 space-y-3"
-      style={{ borderColor: clientFrame.border, background: clientFrame.background }}
+      className="space-y-3 pt-4 border-t"
+      style={{ borderColor: "rgba(240,49,114,0.22)" }}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium" style={{ color: clientFrame.border }}>
-            Enviar al cliente
-          </p>
-          <p className="text-xs mt-1" style={{ color: brandUi.textMuted }}>
-            {isManual
-              ? "Se envía el PDF del manual por mail con enlace permanente para descargarlo cuando quiera."
-              : isPermanent
-                ? "El documento se envía por mail con un enlace permanente. El cliente puede verlo, descargarlo y confirmar recibido."
-                : "El documento de arriba se envía por mail. El cliente lo revisa y confirma recibido."}
-          </p>
-        </div>
+        <p className="text-xs leading-relaxed" style={{ color: brandUi.textMuted }}>
+          {isManual
+            ? "El mail incluye un enlace permanente para descargar el PDF."
+            : isPermanent
+              ? "El mail incluye un enlace al portal donde el cliente ve el mensaje de arriba y el Brand ID."
+              : "El mail incluye un enlace al portal con el mensaje de arriba."}
+        </p>
         <span
-          className="text-[10px] font-medium uppercase tracking-wide rounded px-2 py-1"
+          className="text-[10px] font-medium uppercase tracking-wide rounded px-2 py-1 shrink-0"
           style={{
             background:
               meta.clientStatus === "recibido"
@@ -149,27 +136,11 @@ export function PhaseClientSendBar({
         </p>
       )}
 
-      <label className="block">
-        <span
-          className="text-[9px] font-medium uppercase tracking-widest"
-          style={{ color: brandUi.textFaint }}
-        >
-          Nota personalizada (mail)
-        </span>
-        <textarea
-          className="mt-1 w-full rounded border p-2 text-sm min-h-[56px]"
-          style={{ borderColor: brandUi.borderStrong, background: brandUi.surface }}
-          placeholder={`Ej: Te comparto ${config.title.toLowerCase()}…`}
-          value={personalNote}
-          onChange={(e) => setPersonalNote(e.target.value)}
-        />
-      </label>
-
       <button
         type="button"
         disabled={sending || !canSend}
         onClick={() => void sendToClient()}
-        className="rounded-full px-4 py-2 text-xs font-medium text-white disabled:opacity-50"
+        className="rounded-full px-5 py-2.5 text-xs font-medium text-white disabled:opacity-50"
         style={{ background: brandUi.accent }}
       >
         {sending ? "Enviando…" : `Enviar ${config.title.toLowerCase()} al cliente →`}

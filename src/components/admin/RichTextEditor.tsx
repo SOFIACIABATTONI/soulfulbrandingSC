@@ -16,7 +16,7 @@ import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import { brandUi } from "@/lib/brand-ui";
+import { brandUi, clientFrame } from "@/lib/brand-ui";
 import "./rich-text-editor.css";
 
 const BRAND_COLORS = [
@@ -34,6 +34,8 @@ type RichTextEditorProps = {
   onBlur?: () => void;
   ariaLabel?: string;
   compact?: boolean;
+  /** Marco rosa para documentos que ve o recibe el cliente. */
+  frameVariant?: "default" | "client";
 };
 
 function ToolbarButton({
@@ -70,6 +72,7 @@ export function RichTextEditor({
   onBlur,
   ariaLabel,
   compact = false,
+  frameVariant = "default",
 }: RichTextEditorProps) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastEmitted = useRef(value);
@@ -131,14 +134,23 @@ export function RichTextEditor({
 
   if (!editor) return null;
 
+  const isClientFrame = frameVariant === "client";
+
   return (
     <div
-      className={`rich-text-editor rounded-2xl border bg-white${compact ? " rich-text-editor--compact" : ""}`}
-      style={{ borderColor: brandUi.borderStrong }}
+      className={`rich-text-editor rounded-2xl border bg-white${compact ? " rich-text-editor--compact" : ""}${isClientFrame ? " rich-text-editor--client" : ""}`}
+      style={{
+        borderColor: isClientFrame ? clientFrame.border : brandUi.borderStrong,
+        borderWidth: isClientFrame ? 2 : 1,
+        background: isClientFrame ? clientFrame.background : "#fff",
+      }}
     >
       <div
         className={`rich-text-editor__toolbar flex flex-wrap items-center gap-1 border-b ${compact ? "px-1.5 py-1" : "px-2 py-2"}`}
-        style={{ borderColor: brandUi.border, background: "#FAFAFA" }}
+        style={{
+          borderColor: isClientFrame ? "rgba(240,49,114,0.25)" : brandUi.border,
+          background: isClientFrame ? clientFrame.headerBackground : "#FAFAFA",
+        }}
       >
         <ToolbarButton
           title="Negrita"

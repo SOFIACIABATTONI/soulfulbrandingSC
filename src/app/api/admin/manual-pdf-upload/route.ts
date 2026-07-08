@@ -3,18 +3,14 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { put } from "@vercel/blob";
 import { isAdminRequest } from "@/lib/auth-api";
+import {
+  blobTokenMissingMessage,
+  buildManualPdfPathname,
+  isPdfFile,
+  MANUAL_PDF_MAX_BYTES,
+} from "@/lib/admin-blob-upload";
 
 export const runtime = "nodejs";
-
-/** Manuales de marca pueden ser más pesados que assets sueltos del Brand ID. */
-const MAX_BYTES = 150 * 1024 * 1024;
-
-function isPdfFile(file: File): boolean {
-  const mime = (file.type ?? "").trim().toLowerCase();
-  if (mime === "application/pdf") return true;
-  if (mime === "application/x-google-chrome-pdf") return true;
-  return file.name.toLowerCase().endsWith(".pdf");
-}
 
 export async function POST(req: Request) {
   try {
@@ -30,28 +26,21 @@ export async function POST(req: Request) {
     if (!isPdfFile(file)) {
       return NextResponse.json({ error: "Subí un archivo PDF." }, { status: 400 });
     }
-    if (file.size > MAX_BYTES) {
+    if (file.size > MANUAL_PDF_MAX_BYTES) {
       return NextResponse.json(
-        { error: `Máximo ${Math.round(MAX_BYTES / (1024 * 1024))} MB por manual.` },
+        { error: `Máximo ${Math.round(MANUAL_PDF_MAX_BYTES / (1024 * 1024))} MB por manual.` },
         { status: 400 },
       );
     }
 
     const buf = Buffer.from(await file.arrayBuffer());
-    const safeBase = path
-      .basename(file.name, path.extname(file.name))
-      .replace(/[^a-zA-Z0-9._-]+/g, "-")
-      .slice(0, 60);
-    const name = `manual/${Date.now()}-${Math.random().toString(36).slice(2, 10)}-${safeBase || "manual"}.pdf`;
+    const name = buildManualPdfPathname(file.name);
 
     const onVercel = process.env.VERCEL === "1";
     if (onVercel) {
-      const token = process.env.BLOB_READ_WRITE_TOKEN;
+      const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
       if (!token) {
-        return NextResponse.json(
-          { error: "Falta configurar BLOB_READ_WRITE_TOKEN en Vercel." },
-          { status: 500 },
-        );
+        return NextResponse.json({ error: blobTokenMissingMessage() }, { status: 500 });
       }
       const blob = await put(name, buf, {
         access: "public",
@@ -76,7 +65,8 @@ export async function POST(req: Request) {
       mime: "application/pdf",
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "No se pudo subir el PDF.";
     console.error("[api/admin/manual-pdf-upload] failed", error);
-    return NextResponse.json({ error: "No se pudo subir el PDF." }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

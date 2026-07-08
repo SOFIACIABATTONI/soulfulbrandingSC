@@ -1,8 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { brandUi } from "@/lib/brand-ui";
+import { brandUi, clientFrame } from "@/lib/brand-ui";
+import { uploadManualPdfFile } from "@/lib/admin-client-upload";
 import type { ManualPdfMeta } from "@/lib/manual-pdf";
+import type { PhaseClientSendActionsProps } from "@/components/admin/PhaseClientSendActions";
+import { PhaseClientSendActions } from "@/components/admin/PhaseClientSendActions";
 
 const MAX_BYTES = 150 * 1024 * 1024;
 
@@ -10,6 +13,7 @@ type ManualPdfPanelProps = {
   pdf: ManualPdfMeta | null;
   saving?: boolean;
   onSave: (payload: ManualPdfMeta | null) => Promise<boolean> | boolean;
+  clientSend?: Omit<PhaseClientSendActionsProps, "htmlBody" | "manualPdfUrl" | "manualPdfFileName" | "manualPdfMime">;
 };
 
 function formatFileSize(bytes: number): string {
@@ -17,41 +21,7 @@ function formatFileSize(bytes: number): string {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-function isPdfFile(file: File): boolean {
-  const mime = (file.type ?? "").trim().toLowerCase();
-  return mime === "application/pdf" || mime === "application/x-google-chrome-pdf" || file.name.toLowerCase().endsWith(".pdf");
-}
-
-async function uploadPdf(file: File): Promise<ManualPdfMeta> {
-  if (!isPdfFile(file)) {
-    throw new Error("Subí un archivo PDF.");
-  }
-  if (file.size > MAX_BYTES) {
-    throw new Error(`El PDF pesa ${formatFileSize(file.size)}. Máximo ${Math.round(MAX_BYTES / (1024 * 1024))} MB.`);
-  }
-
-  const fd = new FormData();
-  fd.set("file", file);
-  const res = await fetch("/api/admin/manual-pdf-upload", {
-    method: "POST",
-    body: fd,
-    credentials: "include",
-  });
-  const j = (await res.json().catch(() => ({}))) as {
-    url?: string;
-    fileName?: string;
-    mime?: string;
-    error?: string;
-  };
-  if (!res.ok || !j.url) throw new Error(j.error ?? "No se pudo subir el PDF.");
-  return {
-    url: j.url,
-    fileName: j.fileName ?? file.name,
-    mime: j.mime ?? "application/pdf",
-  };
-}
-
-export function ManualPdfPanel({ pdf, saving = false, onSave }: ManualPdfPanelProps) {
+export function ManualPdfPanel({ pdf, saving = false, onSave, clientSend }: ManualPdfPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -65,7 +35,7 @@ export function ManualPdfPanel({ pdf, saving = false, onSave }: ManualPdfPanelPr
     setUploading(true);
     setMessage(null);
     try {
-      const meta = await uploadPdf(file);
+      const meta = await uploadManualPdfFile(file);
       const ok = await onSave(meta);
       setMessage(ok ? "PDF del manual guardado." : "No se pudo guardar.");
     } catch (e) {
@@ -84,8 +54,8 @@ export function ManualPdfPanel({ pdf, saving = false, onSave }: ManualPdfPanelPr
 
   return (
     <div
-      className="rounded-2xl border p-4 space-y-4"
-      style={{ borderColor: brandUi.border, background: "rgba(240,49,114,0.04)" }}
+      className="rounded-2xl border-2 p-4 space-y-4"
+      style={{ borderColor: clientFrame.border, background: clientFrame.background }}
     >
       <input
         ref={inputRef}
@@ -101,8 +71,8 @@ export function ManualPdfPanel({ pdf, saving = false, onSave }: ManualPdfPanelPr
       />
 
       <div>
-        <p className="text-sm font-medium" style={{ color: brandUi.text }}>
-          Manual de marca — PDF final
+        <p className="text-sm font-medium" style={{ color: clientFrame.border }}>
+          Documento para el cliente — Manual de marca (PDF)
         </p>
         <p className="text-xs mt-1" style={{ color: brandUi.textMuted }}>
           Subí el PDF de entrega. Al enviarlo al cliente, recibe un mail con enlace permanente para
@@ -170,10 +140,20 @@ export function ManualPdfPanel({ pdf, saving = false, onSave }: ManualPdfPanelPr
       {message && (
         <p
           className="text-xs"
-          style={{ color: message.includes("No se") || message.includes("Error") || message.includes("Máximo") || message.includes("pesa") ? brandUi.accent : brandUi.textMuted }}
+          style={{ color: message.includes("No se") || message.includes("Error") || message.includes("Máximo") || message.includes("pesa") ? "#F03172" : "rgba(19,25,69,0.52)" }}
         >
           {message}
         </p>
+      )}
+
+      {clientSend && (
+        <PhaseClientSendActions
+          {...clientSend}
+          htmlBody=""
+          manualPdfUrl={pdf?.url ?? ""}
+          manualPdfFileName={pdf?.fileName ?? ""}
+          manualPdfMime={pdf?.mime ?? ""}
+        />
       )}
     </div>
   );

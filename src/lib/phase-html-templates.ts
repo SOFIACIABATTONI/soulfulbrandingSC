@@ -81,8 +81,7 @@ ${task([
 ])}`,
 
   identidad: `<h1>Tu identidad visual</h1>
-<p>Acá está tu Brand ID: logos, colores, tipografías y recursos listos para descargar.</p>
-<p><em>Personalizá este mensaje antes de enviar al cliente.</em></p>`,
+<p>Acá está tu Brand ID: logos, colores, tipografías y recursos listos para descargar.</p>`,
 
   manual: `<h1>Manual de marca — entrega</h1>
 <h2>Contenido del manual</h2>

@@ -41,7 +41,7 @@ export default async function AdminProyectoDetailPage({ params }: PageProps) {
   }
 
   return (
-    <div className="px-6 py-8 max-w-5xl mx-auto">
+    <div className="px-6 py-8 max-w-7xl mx-auto">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <Link href="/admin/proyectos" className="text-[9px] font-medium uppercase tracking-widest hover:underline"
@@ -57,7 +57,7 @@ export default async function AdminProyectoDetailPage({ params }: PageProps) {
         </div>
       </div>
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      <ERPProjectWorkspace project={project as any} />
+      <ERPProjectWorkspace key={project.id} project={project as any} />
     </div>
   );
 }

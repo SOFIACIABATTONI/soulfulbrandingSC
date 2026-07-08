@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { deriveProjectStatus, projectHasSenaPaid, type ProjectPipelineSignals } from "@/lib/project-pipeline";
+import { deriveProjectStatus, projectHasFinalPaid, projectHasSenaPaid, type ProjectPipelineSignals } from "@/lib/project-pipeline";
 import { parseProjectPhases, setPhaseState } from "@/lib/prebrief-service";
 
 export const WORKSPACE_PHASE_KEYS = [
@@ -26,6 +26,7 @@ export type ProjectProgressInput = {
   narrativaAcknowledgedAt: Date | null;
   projectStatus: string;
   hasSenaPaid: boolean;
+  hasFinalPaid: boolean;
   hasPrebriefSent: boolean;
   phases: PhaseMap;
 };
@@ -55,6 +56,7 @@ export function buildProjectProgressInput(project: {
     narrativaAcknowledgedAt: project.narrativaAcknowledgedAt,
     projectStatus: project.status,
     hasSenaPaid: projectHasSenaPaid(project.invoices, project.id),
+    hasFinalPaid: projectHasFinalPaid(project.invoices, project.id),
     hasPrebriefSent: project.hasPrebriefSent ?? false,
     phases: parseProjectPhases(project.phases),
   };
@@ -77,33 +79,56 @@ export function deriveWorkspacePhaseStates(
   const identidadClient = input.phases.identidad?.clientStatus ?? "";
   const manualClient = input.phases.manual?.clientStatus ?? "";
 
+  function phaseMarkedReceived(key: WorkspacePhaseKey): boolean {
+    return input.phases[key]?.clientStatus === "recibido";
+  }
+
+  function phaseMarkedSent(key: WorkspacePhaseKey): boolean {
+    return input.phases[key]?.clientStatus === "enviado";
+  }
+
   let onboarding: WorkspacePhaseState = "pending";
-  if (input.hasSenaPaid) onboarding = "done";
-  else if (input.contractStatus === "aceptado" || input.contractStatus === "enviado") {
+  const onboardingPaid = input.hasSenaPaid || input.hasFinalPaid;
+  if (onboardingPaid || phaseMarkedReceived("onboarding")) onboarding = "done";
+  else if (
+    input.contractStatus === "aceptado" ||
+    input.contractStatus === "enviado" ||
+    phaseMarkedSent("onboarding")
+  ) {
     onboarding = "active";
   }
 
   let prebrief: WorkspacePhaseState = "pending";
-  if (input.prebriefSubmittedAt) prebrief = "done";
-  else if (input.hasSenaPaid || input.hasPrebriefSent) prebrief = "active";
+  if (input.prebriefSubmittedAt || phaseMarkedReceived("prebrief")) prebrief = "done";
+  else if (onboardingPaid || input.hasPrebriefSent || phaseMarkedSent("prebrief")) {
+    prebrief = "active";
+  }
 
   let narrativa: WorkspacePhaseState = "pending";
-  if (input.narrativaAcknowledgedAt || input.narrativaStatus === "recibido") {
+  if (
+    input.narrativaAcknowledgedAt ||
+    input.narrativaStatus === "recibido" ||
+    phaseMarkedReceived("narrativa")
+  ) {
     narrativa = "done";
-  } else if (input.narrativaSentAt || input.narrativaStatus === "enviado") {
+  } else if (
+    input.narrativaSentAt ||
+    input.narrativaStatus === "enviado" ||
+    phaseMarkedSent("narrativa")
+  ) {
     narrativa = "active";
   } else if (prebrief === "done") {
     narrativa = "active";
   }
 
   let identidad: WorkspacePhaseState = "pending";
-  if (identidadClient === "recibido") identidad = "done";
-  else if (identidadClient === "enviado") identidad = "active";
+  if (identidadClient === "recibido" || phaseMarkedReceived("identidad")) identidad = "done";
+  else if (identidadClient === "enviado" || phaseMarkedSent("identidad")) identidad = "active";
   else if (narrativa === "done") identidad = "active";
 
   let manual: WorkspacePhaseState = "pending";
-  if (manualClient === "recibido") manual = "done";
-  else if (manualClient === "enviado") manual = "active";
+  if (manualClient === "recibido" || phaseMarkedReceived("manual")) manual = "done";
+  else if (manualClient === "enviado" || phaseMarkedSent("manual")) manual = "active";
   else if (identidad === "done") manual = "active";
 
   return { onboarding, prebrief, narrativa, identidad, manual };
@@ -166,6 +191,7 @@ export async function syncProjectPhasesFromProgress(
   const signals: ProjectPipelineSignals = {
     contractStatus: input.contractStatus,
     hasSenaPaid: input.hasSenaPaid,
+    hasFinalPaid: input.hasFinalPaid,
     prebriefSubmittedAt: input.prebriefSubmittedAt,
     narrativaStatus: input.narrativaStatus,
     narrativaAcknowledgedAt: input.narrativaAcknowledgedAt,
@@ -193,19 +219,30 @@ export async function syncProjectPhasesFromProgress(
   return nextPhases;
 }
 
+export async function syncOnProjectInvoicePaid(invoice: {
+  clientId: string;
+  projectId: string | null;
+  type: string;
+  status: string;
+}): Promise<void> {
+  if (invoice.status !== "pagado") return;
+  if (invoice.type === "sena") {
+    const { syncLeadPipelineOnSenaPaid } = await import("@/lib/lead-pipeline");
+    await syncLeadPipelineOnSenaPaid(invoice.clientId);
+  }
+  if (invoice.projectId && (invoice.type === "sena" || invoice.type === "final")) {
+    await syncProjectPhasesFromProgress(invoice.projectId);
+  }
+}
+
+/** @deprecated Usar syncOnProjectInvoicePaid */
 export async function syncOnSenaPaidInvoice(invoice: {
   clientId: string;
   projectId: string | null;
   type: string;
   status: string;
 }): Promise<void> {
-  if (invoice.type !== "sena" || invoice.status !== "pagado") return;
-
-  const { syncLeadPipelineOnSenaPaid } = await import("@/lib/lead-pipeline");
-  await syncLeadPipelineOnSenaPaid(invoice.clientId);
-  if (invoice.projectId) {
-    await syncProjectPhasesFromProgress(invoice.projectId);
-  }
+  return syncOnProjectInvoicePaid(invoice);
 }
 
 /** @deprecated Usar syncProjectPhasesFromProgress */

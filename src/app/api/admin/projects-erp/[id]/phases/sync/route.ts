@@ -37,6 +37,7 @@ export async function POST(_req: Request, ctx: RouteParams) {
           status: deriveProjectStatus({
             contractStatus: input.contractStatus,
             hasSenaPaid: input.hasSenaPaid,
+            hasFinalPaid: input.hasFinalPaid,
             prebriefSubmittedAt: input.prebriefSubmittedAt,
             narrativaStatus: input.narrativaStatus,
             narrativaAcknowledgedAt: input.narrativaAcknowledgedAt,

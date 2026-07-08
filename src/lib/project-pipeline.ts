@@ -15,12 +15,18 @@ export type ProjectFlowStepKey = (typeof PROJECT_FLOW_STEPS)[number]["key"];
 export type ProjectPipelineSignals = {
   contractStatus: string;
   hasSenaPaid: boolean;
+  /** Pago total (factura final) — también habilita onboarding como la seña. */
+  hasFinalPaid?: boolean;
   prebriefSubmittedAt?: Date | string | null;
   narrativaStatus?: string;
   narrativaAcknowledgedAt?: Date | string | null;
   phases: Record<string, { state?: string } | undefined>;
   projectStatus: string;
 };
+
+function onboardingPaymentDone(signals: ProjectPipelineSignals): boolean {
+  return Boolean(signals.hasSenaPaid || signals.hasFinalPaid);
+}
 
 function phaseDone(phases: ProjectPipelineSignals["phases"], key: string): boolean {
   return phases[key]?.state === "done";
@@ -36,7 +42,7 @@ export function isProjectStepDone(
     case "sena":
       return signals.hasSenaPaid;
     case "onboarding":
-      return signals.hasSenaPaid || phaseDone(signals.phases, "onboarding");
+      return onboardingPaymentDone(signals) || phaseDone(signals.phases, "onboarding");
     case "prebrief":
       return Boolean(signals.prebriefSubmittedAt) || phaseDone(signals.phases, "prebrief");
     case "narrativa":
@@ -50,7 +56,7 @@ export function isProjectStepDone(
     case "manual":
       return phaseDone(signals.phases, "manual");
     case "entregado":
-      return signals.projectStatus === "entregado";
+      return signals.projectStatus === "entregado" || phaseDone(signals.phases, "manual");
     default:
       return false;
   }
@@ -78,6 +84,7 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
 /** Estado global del proyecto según el hito activo del pipeline. */
 export function deriveProjectStatus(signals: ProjectPipelineSignals): ProjectStatus {
   if (signals.projectStatus === "entregado") return "entregado";
+  if (phaseDone(signals.phases, "manual")) return "entregado";
 
   const step = PROJECT_FLOW_STEPS[deriveProjectActiveIndex(signals)]?.key;
 
@@ -105,4 +112,20 @@ export function projectHasSenaPaid(
   return invoices.some(
     (i) => i.type === "sena" && i.status === "pagado" && i.projectId === projectId,
   );
+}
+
+export function projectHasFinalPaid(
+  invoices: { type: string; status: string; projectId?: string | null }[],
+  projectId: string,
+): boolean {
+  return invoices.some(
+    (i) => i.type === "final" && i.status === "pagado" && i.projectId === projectId,
+  );
+}
+
+export function projectHasOnboardingPaid(
+  invoices: { type: string; status: string; projectId?: string | null }[],
+  projectId: string,
+): boolean {
+  return projectHasSenaPaid(invoices, projectId) || projectHasFinalPaid(invoices, projectId);
 }

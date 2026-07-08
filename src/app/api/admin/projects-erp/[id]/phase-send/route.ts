@@ -16,8 +16,12 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 const bodySchema = z.object({
   phase: z.enum(["identidad", "manual"]),
-  html: z.string().min(1).optional(),
+  html: z.string().optional(),
   personalNote: z.string().optional(),
+  brandKit: z.string().optional(),
+  manualPdfUrl: z.string().optional(),
+  manualPdfFileName: z.string().optional(),
+  manualPdfMime: z.string().optional(),
 });
 
 export async function POST(req: Request, ctx: RouteParams) {
@@ -45,7 +49,16 @@ export async function POST(req: Request, ctx: RouteParams) {
   }
 
   const phases = parseProjectPhases(project.phases);
-  const phaseData = phases[storageKey] ?? {};
+  const storedPhaseData = phases[storageKey] ?? {};
+  const phaseData: Record<string, string> = {
+    ...storedPhaseData,
+    ...(parsed.data.brandKit !== undefined ? { brandKit: parsed.data.brandKit } : {}),
+    ...(parsed.data.manualPdfUrl !== undefined ? { manualPdfUrl: parsed.data.manualPdfUrl } : {}),
+    ...(parsed.data.manualPdfFileName !== undefined
+      ? { manualPdfFileName: parsed.data.manualPdfFileName }
+      : {}),
+    ...(parsed.data.manualPdfMime !== undefined ? { manualPdfMime: parsed.data.manualPdfMime } : {}),
+  };
   const html = (parsed.data.html ?? phaseData.body ?? "").trim();
   const brandKit = brandKitFromPhaseData(phaseData);
   const manualPdf = getManualPdfFromPhase(phaseData);
@@ -73,6 +86,9 @@ export async function POST(req: Request, ctx: RouteParams) {
   nextPhases[storageKey] = {
     ...nextPhases[storageKey],
     ...(hasDoc ? { body: html, bodyFormat: "html" as const } : {}),
+    ...(phase === "identidad" && hasKit && phaseData.brandKit
+      ? { brandKit: phaseData.brandKit }
+      : {}),
     ...(phase === "manual" && manualPdf
       ? {
           manualPdfUrl: manualPdf.url,

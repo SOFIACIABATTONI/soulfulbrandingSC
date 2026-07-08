@@ -181,7 +181,7 @@ export function NarrativaPanel({
 
   if (loading) {
     return (
-      <Card className={cardClass}>
+      <Card className={cardClass} frameVariant={embedded ? "client" : "default"}>
         <Topbar title="Narrativa de marca" subtitle={`${clientName} · ${projectTitle}`} />
         <p className="text-xs" style={{ color: brandUi.textMuted }}>
           Cargando…
@@ -194,7 +194,7 @@ export function NarrativaPanel({
   const editorLabel = editorOpen ? "Ocultar editor" : "Editar narrativa";
 
   return (
-    <Card className={cardClass}>
+    <Card className={cardClass} frameVariant={embedded ? "client" : "default"}>
       <Topbar
         title="Narrativa de marca"
         subtitle={`${clientName} · completá y enviá al cliente`}
@@ -266,11 +266,11 @@ export function NarrativaPanel({
       {editorOpen && (
         <div className="mt-4 pt-4 border-t space-y-4" style={{ borderColor: brandUi.border }}>
           <div
-            className="rounded-2xl border px-4 py-3"
-            style={{ borderColor: brandUi.border, background: "rgba(240,49,114,0.04)" }}
+            className="rounded-2xl border-2 px-4 py-3"
+            style={{ borderColor: "#F03172", background: "rgba(240,49,114,0.06)" }}
           >
-            <p className="text-sm font-medium" style={{ color: brandUi.text }}>
-              Documento estratégico
+            <p className="text-sm font-medium" style={{ color: "#F03172" }}>
+              Documento para el cliente — narrativa
             </p>
             <p className="text-xs mt-1 leading-relaxed" style={{ color: brandUi.textMuted }}>
               Mismo editor que contrato y pre-brief: negritas, listas, tablas y checkboxes. El
@@ -307,6 +307,7 @@ export function NarrativaPanel({
               value={html}
               ariaLabel="Narrativa de marca"
               placeholder="Completá la narrativa…"
+              frameVariant="client"
               onChange={persistDraft}
               onBlur={() => void saveDraft()}
             />

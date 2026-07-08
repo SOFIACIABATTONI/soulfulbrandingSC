@@ -2,16 +2,106 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { brandUi } from "@/lib/brand-ui";
 
-function SbSection({ label }: { label: string }) {
+const SIDEBAR_SECTIONS_KEY = "erp-admin-sidebar-sections";
+
+type NavItem = {
+  href: string;
+  label: string;
+  badge?: number;
+  /** Solo coincide con la ruta exacta (p. ej. Dashboard). */
+  exact?: boolean;
+};
+
+type NavSection = {
+  id: string;
+  label: string;
+  items: NavItem[];
+};
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    id: "crm",
+    label: "CRM",
+    items: [
+      { href: "/admin/leads", label: "Leads" },
+      { href: "/admin/clientes", label: "Clientes" },
+    ],
+  },
+  {
+    id: "proyectos",
+    label: "Proyectos",
+    items: [
+      { href: "/admin/proyectos", label: "Proyectos" },
+      { href: "/admin/facturas", label: "Facturas" },
+    ],
+  },
+  {
+    id: "portfolio",
+    label: "Portfolio público",
+    items: [
+      { href: "/admin/projects", label: "Trabajos publicados" },
+      { href: "/admin/content", label: "Contenido del sitio" },
+    ],
+  },
+  {
+    id: "vistas",
+    label: "Vistas",
+    items: [
+      { href: "/admin", label: "Dashboard", exact: true },
+      { href: "/", label: "Ver sitio →" },
+    ],
+  },
+];
+
+function readStoredOpenSections(): Record<string, boolean> | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(SIDEBAR_SECTIONS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<string, boolean>;
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function SbCollapsibleSection({
+  id,
+  label,
+  open,
+  onToggle,
+  children,
+}: {
+  id: string;
+  label: string;
+  open: boolean;
+  onToggle: (sectionId: string) => void;
+  children: ReactNode;
+}) {
   return (
-    <div
-      className="px-4 pt-4 pb-1 text-[8px] font-medium uppercase tracking-[0.14em]"
-      style={{ color: brandUi.textFaint }}
-    >
-      {label}
+    <div className="mb-0.5">
+      <button
+        type="button"
+        id={`sidebar-section-${id}`}
+        onClick={() => onToggle(id)}
+        className="flex w-full items-center justify-between gap-2 px-4 pt-4 pb-1.5 text-left transition-opacity hover:opacity-80"
+        style={{ color: brandUi.textFaint, background: "none", border: "none", cursor: "pointer" }}
+        aria-expanded={open}
+        aria-controls={`sidebar-section-panel-${id}`}
+      >
+        <span className="text-[8px] font-medium uppercase tracking-[0.14em]">{label}</span>
+        <span className="text-[10px] leading-none" aria-hidden>
+          {open ? "▾" : "▸"}
+        </span>
+      </button>
+      {open && (
+        <div id={`sidebar-section-panel-${id}`} role="region" aria-labelledby={`sidebar-section-${id}`}>
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -53,9 +143,33 @@ function SbItem({
   );
 }
 
-export function AdminSidebar() {
+export function AdminSidebar({
+  open,
+  onToggleMenu,
+}: {
+  open: boolean;
+  onToggleMenu: () => void;
+}) {
   const pathname = usePathname();
   const [newMsgCount, setNewMsgCount] = useState(0);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(NAV_SECTIONS.map((s) => [s.id, true])),
+  );
+
+  const isItemActive = useCallback(
+    (item: NavItem) => {
+      if (item.exact) return pathname === item.href;
+      return pathname === item.href || pathname.startsWith(`${item.href}/`);
+    },
+    [pathname],
+  );
+
+  const activeSectionId = useMemo(() => {
+    for (const section of NAV_SECTIONS) {
+      if (section.items.some(isItemActive)) return section.id;
+    }
+    return null;
+  }, [isItemActive]);
 
   useEffect(() => {
     fetch("/api/admin/contact-messages", { credentials: "include" })
@@ -66,8 +180,36 @@ export function AdminSidebar() {
       .catch(() => null);
   }, []);
 
-  function active(base: string) {
-    return pathname === base || pathname.startsWith(base + "/");
+  useEffect(() => {
+    const stored = readStoredOpenSections();
+    if (stored) {
+      setOpenSections((prev) => {
+        const next = { ...prev };
+        for (const section of NAV_SECTIONS) {
+          if (typeof stored[section.id] === "boolean") {
+            next[section.id] = stored[section.id];
+          }
+        }
+        if (activeSectionId) next[activeSectionId] = true;
+        return next;
+      });
+      return;
+    }
+    if (activeSectionId) {
+      setOpenSections((prev) => ({ ...prev, [activeSectionId]: true }));
+    }
+  }, [activeSectionId]);
+
+  function toggleSection(sectionId: string) {
+    setOpenSections((prev) => {
+      const next = { ...prev, [sectionId]: !prev[sectionId] };
+      try {
+        window.localStorage.setItem(SIDEBAR_SECTIONS_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
   }
 
   return (
@@ -75,47 +217,68 @@ export function AdminSidebar() {
       className="flex flex-col h-full overflow-y-auto flex-shrink-0 border-r"
       style={{ width: 216, background: brandUi.surface, borderColor: brandUi.border }}
     >
-      <Link
-        href="/admin"
-        className="px-4 py-5 flex-shrink-0 block transition-opacity hover:opacity-90"
+      <div
+        className="flex items-start justify-between gap-2 px-4 py-5 flex-shrink-0"
         style={{
           borderBottom: `1px solid ${brandUi.border}`,
           background: `linear-gradient(180deg, ${brandUi.accentSoft} 0%, ${brandUi.surface} 72%)`,
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/brand/soulful-branding.svg"
-          alt="Soulful Branding®"
-          width={894}
-          height={112}
-          className="h-[18px] w-full max-w-[168px] object-contain object-left"
-          decoding="async"
-        />
-        <div
-          className="text-[8px] font-medium uppercase tracking-[0.16em] mt-2.5"
-          style={{ color: brandUi.accent }}
-        >
-          Panel admin
-        </div>
-      </Link>
+        <Link href="/admin" className="min-w-0 flex-1 block transition-opacity hover:opacity-90">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/soulful-branding.svg"
+            alt="Soulful Branding®"
+            width={894}
+            height={112}
+            className="h-[18px] w-full max-w-[168px] object-contain object-left"
+            decoding="async"
+          />
+          <div
+            className="text-[8px] font-medium uppercase tracking-[0.16em] mt-2.5"
+            style={{ color: brandUi.accent }}
+          >
+            Panel admin
+          </div>
+        </Link>
+        {open && (
+          <button
+            type="button"
+            onClick={onToggleMenu}
+            className="mt-0.5 shrink-0 rounded border px-2 py-1 text-[10px] leading-none transition-opacity hover:opacity-80"
+            style={{
+              borderColor: brandUi.borderStrong,
+              color: brandUi.textMuted,
+              background: brandUi.surface,
+            }}
+            title="Ocultar menú"
+            aria-label="Ocultar menú lateral"
+          >
+            ◀
+          </button>
+        )}
+      </div>
 
       <nav className="flex-1 py-2">
-        <SbSection label="CRM" />
-        <SbItem href="/admin/leads" label="Leads" badge={newMsgCount} active={active("/admin/leads")} />
-        <SbItem href="/admin/clientes" label="Clientes" active={active("/admin/clientes")} />
-
-        <SbSection label="Proyectos" />
-        <SbItem href="/admin/proyectos" label="Proyectos" active={active("/admin/proyectos")} />
-        <SbItem href="/admin/facturas" label="Facturas" active={active("/admin/facturas")} />
-
-        <SbSection label="Portfolio público" />
-        <SbItem href="/admin/projects" label="Trabajos publicados" active={active("/admin/projects")} />
-        <SbItem href="/admin/content" label="Contenido del sitio" active={active("/admin/content")} />
-
-        <SbSection label="Vistas" />
-        <SbItem href="/admin" label="Dashboard" active={pathname === "/admin"} />
-        <SbItem href="/" label="Ver sitio →" active={false} />
+        {NAV_SECTIONS.map((section) => (
+          <SbCollapsibleSection
+            key={section.id}
+            id={section.id}
+            label={section.label}
+            open={openSections[section.id] ?? true}
+            onToggle={toggleSection}
+          >
+            {section.items.map((item) => (
+              <SbItem
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                badge={item.href === "/admin/leads" ? newMsgCount : undefined}
+                active={isItemActive(item)}
+              />
+            ))}
+          </SbCollapsibleSection>
+        ))}
       </nav>
 
       <div

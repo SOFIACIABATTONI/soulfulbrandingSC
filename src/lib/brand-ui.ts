@@ -17,6 +17,13 @@ export const brandUi = {
   blue: "#323FF6",
 } as const;
 
+/** Marco visual para paneles / editores que el cliente ve o recibe. */
+export const clientFrame = {
+  border: "#F03172",
+  background: "rgba(240, 49, 114, 0.02)",
+  headerBackground: "rgba(240, 49, 114, 0.06)",
+} as const;
+
 /** Sans stack — Helvetica en Mac; fallbacks multiplataforma */
 export const brandSansStack =
   '"Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif';

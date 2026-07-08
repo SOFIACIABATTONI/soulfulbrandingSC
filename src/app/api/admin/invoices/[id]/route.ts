@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
-import { syncOnSenaPaidInvoice } from "@/lib/project-phase-sync";
+import { syncOnProjectInvoicePaid } from "@/lib/project-phase-sync";
 import { z } from "zod";
 const patchSchema = z.object({
   type: z.enum(["sena", "final"]).optional(),
@@ -83,9 +83,9 @@ export async function PATCH(req: Request, ctx: RouteParams) {
         project: { select: { id: true, title: true } },
       },
     });
-    if (updated.type === "sena" && updated.status === "pagado") {
-      void syncOnSenaPaidInvoice(updated).catch((err) => {
-        console.error("[invoice] syncOnSenaPaidInvoice:", err);
+    if (updated.status === "pagado" && (updated.type === "sena" || updated.type === "final")) {
+      void syncOnProjectInvoicePaid(updated).catch((err) => {
+        console.error("[invoice] syncOnProjectInvoicePaid:", err);
       });
     }
     return NextResponse.json({ ok: true, item: updated });  } catch {

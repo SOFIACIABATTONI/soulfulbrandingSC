@@ -3,12 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { Button } from "@/components/admin/ui/Button";
-import { brandUi } from "@/lib/brand-ui";
+import { brandUi, clientFrame } from "@/lib/brand-ui";
 import {
   getPhaseDocumentHtmlTemplate,
   resolvePhaseDocumentHtml,
 } from "@/lib/phase-html-templates";
 import type { PhaseDocumentKey } from "@/lib/phase-document-templates";
+import {
+  PhaseClientSendActions,
+  type PhaseClientSendActionsProps,
+} from "@/components/admin/PhaseClientSendActions";
 import "@/components/admin/rich-text-editor.css";
 
 type PhaseDocumentEditorProps = {
@@ -17,6 +21,10 @@ type PhaseDocumentEditorProps = {
   hint: string;
   saved: Record<string, string>;
   saving?: boolean;
+  /** client = documento para el cliente (marco rosa); internal = notas privadas. */
+  variant?: "client" | "internal";
+  /** Envío integrado debajo del editor (identidad). */
+  clientSend?: Omit<PhaseClientSendActionsProps, "htmlBody">;
   onSave: (payload: { body: string; bodyFormat: "html" }) => Promise<boolean> | boolean;
 };
 
@@ -26,6 +34,8 @@ export function PhaseDocumentEditor({
   hint,
   saved,
   saving = false,
+  variant = "internal",
+  clientSend,
   onSave,
 }: PhaseDocumentEditorProps) {
   const defaultHtml = useMemo(() => getPhaseDocumentHtmlTemplate(phaseKey), [phaseKey]);
@@ -87,19 +97,43 @@ export function PhaseDocumentEditor({
     void persist(defaultHtml);
   }
 
-  return (
-    <div className="space-y-3">
-      <div
-        className="rounded-xl border px-3 py-2"
-        style={{ borderColor: brandUi.border, background: "rgba(240,49,114,0.04)" }}
-      >
-        <p className="text-xs font-medium" style={{ color: brandUi.text }}>
-          {title}
-        </p>
-        <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: brandUi.textMuted }}>
-          {hint} Notas internas — se guardan solas. Podés enviar una copia por mail abajo.
-        </p>
-      </div>
+  const isClient = variant === "client";
+  const integratedSend = isClient && clientSend;
+
+  const content = (
+    <>
+      {!integratedSend && (
+        <div
+          className="rounded-xl border px-3 py-2"
+          style={
+            isClient
+              ? { borderColor: clientFrame.border, background: clientFrame.headerBackground, borderWidth: 2 }
+              : { borderColor: brandUi.border, background: "rgba(19,25,69,0.03)" }
+          }
+        >
+          <p className="text-xs font-medium" style={{ color: isClient ? clientFrame.border : brandUi.text }}>
+            {isClient ? "Documento para el cliente" : "Notas privadas"}
+            {!isClient && ` — ${title}`}
+          </p>
+          <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: brandUi.textMuted }}>
+            {hint}
+            {isClient
+              ? ""
+              : " Solo para vos — se guardan solas. Podés enviarte una copia por mail abajo."}
+          </p>
+        </div>
+      )}
+
+      {integratedSend && (
+        <div>
+          <p className="text-sm font-medium" style={{ color: clientFrame.border }}>
+            Mensaje al cliente
+          </p>
+          <p className="text-[11px] mt-1 leading-relaxed" style={{ color: brandUi.textMuted }}>
+            {hint}
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -134,11 +168,29 @@ export function PhaseDocumentEditor({
       <RichTextEditor
         value={html}
         ariaLabel={title}
-        placeholder="Notas internas de esta fase…"
+        placeholder={isClient ? "Mensaje que ve el cliente en el portal…" : "Notas internas de esta fase…"}
         compact
+        frameVariant={isClient && !integratedSend ? "client" : "default"}
         onChange={handleChange}
         onBlur={() => void persist(undefined, { silent: true })}
       />
-    </div>
+
+      {integratedSend && (
+        <PhaseClientSendActions {...clientSend} htmlBody={html} />
+      )}
+    </>
   );
+
+  if (integratedSend) {
+    return (
+      <div
+        className="rounded-2xl border-2 p-4 space-y-4"
+        style={{ borderColor: clientFrame.border, background: clientFrame.background }}
+      >
+        {content}
+      </div>
+    );
+  }
+
+  return <div className="space-y-3">{content}</div>;
 }

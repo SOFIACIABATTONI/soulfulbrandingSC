@@ -15,7 +15,7 @@ export const PHASE_DOCUMENT_HINTS: Record<PhaseDocumentKey, string> = {
   narrativa:
     "Notas de sesión y seguimiento. El documento para el cliente se edita y envía en el panel de arriba.",
   identidad:
-    "Mensaje breve para el cliente (aparece debajo del Brand ID). Las notas de desarrollo van en otras fases o en Drive.",
+    "Mensaje breve para el portal del cliente (aparece debajo del Brand ID).",
   manual:
     "Checklist del manual de marca y link al PDF o Notion de entrega.",
 };
