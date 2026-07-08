@@ -4,8 +4,10 @@ import path from "path";
 import { put } from "@vercel/blob";
 import { isAdminRequest } from "@/lib/auth-api";
 import {
+  blobPutOptions,
   blobTokenMissingMessage,
   buildManualPdfPathname,
+  hasBlobCredentials,
   isPdfFile,
   MANUAL_PDF_MAX_BYTES,
 } from "@/lib/admin-blob-upload";
@@ -38,16 +40,18 @@ export async function POST(req: Request) {
 
     const onVercel = process.env.VERCEL === "1";
     if (onVercel) {
-      const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-      if (!token) {
+      if (!hasBlobCredentials()) {
         return NextResponse.json({ error: blobTokenMissingMessage() }, { status: 500 });
       }
-      const blob = await put(name, buf, {
-        access: "public",
-        contentType: "application/pdf",
-        token,
-        multipart: file.size > 20 * 1024 * 1024,
-      });
+      const blob = await put(
+        name,
+        buf,
+        blobPutOptions({
+          access: "public",
+          contentType: "application/pdf",
+          multipart: file.size > 20 * 1024 * 1024,
+        }),
+      );
       return NextResponse.json({
         url: blob.url,
         fileName: file.name,

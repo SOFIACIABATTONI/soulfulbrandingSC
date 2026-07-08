@@ -3,11 +3,25 @@
 import { useRef, useState } from "react";
 import { brandUi, clientFrame } from "@/lib/brand-ui";
 import { uploadManualPdfFile } from "@/lib/admin-client-upload";
+import { MANUAL_PDF_MAX_BYTES, VERCEL_SERVER_UPLOAD_MAX_BYTES } from "@/lib/admin-blob-upload";
 import type { ManualPdfMeta } from "@/lib/manual-pdf";
 import type { PhaseClientSendActionsProps } from "@/components/admin/PhaseClientSendActions";
 import { PhaseClientSendActions } from "@/components/admin/PhaseClientSendActions";
 
-const MAX_BYTES = 150 * 1024 * 1024;
+const MAX_BYTES = MANUAL_PDF_MAX_BYTES;
+const SERVER_UPLOAD_HINT_MB = Math.round(VERCEL_SERVER_UPLOAD_MAX_BYTES / (1024 * 1024));
+
+function isUploadErrorMessage(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("no se") ||
+    lower.includes("error") ||
+    lower.includes("máximo") ||
+    lower.includes("pesa") ||
+    lower.includes("requieren") ||
+    lower.includes("token")
+  );
+}
 
 type ManualPdfPanelProps = {
   pdf: ManualPdfMeta | null;
@@ -32,6 +46,10 @@ export function ManualPdfPanel({ pdf, saving = false, onSave, clientSend }: Manu
   }
 
   async function handleUpload(file: File) {
+    if (file.size > MAX_BYTES) {
+      setMessage(`Máximo ${Math.round(MAX_BYTES / (1024 * 1024))} MB por manual.`);
+      return;
+    }
     setUploading(true);
     setMessage(null);
     try {
@@ -132,7 +150,7 @@ export function ManualPdfPanel({ pdf, saving = false, onSave, clientSend }: Manu
             {uploading ? "Subiendo PDF…" : "Subir PDF del manual"}
           </span>
           <span className="text-xs mt-1" style={{ color: brandUi.textMuted }}>
-            Máx. 150 MB · solo PDF
+            Máx. 150 MB · solo PDF · hasta {SERVER_UPLOAD_HINT_MB} MB sin configuración extra
           </span>
         </button>
       )}
@@ -140,7 +158,7 @@ export function ManualPdfPanel({ pdf, saving = false, onSave, clientSend }: Manu
       {message && (
         <p
           className="text-xs"
-          style={{ color: message.includes("No se") || message.includes("Error") || message.includes("Máximo") || message.includes("pesa") ? "#F03172" : "rgba(19,25,69,0.52)" }}
+          style={{ color: isUploadErrorMessage(message) ? "#F03172" : "rgba(19,25,69,0.52)" }}
         >
           {message}
         </p>

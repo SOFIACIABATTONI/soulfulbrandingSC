@@ -5,7 +5,6 @@ import {
   ADMIN_IMAGE_ALLOWED_CONTENT_TYPES,
   ADMIN_IMAGE_MAX_BYTES,
   assertAllowedBlobPrefix,
-  blobTokenMissingMessage,
   BRAND_ASSET_ALLOWED_CONTENT_TYPES,
   BRAND_ASSET_MAX_BYTES,
   MANUAL_PDF_MAX_BYTES,
@@ -35,7 +34,13 @@ export async function POST(request: Request) {
 
   const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
   if (!token) {
-    return NextResponse.json({ error: blobTokenMissingMessage() }, { status: 500 });
+    return NextResponse.json(
+      {
+        error:
+          "Las subidas grandes desde el navegador requieren BLOB_READ_WRITE_TOKEN. Los logos e imágenes chicas (<4MB) ya pueden subirse por el servidor con OIDC.",
+      },
+      { status: 500 },
+    );
   }
 
   let body: HandleUploadBody;

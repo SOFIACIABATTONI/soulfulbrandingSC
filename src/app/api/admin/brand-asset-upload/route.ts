@@ -4,9 +4,11 @@ import path from "path";
 import { put } from "@vercel/blob";
 import { isAdminRequest } from "@/lib/auth-api";
 import {
+  blobPutOptions,
   blobTokenMissingMessage,
   BRAND_ASSET_MAX_BYTES,
   buildBrandAssetPathname,
+  hasBlobCredentials,
   resolveBrandAssetMime,
 } from "@/lib/admin-blob-upload";
 
@@ -40,15 +42,17 @@ export async function POST(req: Request) {
 
     const onVercel = process.env.VERCEL === "1";
     if (onVercel) {
-      const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-      if (!token) {
+      if (!hasBlobCredentials()) {
         return NextResponse.json({ error: blobTokenMissingMessage() }, { status: 500 });
       }
-      const blob = await put(name, buf, {
-        access: "public",
-        contentType: resolvedMime || "application/octet-stream",
-        token,
-      });
+      const blob = await put(
+        name,
+        buf,
+        blobPutOptions({
+          access: "public",
+          contentType: resolvedMime || "application/octet-stream",
+        }),
+      );
       return NextResponse.json({
         url: blob.url,
         fileName: file.name,

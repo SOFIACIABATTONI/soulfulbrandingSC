@@ -131,8 +131,39 @@ export function assertAllowedBlobPrefix(pathname: string, allowedPrefixes: reado
   }
 }
 
+/** Límite seguro bajo el tope de ~4.5 MB del body en funciones de Vercel. */
+export const VERCEL_SERVER_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
+
+export function hasBlobReadWriteToken(): boolean {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
+}
+
+export function hasBlobOidcAuth(): boolean {
+  return Boolean(process.env.BLOB_STORE_ID?.trim() && process.env.VERCEL_OIDC_TOKEN?.trim());
+}
+
+export function hasBlobCredentials(): boolean {
+  return hasBlobReadWriteToken() || hasBlobOidcAuth();
+}
+
+export function blobPutOptions(
+  extra: {
+    access: "public";
+    contentType: string;
+    multipart?: boolean;
+  },
+): {
+  access: "public";
+  contentType: string;
+  multipart?: boolean;
+  token?: string;
+} {
+  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  return token ? { ...extra, token } : extra;
+}
+
 export function blobTokenMissingMessage(): string {
-  return "Falta BLOB_READ_WRITE_TOKEN en Vercel (Storage → Blob → conectar al proyecto y marcar Preview + Production).";
+  return "Falta autenticación de Blob en Vercel. Conectá el store (OIDC) o agregá BLOB_READ_WRITE_TOKEN para subidas grandes desde el navegador.";
 }
 
 export function isLocalAdminUploadHost(hostname: string): boolean {

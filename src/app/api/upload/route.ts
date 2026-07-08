@@ -4,6 +4,7 @@ import path from "path";
 import { put } from "@vercel/blob";
 import { imageSize } from "image-size";
 import { isAdminRequest } from "@/lib/auth-api";
+import { blobPutOptions, blobTokenMissingMessage, hasBlobCredentials } from "@/lib/admin-blob-upload";
 
 export const runtime = "nodejs";
 
@@ -56,18 +57,17 @@ export async function POST(req: Request) {
     const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
     const onVercel = process.env.VERCEL === "1";
     if (onVercel) {
-      const token = process.env.BLOB_READ_WRITE_TOKEN;
-      if (!token) {
-        return NextResponse.json(
-          { error: "Falta configurar BLOB_READ_WRITE_TOKEN en Vercel." },
-          { status: 500 },
-        );
+      if (!hasBlobCredentials()) {
+        return NextResponse.json({ error: blobTokenMissingMessage() }, { status: 500 });
       }
-      const blob = await put(`uploads/${name}`, buf, {
-        access: "public",
-        contentType: file.type || "application/octet-stream",
-        token,
-      });
+      const blob = await put(
+        `uploads/${name}`,
+        buf,
+        blobPutOptions({
+          access: "public",
+          contentType: file.type || "application/octet-stream",
+        }),
+      );
       return NextResponse.json({ url: blob.url });
     }
 

@@ -13,6 +13,7 @@ import {
   isPdfFile,
   MANUAL_PDF_MAX_BYTES,
   resolveBrandAssetMime,
+  VERCEL_SERVER_UPLOAD_MAX_BYTES,
 } from "@/lib/admin-blob-upload";
 
 const BLOB_UPLOAD_URL = "/api/admin/blob-upload";
@@ -58,19 +59,40 @@ async function uploadViaBlobClient(
   payload: UploadPayload,
   opts?: { multipart?: boolean; contentType?: string },
 ): Promise<{ url: string; fileName: string; mime: string }> {
-  const blob = await blobClientUpload(pathname, file, {
-    access: "public",
-    handleUploadUrl: BLOB_UPLOAD_URL,
-    clientPayload: JSON.stringify(payload),
-    contentType: opts?.contentType ?? payload.mime,
-    multipart: opts?.multipart ?? file.size > 20 * 1024 * 1024,
-  });
-  return { url: blob.url, fileName: payload.fileName, mime: payload.mime };
+  try {
+    const blob = await blobClientUpload(pathname, file, {
+      access: "public",
+      handleUploadUrl: BLOB_UPLOAD_URL,
+      clientPayload: JSON.stringify(payload),
+      contentType: opts?.contentType ?? payload.mime,
+      multipart: opts?.multipart ?? file.size > 20 * 1024 * 1024,
+    });
+    return { url: blob.url, fileName: payload.fileName, mime: payload.mime };
+  } catch (error) {
+    const raw = error instanceof Error ? error.message : "";
+    if (
+      raw.includes("BLOB_READ_WRITE") ||
+      raw.includes("read-write token") ||
+      raw.includes("HTTP 500")
+    ) {
+      throw new Error(
+        "PDFs mayores a 4 MB requieren BLOB_READ_WRITE_TOKEN en Vercel (Storage → Blob → copiar Read-Write Token → agregar en Preview + Production y redeploy).",
+      );
+    }
+    throw error;
+  }
 }
 
 function useLocalFilesystemUpload(): boolean {
   if (typeof window === "undefined") return false;
   return isLocalAdminUploadHost(window.location.hostname);
+}
+
+/** En Vercel, archivos chicos van por API (OIDC); los grandes requieren client upload + read-write token. */
+function useServerBlobUpload(file: File): boolean {
+  if (typeof window === "undefined") return false;
+  if (useLocalFilesystemUpload()) return true;
+  return file.size <= VERCEL_SERVER_UPLOAD_MAX_BYTES;
 }
 
 export async function uploadBrandAssetFile(
@@ -84,7 +106,7 @@ export async function uploadBrandAssetFile(
     throw new Error("Máximo 20MB por archivo.");
   }
 
-  if (useLocalFilesystemUpload()) {
+  if (useServerBlobUpload(file)) {
     const j = await postFormUpload("/api/admin/brand-asset-upload", file);
     return { url: j.url, fileName: j.fileName ?? file.name, mime: j.mime ?? mime };
   }
@@ -101,7 +123,7 @@ export async function uploadManualPdfFile(
     throw new Error(`Máximo ${Math.round(MANUAL_PDF_MAX_BYTES / (1024 * 1024))} MB por manual.`);
   }
 
-  if (useLocalFilesystemUpload()) {
+  if (useServerBlobUpload(file)) {
     const j = await postFormUpload("/api/admin/manual-pdf-upload", file);
     return { url: j.url, fileName: j.fileName ?? file.name, mime: j.mime ?? "application/pdf" };
   }
@@ -127,7 +149,7 @@ export async function uploadAdminImageFile(
     throw new Error("Máximo 8MB");
   }
 
-  if (useLocalFilesystemUpload()) {
+  if (useServerBlobUpload(file)) {
     const extra: Record<string, string> = {};
     if (opts?.minWidth) extra.minWidth = String(opts.minWidth);
     if (opts?.minHeight) extra.minHeight = String(opts.minHeight);
