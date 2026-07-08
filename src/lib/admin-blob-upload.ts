@@ -138,8 +138,13 @@ export function hasBlobReadWriteToken(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
 }
 
+export function hasBlobStoreConnected(): boolean {
+  return Boolean(process.env.BLOB_STORE_ID?.trim());
+}
+
+/** OIDC en runtime: el SDK resuelve el token; no hace falta leer VERCEL_OIDC_TOKEN acá. */
 export function hasBlobOidcAuth(): boolean {
-  return Boolean(process.env.BLOB_STORE_ID?.trim() && process.env.VERCEL_OIDC_TOKEN?.trim());
+  return process.env.VERCEL === "1" && hasBlobStoreConnected();
 }
 
 export function hasBlobCredentials(): boolean {
@@ -163,7 +168,7 @@ export function blobPutOptions(
 }
 
 export function blobTokenMissingMessage(): string {
-  return "Falta autenticación de Blob en Vercel. Conectá el store (OIDC) o agregá BLOB_READ_WRITE_TOKEN para subidas grandes desde el navegador.";
+  return "Falta conectar Blob al proyecto en Vercel (Storage → Blob → Connect to Project, Preview + Production). Para archivos mayores a 4 MB desde el navegador, agregá también BLOB_READ_WRITE_TOKEN.";
 }
 
 export function isLocalAdminUploadHost(hostname: string): boolean {
