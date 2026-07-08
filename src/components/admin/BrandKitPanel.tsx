@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { brandUi, clientFrame } from "@/lib/brand-ui";
 import { uploadBrandAssetFile } from "@/lib/admin-client-upload";
+import { isLocalAdminUploadHost, isLocalDevUploadUrl } from "@/lib/admin-blob-upload";
 import {
   cardHasContent,
   cardPreviewBackground,
@@ -392,6 +393,10 @@ function FileGroupEditor({
       : cardKey === "tipografias"
         ? ".ttf,.otf,.woff,.woff2,.eot,.ttc,font/*"
         : undefined;
+  const hasStaleLocalUrls =
+    typeof window !== "undefined" &&
+    !isLocalAdminUploadHost(window.location.hostname) &&
+    group.files.some((file) => isLocalDevUploadUrl(file.url));
 
   return (
     <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: brandUi.border }}>
@@ -404,6 +409,12 @@ function FileGroupEditor({
           </span>
         )}
       </p>
+
+      {hasStaleLocalUrls && (
+        <p className="text-[10px] rounded-lg border px-2 py-1.5" style={{ borderColor: brandUi.accent, color: brandUi.accent }}>
+          Hay archivos subidos en local que no existen en Vercel. Volvé a subirlos acá para verlos en preview.
+        </p>
+      )}
 
       {gridPreview && group.files.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">

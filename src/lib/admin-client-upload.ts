@@ -17,6 +17,8 @@ import {
 } from "@/lib/admin-blob-upload";
 
 const BLOB_UPLOAD_URL = "/api/admin/blob-upload";
+const LARGE_UPLOAD_TOKEN_HINT =
+  "Archivos mayores a 4 MB requieren BLOB_READ_WRITE_TOKEN en Vercel (Storage → Blob → Read-Write Token → Preview + Production → redeploy).";
 
 type UploadPayload = {
   kind: "brand" | "manual" | "image";
@@ -75,12 +77,64 @@ async function uploadViaBlobClient(
       raw.includes("read-write token") ||
       raw.includes("HTTP 500")
     ) {
-      throw new Error(
-        "PDFs mayores a 4 MB requieren BLOB_READ_WRITE_TOKEN en Vercel (Storage → Blob → copiar Read-Write Token → agregar en Preview + Production y redeploy).",
-      );
+      throw new Error(LARGE_UPLOAD_TOKEN_HINT);
     }
     throw error;
   }
+}
+
+async function compressImageForServerUpload(file: File, maxBytes: number): Promise<File> {
+  if (file.size <= maxBytes) return file;
+  const mime = resolveBrandAssetMime(file);
+  if (!mime || !ADMIN_IMAGE_ALLOWED_CONTENT_TYPES.includes(mime)) return file;
+  if (mime === "image/svg+xml" || mime === "image/gif") return file;
+
+  const bitmap = await createImageBitmap(file);
+  try {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+
+    let maxDim = 2560;
+    let quality = 0.88;
+    const outputMime = mime === "image/png" ? "image/jpeg" : mime;
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, outputMime, quality);
+      });
+      if (!blob) break;
+      if (blob.size <= maxBytes) {
+        const base = file.name.replace(/\.[^.]+$/, "");
+        const ext = outputMime === "image/jpeg" ? ".jpg" : outputMime === "image/webp" ? ".webp" : ".png";
+        return new File([blob], `${base}${ext}`, { type: outputMime });
+      }
+
+      if (quality > 0.55) {
+        quality -= 0.08;
+      } else {
+        maxDim = Math.round(maxDim * 0.8);
+        quality = 0.82;
+      }
+    }
+
+    throw new Error(
+      `No se pudo optimizar la imagen por debajo de ${Math.round(maxBytes / (1024 * 1024))} MB. ${LARGE_UPLOAD_TOKEN_HINT}`,
+    );
+  } finally {
+    bitmap.close();
+  }
+}
+
+async function prepareFileForVercelUpload(file: File): Promise<File> {
+  if (useLocalFilesystemUpload() || useServerBlobUpload(file)) return file;
+  return compressImageForServerUpload(file, VERCEL_SERVER_UPLOAD_MAX_BYTES);
 }
 
 function useLocalFilesystemUpload(): boolean {
@@ -98,21 +152,27 @@ function useServerBlobUpload(file: File): boolean {
 export async function uploadBrandAssetFile(
   file: File,
 ): Promise<{ url: string; fileName: string; mime: string }> {
-  const mime = resolveBrandAssetMime(file);
+  const prepared = await prepareFileForVercelUpload(file);
+  const mime = resolveBrandAssetMime(prepared);
   if (!mime) {
     throw new Error("Tipo no permitido. Usá imagen, PDF, ZIP o fuente (.woff, .woff2, .otf, .ttf).");
   }
-  if (file.size > BRAND_ASSET_MAX_BYTES) {
+  if (prepared.size > BRAND_ASSET_MAX_BYTES) {
     throw new Error("Máximo 20MB por archivo.");
   }
 
-  if (useServerBlobUpload(file)) {
-    const j = await postFormUpload("/api/admin/brand-asset-upload", file);
-    return { url: j.url, fileName: j.fileName ?? file.name, mime: j.mime ?? mime };
+  if (useServerBlobUpload(prepared)) {
+    const j = await postFormUpload("/api/admin/brand-asset-upload", prepared);
+    return { url: j.url, fileName: j.fileName ?? prepared.name, mime: j.mime ?? mime };
   }
 
-  const pathname = buildBrandAssetPathname(file.name, mime);
-  return uploadViaBlobClient(pathname, file, { kind: "brand", fileName: file.name, mime }, { contentType: mime });
+  const pathname = buildBrandAssetPathname(prepared.name, mime);
+  return uploadViaBlobClient(
+    pathname,
+    prepared,
+    { kind: "brand", fileName: prepared.name, mime },
+    { contentType: mime },
+  );
 }
 
 export async function uploadManualPdfFile(
@@ -141,27 +201,28 @@ export async function uploadAdminImageFile(
   file: File,
   opts?: { minWidth?: number; minHeight?: number },
 ): Promise<string> {
-  const mime = resolveBrandAssetMime(file);
+  const prepared = await prepareFileForVercelUpload(file);
+  const mime = resolveBrandAssetMime(prepared);
   if (!mime || !ADMIN_IMAGE_ALLOWED_CONTENT_TYPES.includes(mime)) {
     throw new Error("Tipo no permitido.");
   }
-  if (file.size > ADMIN_IMAGE_MAX_BYTES) {
+  if (prepared.size > ADMIN_IMAGE_MAX_BYTES) {
     throw new Error("Máximo 8MB");
   }
 
-  if (useServerBlobUpload(file)) {
+  if (useServerBlobUpload(prepared)) {
     const extra: Record<string, string> = {};
     if (opts?.minWidth) extra.minWidth = String(opts.minWidth);
     if (opts?.minHeight) extra.minHeight = String(opts.minHeight);
-    const j = await postFormUpload("/api/upload", file, extra);
+    const j = await postFormUpload("/api/upload", prepared, extra);
     return j.url;
   }
 
-  const pathname = buildAdminImagePathname(file.name, mime);
+  const pathname = buildAdminImagePathname(prepared.name, mime);
   const uploaded = await uploadViaBlobClient(
     pathname,
-    file,
-    { kind: "image", fileName: file.name, mime },
+    prepared,
+    { kind: "image", fileName: prepared.name, mime },
     { contentType: mime },
   );
   return uploaded.url;

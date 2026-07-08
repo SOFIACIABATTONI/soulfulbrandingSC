@@ -170,5 +170,11 @@ export function isLocalAdminUploadHost(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1";
 }
 
+/** URLs guardadas en dev local (/uploads/...) no existen en Vercel hasta volver a subir. */
+export function isLocalDevUploadUrl(url: string): boolean {
+  const trimmed = url.trim();
+  return trimmed.startsWith("/uploads/");
+}
+
 export const BRAND_ASSET_ALLOWED_CONTENT_TYPES = Array.from(BRAND_ASSET_TYPES);
 export const ADMIN_IMAGE_ALLOWED_CONTENT_TYPES = Array.from(IMAGE_TYPES);
