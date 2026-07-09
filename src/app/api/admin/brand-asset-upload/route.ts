@@ -4,11 +4,11 @@ import path from "path";
 import { put } from "@vercel/blob";
 import { isAdminRequest } from "@/lib/auth-api";
 import {
-  blobPutOptions,
   blobStorageDiagnostics,
   blobStorageErrorMessage,
   BRAND_ASSET_MAX_BYTES,
   buildBrandAssetPathname,
+  resolveBlobPutOptions,
   resolveBrandAssetMime,
 } from "@/lib/admin-blob-upload";
 
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
         const blob = await put(
           name,
           buf,
-          blobPutOptions({
+          await resolveBlobPutOptions({
             access: "public",
             contentType: resolvedMime || "application/octet-stream",
           }),

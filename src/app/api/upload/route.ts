@@ -4,7 +4,7 @@ import path from "path";
 import { put } from "@vercel/blob";
 import { imageSize } from "image-size";
 import { isAdminRequest } from "@/lib/auth-api";
-import { blobPutOptions, blobStorageDiagnostics, blobStorageErrorMessage } from "@/lib/admin-blob-upload";
+import { blobStorageDiagnostics, blobStorageErrorMessage, resolveBlobPutOptions } from "@/lib/admin-blob-upload";
 
 export const runtime = "nodejs";
 
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
         const blob = await put(
           `uploads/${name}`,
           buf,
-          blobPutOptions({
+          await resolveBlobPutOptions({
             access: "public",
             contentType: file.type || "application/octet-stream",
           }),

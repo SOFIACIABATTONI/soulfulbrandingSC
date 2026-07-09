@@ -4,12 +4,12 @@ import path from "path";
 import { put } from "@vercel/blob";
 import { isAdminRequest } from "@/lib/auth-api";
 import {
-  blobPutOptions,
   blobStorageDiagnostics,
   blobStorageErrorMessage,
   buildManualPdfPathname,
   isPdfFile,
   MANUAL_PDF_MAX_BYTES,
+  resolveBlobPutOptions,
 } from "@/lib/admin-blob-upload";
 
 export const runtime = "nodejs";
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
         const blob = await put(
           name,
           buf,
-          blobPutOptions({
+          await resolveBlobPutOptions({
             access: "public",
             contentType: "application/pdf",
             multipart: file.size > 20 * 1024 * 1024,

@@ -160,12 +160,40 @@ export type BlobPutExtra = {
 export function blobPutOptions(extra: BlobPutExtra): BlobPutExtra & {
   token?: string;
   storeId?: string;
+  oidcToken?: string;
 } {
   const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
   const storeId = process.env.BLOB_STORE_ID?.trim();
   if (token) return { ...extra, token };
   if (storeId) return { ...extra, storeId };
   return extra;
+}
+
+/** En Vercel con OIDC, obtiene el token en runtime (no aparece en el dashboard). */
+export async function resolveBlobPutOptions(extra: BlobPutExtra): Promise<
+  BlobPutExtra & {
+    token?: string;
+    storeId?: string;
+    oidcToken?: string;
+  }
+> {
+  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  if (token) return { ...extra, token };
+
+  const storeId = process.env.BLOB_STORE_ID?.trim();
+  if (!storeId) return extra;
+
+  if (process.env.VERCEL === "1") {
+    try {
+      const { getVercelOidcToken } = await import("@vercel/oidc");
+      const oidcToken = await getVercelOidcToken();
+      if (oidcToken) return { ...extra, storeId, oidcToken };
+    } catch {
+      // El SDK puede resolver OIDC por su cuenta si el token está en el entorno.
+    }
+  }
+
+  return { ...extra, storeId };
 }
 
 export function blobStorageDiagnostics(): string {
@@ -181,12 +209,12 @@ export function blobStorageErrorMessage(cause?: string): string {
   const detail = cause?.trim();
   if (hasBlobReadWriteToken() || hasBlobStoreConnected()) {
     return detail
-      ? `No se pudo subir a Blob (${detail}). Reintentá o agregá BLOB_READ_WRITE_TOKEN en Vercel y redeploy.`
-      : "No se pudo subir a Blob. Reintentá o agregá BLOB_READ_WRITE_TOKEN en Vercel y redeploy.";
+      ? `No se pudo subir a Blob (${detail}). En Ajustes del store probá «Rotate Credentials» y redeploy del preview.`
+      : "No se pudo subir a Blob. En Ajustes del store probá «Rotate Credentials» y redeploy del preview.";
   }
   return (
     "Falta conectar Blob al proyecto en Vercel (Storage → Blob → Connect, Preview + Production). " +
-    "Para subidas desde el navegador, copiá el Read-Write Token en Ajustes del store y agregalo como BLOB_READ_WRITE_TOKEN."
+    "Con OIDC no hay token visible: usá «Rotate Credentials» en Ajustes del store y redeploy."
   );
 }
 
