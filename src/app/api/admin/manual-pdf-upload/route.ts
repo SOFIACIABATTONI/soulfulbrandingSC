@@ -5,9 +5,9 @@ import { put } from "@vercel/blob";
 import { isAdminRequest } from "@/lib/auth-api";
 import {
   blobPutOptions,
-  blobTokenMissingMessage,
+  blobStorageDiagnostics,
+  blobStorageErrorMessage,
   buildManualPdfPathname,
-  hasBlobCredentials,
   isPdfFile,
   MANUAL_PDF_MAX_BYTES,
 } from "@/lib/admin-blob-upload";
@@ -40,23 +40,26 @@ export async function POST(req: Request) {
 
     const onVercel = process.env.VERCEL === "1";
     if (onVercel) {
-      if (!hasBlobCredentials()) {
-        return NextResponse.json({ error: blobTokenMissingMessage() }, { status: 500 });
+      try {
+        const blob = await put(
+          name,
+          buf,
+          blobPutOptions({
+            access: "public",
+            contentType: "application/pdf",
+            multipart: file.size > 20 * 1024 * 1024,
+          }),
+        );
+        return NextResponse.json({
+          url: blob.url,
+          fileName: file.name,
+          mime: "application/pdf",
+        });
+      } catch (error) {
+        const cause = error instanceof Error ? error.message : String(error);
+        console.error("[api/admin/manual-pdf-upload] blob put failed", cause, blobStorageDiagnostics());
+        return NextResponse.json({ error: blobStorageErrorMessage(cause) }, { status: 500 });
       }
-      const blob = await put(
-        name,
-        buf,
-        blobPutOptions({
-          access: "public",
-          contentType: "application/pdf",
-          multipart: file.size > 20 * 1024 * 1024,
-        }),
-      );
-      return NextResponse.json({
-        url: blob.url,
-        fileName: file.name,
-        mime: "application/pdf",
-      });
     }
 
     const dir = path.join(process.cwd(), "public", "uploads", "manual");

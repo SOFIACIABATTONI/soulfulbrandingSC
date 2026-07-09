@@ -5,10 +5,10 @@ import { put } from "@vercel/blob";
 import { isAdminRequest } from "@/lib/auth-api";
 import {
   blobPutOptions,
-  blobTokenMissingMessage,
+  blobStorageDiagnostics,
+  blobStorageErrorMessage,
   BRAND_ASSET_MAX_BYTES,
   buildBrandAssetPathname,
-  hasBlobCredentials,
   resolveBrandAssetMime,
 } from "@/lib/admin-blob-upload";
 
@@ -42,22 +42,25 @@ export async function POST(req: Request) {
 
     const onVercel = process.env.VERCEL === "1";
     if (onVercel) {
-      if (!hasBlobCredentials()) {
-        return NextResponse.json({ error: blobTokenMissingMessage() }, { status: 500 });
+      try {
+        const blob = await put(
+          name,
+          buf,
+          blobPutOptions({
+            access: "public",
+            contentType: resolvedMime || "application/octet-stream",
+          }),
+        );
+        return NextResponse.json({
+          url: blob.url,
+          fileName: file.name,
+          mime: resolvedMime,
+        });
+      } catch (error) {
+        const cause = error instanceof Error ? error.message : String(error);
+        console.error("[api/admin/brand-asset-upload] blob put failed", cause, blobStorageDiagnostics());
+        return NextResponse.json({ error: blobStorageErrorMessage(cause) }, { status: 500 });
       }
-      const blob = await put(
-        name,
-        buf,
-        blobPutOptions({
-          access: "public",
-          contentType: resolvedMime || "application/octet-stream",
-        }),
-      );
-      return NextResponse.json({
-        url: blob.url,
-        fileName: file.name,
-        mime: resolvedMime,
-      });
     }
 
     const dir = path.join(process.cwd(), "public", "uploads", "brand");

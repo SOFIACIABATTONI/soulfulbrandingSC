@@ -4,7 +4,7 @@ import path from "path";
 import { put } from "@vercel/blob";
 import { imageSize } from "image-size";
 import { isAdminRequest } from "@/lib/auth-api";
-import { blobPutOptions, blobTokenMissingMessage, hasBlobCredentials } from "@/lib/admin-blob-upload";
+import { blobPutOptions, blobStorageDiagnostics, blobStorageErrorMessage } from "@/lib/admin-blob-upload";
 
 export const runtime = "nodejs";
 
@@ -57,18 +57,21 @@ export async function POST(req: Request) {
     const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
     const onVercel = process.env.VERCEL === "1";
     if (onVercel) {
-      if (!hasBlobCredentials()) {
-        return NextResponse.json({ error: blobTokenMissingMessage() }, { status: 500 });
+      try {
+        const blob = await put(
+          `uploads/${name}`,
+          buf,
+          blobPutOptions({
+            access: "public",
+            contentType: file.type || "application/octet-stream",
+          }),
+        );
+        return NextResponse.json({ url: blob.url });
+      } catch (error) {
+        const cause = error instanceof Error ? error.message : String(error);
+        console.error("[api/upload] blob put failed", cause, blobStorageDiagnostics());
+        return NextResponse.json({ error: blobStorageErrorMessage(cause) }, { status: 500 });
       }
-      const blob = await put(
-        `uploads/${name}`,
-        buf,
-        blobPutOptions({
-          access: "public",
-          contentType: file.type || "application/octet-stream",
-        }),
-      );
-      return NextResponse.json({ url: blob.url });
     }
 
     const dir = path.join(process.cwd(), "public", "uploads");

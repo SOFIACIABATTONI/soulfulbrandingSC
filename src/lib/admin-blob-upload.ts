@@ -151,24 +151,47 @@ export function hasBlobCredentials(): boolean {
   return hasBlobReadWriteToken() || hasBlobOidcAuth();
 }
 
-export function blobPutOptions(
-  extra: {
-    access: "public";
-    contentType: string;
-    multipart?: boolean;
-  },
-): {
+export type BlobPutExtra = {
   access: "public";
   contentType: string;
   multipart?: boolean;
+};
+
+export function blobPutOptions(extra: BlobPutExtra): BlobPutExtra & {
   token?: string;
+  storeId?: string;
 } {
   const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-  return token ? { ...extra, token } : extra;
+  const storeId = process.env.BLOB_STORE_ID?.trim();
+  if (token) return { ...extra, token };
+  if (storeId) return { ...extra, storeId };
+  return extra;
+}
+
+export function blobStorageDiagnostics(): string {
+  const parts = [
+    `vercel=${process.env.VERCEL === "1" ? "sí" : "no"}`,
+    `BLOB_STORE_ID=${hasBlobStoreConnected() ? "sí" : "no"}`,
+    `BLOB_READ_WRITE_TOKEN=${hasBlobReadWriteToken() ? "sí" : "no"}`,
+  ];
+  return parts.join(", ");
+}
+
+export function blobStorageErrorMessage(cause?: string): string {
+  const detail = cause?.trim();
+  if (hasBlobReadWriteToken() || hasBlobStoreConnected()) {
+    return detail
+      ? `No se pudo subir a Blob (${detail}). Reintentá o agregá BLOB_READ_WRITE_TOKEN en Vercel y redeploy.`
+      : "No se pudo subir a Blob. Reintentá o agregá BLOB_READ_WRITE_TOKEN en Vercel y redeploy.";
+  }
+  return (
+    "Falta conectar Blob al proyecto en Vercel (Storage → Blob → Connect, Preview + Production). " +
+    "Para subidas desde el navegador, copiá el Read-Write Token en Ajustes del store y agregalo como BLOB_READ_WRITE_TOKEN."
+  );
 }
 
 export function blobTokenMissingMessage(): string {
-  return "Falta conectar Blob al proyecto en Vercel (Storage → Blob → Connect to Project, Preview + Production). Para archivos mayores a 4 MB desde el navegador, agregá también BLOB_READ_WRITE_TOKEN.";
+  return blobStorageErrorMessage();
 }
 
 export function isLocalAdminUploadHost(hostname: string): boolean {
