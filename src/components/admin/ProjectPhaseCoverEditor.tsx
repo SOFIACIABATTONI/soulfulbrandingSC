@@ -6,7 +6,6 @@ import { brandUi } from "@/lib/brand-ui";
 type ProjectPhaseCoverEditorProps = {
   label: string;
   coverUrl: string;
-  fallbackUrl: string;
   onUploadingChange?: (uploading: boolean) => void;
   onChange: (coverUrl: string) => void;
 };
@@ -14,11 +13,10 @@ type ProjectPhaseCoverEditorProps = {
 export function ProjectPhaseCoverEditor({
   label,
   coverUrl,
-  fallbackUrl,
   onUploadingChange,
   onChange,
 }: ProjectPhaseCoverEditorProps) {
-  const displayUrl = coverUrl.trim() || fallbackUrl;
+  const hasCover = Boolean(coverUrl.trim());
 
   async function handleFile(fileList: FileList | null) {
     const file = fileList?.[0];
@@ -40,8 +38,13 @@ export function ProjectPhaseCoverEditor({
       style={{ borderColor: brandUi.border, background: "rgba(255,255,255,0.92)" }}
     >
       <div
-        className="h-16 w-28 rounded-lg border bg-cover bg-center shrink-0"
-        style={{ backgroundImage: `url("${displayUrl}")`, borderColor: brandUi.border }}
+        className="h-16 w-28 rounded-lg border bg-neutral-50 shrink-0"
+        style={{
+          borderColor: brandUi.border,
+          ...(hasCover
+            ? { backgroundImage: `url("${coverUrl.trim()}")`, backgroundSize: "cover", backgroundPosition: "center" }
+            : {}),
+        }}
         aria-hidden
       />
       <div className="min-w-0 flex-1">
@@ -49,7 +52,9 @@ export function ProjectPhaseCoverEditor({
           Portada — {label}
         </p>
         <p className="text-[10px] mt-0.5" style={{ color: brandUi.textMuted }}>
-          Cambiá la imagen de la card y del encabezado de esta etapa en este proyecto.
+          {hasCover
+            ? "Cambiá la imagen de la card y del encabezado de esta etapa en este proyecto."
+            : "Sin imagen — la card y el encabezado quedan en blanco hasta que subas una."}
         </p>
       </div>
       <div className="flex flex-wrap gap-2 shrink-0">
@@ -57,7 +62,7 @@ export function ProjectPhaseCoverEditor({
           className="rounded-full px-3 py-1.5 text-[11px] font-medium border cursor-pointer"
           style={{ borderColor: brandUi.borderStrong }}
         >
-          Cambiar imagen
+          {hasCover ? "Cambiar imagen" : "Subir imagen"}
           <input
             type="file"
             accept="image/*,.jpg,.jpeg,.png,.webp"
@@ -68,14 +73,14 @@ export function ProjectPhaseCoverEditor({
             }}
           />
         </label>
-        {coverUrl.trim() && (
+        {hasCover && (
           <button
             type="button"
             className="text-[11px]"
             style={{ color: brandUi.accent }}
             onClick={() => onChange("")}
           >
-            Restaurar default
+            Quitar imagen
           </button>
         )}
       </div>

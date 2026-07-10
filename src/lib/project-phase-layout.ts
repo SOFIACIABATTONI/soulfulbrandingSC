@@ -58,12 +58,14 @@ export function buildProjectPhaseList(customDefs: CustomPhaseDefinition[]): Proj
   return [...DEFAULT_PROJECT_PHASES, ...customPhases];
 }
 
-export function resolvePhaseCoverImage(
-  def: ProjectPhaseDefinition,
-  content?: { coverUrl?: string },
-): string {
-  const primary = content?.coverUrl?.trim() || def.cover;
-  return `url("${primary}"), url("${def.fallback}")`;
+export function resolvePhaseCoverImage(content?: { coverUrl?: string }): string | null {
+  const url = content?.coverUrl?.trim();
+  if (!url) return null;
+  return `url("${url}")`;
+}
+
+export function hasPhaseCoverImage(content?: { coverUrl?: string }): boolean {
+  return Boolean(content?.coverUrl?.trim());
 }
 
 export function customPhaseAccessPurpose(phaseKey: string): string {

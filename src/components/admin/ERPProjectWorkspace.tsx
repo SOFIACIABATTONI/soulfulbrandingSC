@@ -23,6 +23,7 @@ import {
   PROJECT_LAYOUT_STORAGE_KEY,
   resolvePhaseCoverImage,
   serializeCustomPhaseDefinitions,
+  hasPhaseCoverImage,
   type CustomPhaseDefinition,
 } from "@/lib/project-phase-layout";
 import { getPhaseClientMeta, type PhaseClientMeta } from "@/lib/phase-client-store";
@@ -182,11 +183,9 @@ function parsePhases(
   return result;
 }
 
-function phaseCoverImage(
-  ph: ProjectPhaseDefinition,
-  content?: Pick<PhaseContent, "coverUrl">,
-): string {
-  return resolvePhaseCoverImage(ph, { coverUrl: content?.coverUrl });
+function phaseCoverImage(content?: Pick<PhaseContent, "coverUrl">): string | undefined {
+  const resolved = resolvePhaseCoverImage({ coverUrl: content?.coverUrl });
+  return resolved ?? undefined;
 }
 
 function formatPhaseDateLabel(iso: string): string {
@@ -587,14 +586,19 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
             const pc = phases[ph.key] ?? emptyPhaseContent();
             const stc = STATE_COLORS[pc.state] ?? STATE_COLORS.pending;
             const dateRange = formatPhaseDateRange(pc.startDate, pc.endDate);
+            const hasCover = hasPhaseCoverImage(pc);
             return (
               <a key={ph.key} href={`#fase-${ph.key}`}
                 className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                 <article>
-                  <div className="relative h-[160px] overflow-hidden bg-neutral-100">
-                    <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 ease-out group-hover:scale-105"
-                      style={{ backgroundImage: phaseCoverImage(ph, pc) }} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/5 to-transparent" />
+                  <div className="relative h-[160px] overflow-hidden bg-neutral-50">
+                    {hasCover && (
+                      <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 ease-out group-hover:scale-105"
+                        style={{ backgroundImage: phaseCoverImage(pc) }} />
+                    )}
+                    {hasCover && (
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/5 to-transparent" />
+                    )}
                     <div className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[10px] font-medium shadow-sm"
                       style={{ color: stc.color }}>
                       {STATE_OPTIONS.find((s) => s.value === pc.state)?.label ?? "Pendiente"}
@@ -646,21 +650,24 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
           const pc = phases[ph.key] ?? emptyPhaseContent();
           const isSaving = savingPhase === ph.key;
           const isCustom = ph.genericClient === true;
+          const hasCover = hasPhaseCoverImage(pc);
           return (
             <section key={ph.key} id={`fase-${ph.key}`}
               className="scroll-mt-24 overflow-hidden rounded-[24px] border border-neutral-200 bg-white shadow-sm">
               {/* Portada */}
-              <div className="relative h-[180px] overflow-hidden border-b border-neutral-200 bg-neutral-100">
-                <div className="absolute inset-0 bg-cover bg-center"
-                  style={{ backgroundImage: phaseCoverImage(ph, pc) }} />
-                <div className="absolute inset-0 bg-brand-navy/10" />
+              <div className="relative h-[180px] overflow-hidden border-b border-neutral-200 bg-neutral-50">
+                {hasCover && (
+                  <div className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: phaseCoverImage(pc) }} />
+                )}
+                {hasCover && <div className="absolute inset-0 bg-brand-navy/10" />}
                 <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-3 px-5 pb-5">
-                  <div className="max-w-2xl text-white">
-                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/70">
+                  <div className={`max-w-2xl ${hasCover ? "text-white" : "text-neutral-900"}`}>
+                    <p className={`text-xs font-medium uppercase tracking-[0.2em] ${hasCover ? "text-white/70" : "text-neutral-400"}`}>
                       Etapa del proyecto
                     </p>
                     <h3 className="mt-1 text-2xl font-semibold">{ph.title}</h3>
-                    <p className="mt-1 text-sm text-white/85">{ph.desc}</p>
+                    <p className={`mt-1 text-sm ${hasCover ? "text-white/85" : "text-neutral-500"}`}>{ph.desc}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {isCustom && (
@@ -673,7 +680,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                       </button>
                     )}
                     <a href="#phases-grid"
-                      className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-neutral-800">
+                      className={`rounded-full px-4 py-2 text-xs font-medium ${hasCover ? "bg-white/90 text-neutral-800" : "border border-neutral-200 bg-white text-neutral-800"}`}>
                       Volver a cards
                     </a>
                   </div>
@@ -684,7 +691,6 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                 <ProjectPhaseCoverEditor
                   label={ph.title}
                   coverUrl={pc.coverUrl}
-                  fallbackUrl={ph.fallback}
                   onUploadingChange={(uploading) =>
                     setCoverUploadingKey(uploading ? ph.key : null)
                   }

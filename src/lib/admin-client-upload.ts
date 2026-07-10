@@ -27,40 +27,76 @@ type UploadPayload = {
   mime: string;
 };
 
+export type UploadProgressEvent = {
+  loaded: number;
+  total: number;
+  percentage: number;
+  phase: "upload" | "save";
+};
+
 async function postFormUpload(
   endpoint: string,
   file: File,
   extra?: Record<string, string>,
+  onProgress?: (event: UploadProgressEvent) => void,
 ): Promise<{ url: string; fileName?: string; mime?: string; error?: string }> {
-  const fd = new FormData();
-  fd.set("file", file);
-  if (extra) {
-    for (const [key, value] of Object.entries(extra)) fd.set(key, value);
-  }
-  const res = await fetch(endpoint, { method: "POST", body: fd, credentials: "include" });
-  const raw = await res.text();
-  let j: { url?: string; fileName?: string; mime?: string; error?: string } = {};
-  try {
-    if (raw) j = JSON.parse(raw) as typeof j;
-  } catch {
-    j = {};
-  }
-  if (!res.ok) {
-    const fallback =
-      res.status === 413
-        ? "El archivo es demasiado grande para subir por el servidor. Probá de nuevo; en Vercel usamos subida directa a Blob."
-        : `Error al subir (HTTP ${res.status}).`;
-    throw new Error(j?.error || fallback);
-  }
-  if (!j.url) throw new Error(j.error ?? "Respuesta inválida del servidor al subir.");
-  return { url: j.url, fileName: j.fileName, mime: j.mime, error: j.error };
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", endpoint);
+    xhr.withCredentials = true;
+
+    xhr.upload.onprogress = (event) => {
+      if (!onProgress || !event.lengthComputable) return;
+      const ratio = event.total > 0 ? event.loaded / event.total : 0;
+      onProgress({
+        loaded: event.loaded,
+        total: event.total,
+        percentage: Math.min(88, Math.round(ratio * 88)),
+        phase: "upload",
+      });
+    };
+
+    xhr.onload = () => {
+      const raw = xhr.responseText ?? "";
+      let j: { url?: string; fileName?: string; mime?: string; error?: string } = {};
+      try {
+        if (raw) j = JSON.parse(raw) as typeof j;
+      } catch {
+        j = {};
+      }
+
+      if (xhr.status < 200 || xhr.status >= 300) {
+        const fallback =
+          xhr.status === 413
+            ? "El archivo es demasiado grande para subir por el servidor. Probá de nuevo; en Vercel usamos subida directa a Blob."
+            : `Error al subir (HTTP ${xhr.status}).`;
+        reject(new Error(j?.error || fallback));
+        return;
+      }
+      if (!j.url) {
+        reject(new Error(j.error ?? "Respuesta inválida del servidor al subir."));
+        return;
+      }
+      resolve({ url: j.url, fileName: j.fileName, mime: j.mime, error: j.error });
+    };
+
+    xhr.onerror = () => reject(new Error("Error de red al subir el archivo."));
+    xhr.onabort = () => reject(new Error("Subida cancelada."));
+
+    const fd = new FormData();
+    fd.set("file", file);
+    if (extra) {
+      for (const [key, value] of Object.entries(extra)) fd.set(key, value);
+    }
+    xhr.send(fd);
+  });
 }
 
 async function uploadViaBlobClient(
   pathname: string,
   file: File,
   payload: UploadPayload,
-  opts?: { multipart?: boolean; contentType?: string },
+  opts?: { multipart?: boolean; contentType?: string; onProgress?: (event: UploadProgressEvent) => void },
 ): Promise<{ url: string; fileName: string; mime: string }> {
   try {
     const blob = await uploadPresigned(pathname, file, {
@@ -69,6 +105,16 @@ async function uploadViaBlobClient(
       clientPayload: JSON.stringify(payload),
       contentType: opts?.contentType ?? payload.mime,
       multipart: opts?.multipart ?? file.size > 20 * 1024 * 1024,
+      onUploadProgress: opts?.onProgress
+        ? (progress) => {
+            opts.onProgress?.({
+              loaded: progress.loaded,
+              total: progress.total,
+              percentage: Math.min(88, Math.round(progress.percentage * 0.88)),
+              phase: "upload",
+            });
+          }
+        : undefined,
     });
     return { url: blob.url, fileName: payload.fileName, mime: payload.mime };
   } catch (error) {
@@ -174,24 +220,31 @@ export async function uploadBrandAssetFile(
 
 export async function uploadManualPdfFile(
   file: File,
+  onProgress?: (event: UploadProgressEvent) => void,
 ): Promise<{ url: string; fileName: string; mime: string }> {
   if (!isPdfFile(file)) throw new Error("Subí un archivo PDF.");
   if (file.size > MANUAL_PDF_MAX_BYTES) {
     throw new Error(`Máximo ${Math.round(MANUAL_PDF_MAX_BYTES / (1024 * 1024))} MB por manual.`);
   }
 
+  onProgress?.({ loaded: 0, total: file.size, percentage: 2, phase: "upload" });
+
+  let result: { url: string; fileName: string; mime: string };
   if (useServerBlobUpload(file)) {
-    const j = await postFormUpload("/api/admin/manual-pdf-upload", file);
-    return { url: j.url, fileName: j.fileName ?? file.name, mime: j.mime ?? "application/pdf" };
+    const j = await postFormUpload("/api/admin/manual-pdf-upload", file, undefined, onProgress);
+    result = { url: j.url, fileName: j.fileName ?? file.name, mime: j.mime ?? "application/pdf" };
+  } else {
+    const pathname = buildManualPdfPathname(file.name);
+    result = await uploadViaBlobClient(
+      pathname,
+      file,
+      { kind: "manual", fileName: file.name, mime: "application/pdf" },
+      { contentType: "application/pdf", multipart: file.size > 8 * 1024 * 1024, onProgress },
+    );
   }
 
-  const pathname = buildManualPdfPathname(file.name);
-  return uploadViaBlobClient(
-    pathname,
-    file,
-    { kind: "manual", fileName: file.name, mime: "application/pdf" },
-    { contentType: "application/pdf", multipart: file.size > 8 * 1024 * 1024 },
-  );
+  onProgress?.({ loaded: file.size, total: file.size, percentage: 92, phase: "save" });
+  return result;
 }
 
 export async function uploadAdminImageFile(
