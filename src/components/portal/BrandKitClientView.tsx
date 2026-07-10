@@ -25,7 +25,7 @@ export function BrandKitClientView({
   brandKit: BrandKit;
   zipDownloadUrl?: string | null;
 }) {
-  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [openCardId, setOpenCardId] = useState<string | null>(null);
 
   if (!brandKitHasContent(brandKit)) return null;
 
@@ -68,11 +68,11 @@ export function BrandKitClientView({
                 : { background: "linear-gradient(135deg, rgba(50,63,246,0.12), rgba(240,49,114,0.12))" };
           return (
             <button
-              key={card.key}
+              key={card.id}
               type="button"
-              onClick={() => setOpenKey(openKey === card.key ? null : card.key)}
+              onClick={() => setOpenCardId(openCardId === card.id ? null : card.id)}
               className="rounded-xl border overflow-hidden text-left"
-              style={{ borderColor: openKey === card.key ? brandUi.blue : brandUi.border }}
+              style={{ borderColor: openCardId === card.id ? brandUi.blue : brandUi.border }}
             >
               <div className="h-20" style={previewStyle} />
               <p className="px-2 py-2 text-[11px] font-medium leading-snug" style={{ color: brandUi.text }}>
@@ -88,10 +88,10 @@ export function BrandKitClientView({
         })}
       </div>
 
-      {openKey && (
+      {openCardId && (
         <CardClientDetail
-          card={visibleCards.find((c) => c.key === openKey)!}
-          onClose={() => setOpenKey(null)}
+          card={visibleCards.find((c) => c.id === openCardId)!}
+          onClose={() => setOpenCardId(null)}
         />
       )}
     </div>
@@ -197,6 +197,12 @@ function CardClientDetail({ card, onClose }: { card: BrandKitCard; onClose: () =
         );
       })}
 
+      {card.notes.trim() && (
+        <p className="text-xs leading-relaxed" style={{ color: brandUi.textMuted }}>
+          {card.notes.trim()}
+        </p>
+      )}
+
       {card.driveUrl.trim() && (
         <a
           href={card.driveUrl.trim()}
@@ -212,7 +218,8 @@ function CardClientDetail({ card, onClose }: { card: BrandKitCard; onClose: () =
       {paletteColors.length === 0 &&
         deliverableCardFiles(card).length === 0 &&
         !card.driveUrl.trim() &&
-        !card.sourceUrl.trim() && (
+        !card.sourceUrl.trim() &&
+        !card.notes.trim() && (
           <p className="text-xs" style={{ color: brandUi.textFaint }}>
             Sin contenido en esta sección.
           </p>

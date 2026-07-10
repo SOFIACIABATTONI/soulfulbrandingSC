@@ -10,7 +10,14 @@ export type BrandKitCardKey =
   | "direccion-creativa"
   | "manual-marca"
   | "brand-sheet"
-  | "kit-canva";
+  | "kit-canva"
+  | `custom-${string}`;
+
+export const CUSTOM_BRAND_KIT_KEY_PREFIX = "custom-" as const;
+
+export function isCustomBrandKitCardKey(key: string): key is `custom-${string}` {
+  return key.startsWith(CUSTOM_BRAND_KIT_KEY_PREFIX);
+}
 
 export const PALETTE_CARD_KEY = "paleta-colores" as const satisfies BrandKitCardKey;
 
@@ -53,7 +60,7 @@ export type BrandKit = {
 
 /** Cards fijas de la identidad visual (referencia Notion Brand ID). */
 export const BRAND_KIT_CARD_CATALOG: Array<{
-  key: BrandKitCardKey;
+  key: Exclude<BrandKitCardKey, `custom-${string}`>;
   title: string;
   kind: "files" | "palette" | "fonts" | "trama" | "link";
   defaultGroups: string[];
@@ -86,6 +93,10 @@ export const BRAND_KIT_CARD_CATALOG: Array<{
   },
   { key: "kit-canva", title: "Kit de marca → Canva", kind: "link", defaultGroups: ["Presentación"] },
 ];
+
+export function isCatalogBrandKitCardKey(key: string): key is Exclude<BrandKitCardKey, `custom-${string}`> {
+  return BRAND_KIT_CARD_CATALOG.some((c) => c.key === key);
+}
 
 /** Solo preview en admin/portal — no se incluye en ZIP, HTML ni descargas al cliente. */
 export const BRAND_KIT_PRESENTATION_GROUP = "Presentación";
@@ -206,7 +217,7 @@ function emptyFileGroup(label: string): BrandKitFileGroup {
   return { id: createBrandKitId(), label, files: [] };
 }
 
-export function createDefaultBrandKitCard(key: BrandKitCardKey): BrandKitCard {
+export function createDefaultBrandKitCard(key: Exclude<BrandKitCardKey, `custom-${string}`>): BrandKitCard {
   const def = BRAND_KIT_CARD_CATALOG.find((c) => c.key === key)!;
   return {
     id: createBrandKitId(),
@@ -218,6 +229,36 @@ export function createDefaultBrandKitCard(key: BrandKitCardKey): BrandKitCard {
     fileGroups: def.defaultGroups.map(emptyFileGroup),
     colors: [],
   };
+}
+
+export function createCustomBrandKitCard(title: string): BrandKitCard {
+  const key = `${CUSTOM_BRAND_KIT_KEY_PREFIX}${createBrandKitId()}` as BrandKitCardKey;
+  return ensurePresentationGroup({
+    id: createBrandKitId(),
+    key,
+    title: title.trim() || "Nueva sección",
+    driveUrl: "",
+    sourceUrl: "",
+    notes: "",
+    fileGroups: ["Presentación", "Archivos"].map(emptyFileGroup),
+    colors: [],
+  });
+}
+
+export function getPresentationFileGroup(card: BrandKitCard): BrandKitFileGroup {
+  const existing = card.fileGroups.find((g) => g.label === BRAND_KIT_PRESENTATION_GROUP);
+  if (existing) return existing;
+  return emptyFileGroup(BRAND_KIT_PRESENTATION_GROUP);
+}
+
+export function setCardCoverFiles(card: BrandKitCard, files: BrandKitAssetFile[]): BrandKitCard {
+  const hasPresentation = card.fileGroups.some((g) => g.label === BRAND_KIT_PRESENTATION_GROUP);
+  const fileGroups = hasPresentation
+    ? card.fileGroups.map((g) =>
+        g.label === BRAND_KIT_PRESENTATION_GROUP ? { ...g, files } : g,
+      )
+    : [{ ...emptyFileGroup(BRAND_KIT_PRESENTATION_GROUP), files }, ...card.fileGroups];
+  return ensurePresentationGroup({ ...card, fileGroups });
 }
 
 export function emptyBrandKit(): BrandKit {
@@ -273,9 +314,12 @@ function ensurePresentationGroup(card: BrandKitCard): BrandKitCard {
 }
 
 function parseCard(raw: Record<string, unknown>): BrandKitCard | null {
-  const key = String(raw.key ?? "") as BrandKitCardKey;
-  if (!BRAND_KIT_CARD_CATALOG.some((c) => c.key === key)) return null;
-  const def = BRAND_KIT_CARD_CATALOG.find((c) => c.key === key)!;
+  const key = String(raw.key ?? "");
+  const isCustom = isCustomBrandKitCardKey(key);
+  const isCatalog = isCatalogBrandKitCardKey(key);
+  if (!isCustom && !isCatalog) return null;
+
+  const def = getBrandKitCardDef(key);
   const fileGroups = Array.isArray(raw.fileGroups)
     ? raw.fileGroups
         .filter((g): g is Record<string, unknown> => !!g && typeof g === "object")
@@ -284,7 +328,7 @@ function parseCard(raw: Record<string, unknown>): BrandKitCard | null {
 
   return ensurePresentationGroup({
     id: String(raw.id ?? createBrandKitId()),
-    key,
+    key: key as BrandKitCardKey,
     title: String(raw.title ?? def.title),
     driveUrl: String(raw.driveUrl ?? ""),
     sourceUrl: String(raw.sourceUrl ?? ""),
@@ -400,10 +444,11 @@ export function parseBrandKit(raw: unknown): BrandKit {
       .map(parseCard)
       .filter((c): c is BrandKitCard => c != null);
     const byKey = new Map(parsed.map((c) => [c.key, c]));
-    const cards = consolidatePaletteColors(
+    const catalogCards = consolidatePaletteColors(
       BRAND_KIT_CARD_CATALOG.map((def) => byKey.get(def.key) ?? createDefaultBrandKitCard(def.key)),
     );
-    return { version: 2, cards };
+    const customCards = parsed.filter((c) => isCustomBrandKitCardKey(c.key));
+    return { version: 2, cards: [...catalogCards, ...customCards] };
   }
 
   if ("colors" in o || "fonts" in o || "files" in o) {
@@ -483,8 +528,20 @@ export function isImageAssetFile(file: BrandKitAssetFile): boolean {
   return /\.(png|jpe?g|webp|gif|svg)$/i.test(file.fileName);
 }
 
-export function getBrandKitCardDef(key: BrandKitCardKey) {
-  return BRAND_KIT_CARD_CATALOG.find((c) => c.key === key)!;
+export function getBrandKitCardDef(key: string): {
+  key: string;
+  title: string;
+  kind: "files" | "palette" | "fonts" | "trama" | "link" | "custom";
+  defaultGroups: string[];
+} {
+  const catalog = BRAND_KIT_CARD_CATALOG.find((c) => c.key === key);
+  if (catalog) return catalog;
+  return {
+    key,
+    title: "Nueva sección",
+    kind: "custom",
+    defaultGroups: ["Presentación", "Archivos"],
+  };
 }
 
 export function cardDownloadableSquares(card: BrandKitCard): BrandKitAssetFile[] {

@@ -7,21 +7,24 @@ import { isLocalAdminUploadHost, isLocalDevUploadUrl } from "@/lib/admin-blob-up
 import {
   cardHasContent,
   cardPreviewBackground,
+  cardPreviewImage,
   cardColorCount,
   createBrandKitId,
+  createCustomBrandKitCard,
   getBrandKitCardDef,
   hexToRgb,
   hexToCmyk,
+  isCustomBrandKitCardKey,
   isImageAssetFile,
   isValidHex,
   normalizeHex,
   parseBrandKit,
   parseBrandKitColorsText,
   serializeBrandKit,
+  setCardCoverFiles,
   type BrandKit,
   type BrandKitAssetFile,
   type BrandKitCard,
-  type BrandKitCardKey,
   type BrandKitColor,
   type BrandKitFileGroup,
 } from "@/lib/brand-kit";
@@ -35,7 +38,8 @@ type BrandKitPanelProps = {
 
 export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave }: BrandKitPanelProps) {
   const [kit, setKit] = useState<BrandKit>(() => parseBrandKit(brandKitJson));
-  const [activeKey, setActiveKey] = useState<BrandKitCardKey | null>(null);
+  const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  const [newCardTitle, setNewCardTitle] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -51,7 +55,7 @@ export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave
     if (saveTimer.current) clearTimeout(saveTimer.current);
   }, []);
 
-  const activeCard = activeKey ? kit.cards.find((c) => c.key === activeKey) : null;
+  const activeCard = activeCardId ? kit.cards.find((c) => c.id === activeCardId) ?? null : null;
 
   async function persist(nextKit: BrandKit, opts?: { silent?: boolean }) {
     const serialized = serializeBrandKit(nextKit);
@@ -76,16 +80,18 @@ export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave
     });
   }
 
-  function updateCard(key: BrandKitCardKey, updater: (card: BrandKitCard) => BrandKitCard) {
+  function updateCardById(cardId: string, updater: (card: BrandKitCard) => BrandKitCard) {
     updateKit((prev) => ({
       ...prev,
-      cards: prev.cards.map((c) => (c.key === key ? updater(c) : c)),
+      cards: prev.cards.map((c) => (c.id === cardId ? updater(c) : c)),
     }));
   }
 
-  async function uploadToGroup(cardKey: BrandKitCardKey, groupId: string, fileList: FileList | null) {
+  async function uploadToGroup(cardId: string, groupId: string, fileList: FileList | null) {
     if (!fileList?.length) return;
-    setUploadingKey(`${cardKey}-${groupId}`);
+    const card = kit.cards.find((c) => c.id === cardId);
+    if (!card) return;
+    setUploadingKey(`${cardId}-${groupId}`);
     setMessage(null);
     try {
       const uploaded: BrandKitAssetFile[] = [];
@@ -98,9 +104,9 @@ export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave
           mime: u.mime,
         });
       }
-      updateCard(cardKey, (card) => ({
-        ...card,
-        fileGroups: card.fileGroups.map((g) =>
+      updateCardById(cardId, (c) => ({
+        ...c,
+        fileGroups: c.fileGroups.map((g) =>
           g.id === groupId ? { ...g, files: [...g.files, ...uploaded] } : g,
         ),
       }));
@@ -110,6 +116,46 @@ export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave
     } finally {
       setUploadingKey(null);
     }
+  }
+
+  async function replaceCoverImage(cardId: string, fileList: FileList | null) {
+    const file = fileList?.[0];
+    if (!file) return;
+    setUploadingKey(`${cardId}-cover`);
+    setMessage(null);
+    try {
+      const u = await uploadBrandAssetFile(file);
+      const coverFile: BrandKitAssetFile = {
+        id: createBrandKitId(),
+        url: u.url,
+        fileName: u.fileName,
+        mime: u.mime,
+      };
+      updateCardById(cardId, (c) => setCardCoverFiles(c, [coverFile]));
+      setMessage("Portada actualizada.");
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Error al subir portada.");
+    } finally {
+      setUploadingKey(null);
+    }
+  }
+
+  function addCustomCard() {
+    const title = newCardTitle.trim() || "Nueva sección";
+    const card = createCustomBrandKitCard(title);
+    updateKit((prev) => ({ ...prev, cards: [...prev.cards, card] }));
+    setNewCardTitle("");
+    setActiveCardId(card.id);
+    setMessage(`Card "${title}" creada.`);
+  }
+
+  function removeCustomCard(cardId: string) {
+    const card = kit.cards.find((c) => c.id === cardId);
+    if (!card || !isCustomBrandKitCardKey(card.key)) return;
+    if (!window.confirm(`¿Eliminar la sección "${card.title}"?`)) return;
+    updateKit((prev) => ({ ...prev, cards: prev.cards.filter((c) => c.id !== cardId) }));
+    if (activeCardId === cardId) setActiveCardId(null);
+    setMessage("Sección eliminada.");
   }
 
   return (
@@ -122,8 +168,8 @@ export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave
           Documento para el cliente — Brand ID · {phaseLabel}
         </p>
         <p className="text-xs mt-1" style={{ color: brandUi.textMuted }}>
-          En cada card podés elegir la portada con colores o con imagen (Presentación), y después subir los
-          archivos. Tocá una card para editarla; volvé a tocarla para cerrarla.
+          Cambiá la portada de cada card, subí archivos por sección y agregá cards propias del proyecto.
+          Tocá una card para editarla; volvé a tocarla para cerrarla.
         </p>
       </div>
 
@@ -139,15 +185,15 @@ export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave
                 : { background: "linear-gradient(135deg, rgba(50,63,246,0.08), rgba(240,49,114,0.08))" };
           return (
             <button
-              key={card.key}
+              key={card.id}
               type="button"
-              onClick={() => setActiveKey((prev) => (prev === card.key ? null : card.key))}
+              onClick={() => setActiveCardId((prev) => (prev === card.id ? null : card.id))}
               className="rounded-xl border overflow-hidden text-left transition"
               style={{
-                borderColor: activeKey === card.key ? brandUi.blue : brandUi.border,
-                boxShadow: activeKey === card.key ? `0 0 0 1px ${brandUi.blue}` : undefined,
+                borderColor: activeCardId === card.id ? brandUi.blue : brandUi.border,
+                boxShadow: activeCardId === card.id ? `0 0 0 1px ${brandUi.blue}` : undefined,
               }}
-              aria-expanded={activeKey === card.key}
+              aria-expanded={activeCardId === card.id}
             >
               <div className="h-20 flex items-center justify-center" style={previewStyle}>
                 {preview.type === "empty" && (
@@ -158,6 +204,12 @@ export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave
               </div>
               <p className="px-2 py-2 text-[11px] font-medium truncate" style={{ color: brandUi.text }}>
                 {card.title}
+                {isCustomBrandKitCardKey(card.key) && (
+                  <span className="font-normal" style={{ color: brandUi.blue }}>
+                    {" "}
+                    · custom
+                  </span>
+                )}
                 {cardColorCount(card) > 0 && (
                   <span className="font-normal" style={{ color: brandUi.textFaint }}>
                     {" "}
@@ -170,13 +222,44 @@ export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave
         })}
       </div>
 
+      <div
+        className="rounded-xl border p-3 flex flex-wrap items-end gap-2"
+        style={{ borderColor: brandUi.border, borderStyle: "dashed" }}
+      >
+        <label className="flex-1 min-w-[180px]">
+          <span className="text-[10px] uppercase tracking-widest" style={{ color: brandUi.textFaint }}>
+            Nueva card del proyecto
+          </span>
+          <input
+            className="mt-1 w-full rounded border px-2 py-1.5 text-sm"
+            style={{ borderColor: brandUi.borderStrong }}
+            placeholder="Ej. Stickers, Papelería, Redes sociales…"
+            value={newCardTitle}
+            onChange={(e) => setNewCardTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addCustomCard();
+            }}
+          />
+        </label>
+        <button
+          type="button"
+          className="rounded-full px-4 py-2 text-xs font-medium text-white shrink-0"
+          style={{ background: brandUi.blue }}
+          onClick={addCustomCard}
+        >
+          + Agregar card
+        </button>
+      </div>
+
       {activeCard && (
         <CardEditor
           card={activeCard}
           uploadingKey={uploadingKey}
-          onUpdate={(next) => updateCard(activeCard.key, () => next)}
-          onUpload={(groupId, files) => void uploadToGroup(activeCard.key, groupId, files)}
-          onClose={() => setActiveKey(null)}
+          onUpdate={(next) => updateCardById(activeCard.id, () => next)}
+          onUpload={(groupId, files) => void uploadToGroup(activeCard.id, groupId, files)}
+          onReplaceCover={(files) => void replaceCoverImage(activeCard.id, files)}
+          onRemove={() => removeCustomCard(activeCard.id)}
+          onClose={() => setActiveCardId(null)}
         />
       )}
 
@@ -205,33 +288,72 @@ function CardEditor({
   uploadingKey,
   onUpdate,
   onUpload,
+  onReplaceCover,
+  onRemove,
   onClose,
 }: {
   card: BrandKitCard;
   uploadingKey: string | null;
   onUpdate: (next: BrandKitCard) => void;
   onUpload: (groupId: string, files: FileList | null) => void;
+  onReplaceCover: (files: FileList | null) => void;
+  onRemove: () => void;
   onClose: () => void;
 }) {
   const def = getBrandKitCardDef(card.key);
+  const isCustom = isCustomBrandKitCardKey(card.key);
+  const coverUploading = uploadingKey === `${card.id}-cover`;
 
   return (
     <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: brandUi.border }}>
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium" style={{ color: brandUi.text }}>
-          {card.title}
-        </p>
-        <button
-          type="button"
-          className="text-xs shrink-0"
-          style={{ color: brandUi.textMuted }}
-          onClick={onClose}
-        >
-          Cerrar
-        </button>
+        <div className="min-w-0 flex-1">
+          {isCustom ? (
+            <input
+              className="w-full rounded border px-2 py-1.5 text-sm font-medium"
+              style={{ borderColor: brandUi.borderStrong, color: brandUi.text }}
+              value={card.title}
+              onChange={(e) => onUpdate({ ...card, title: e.target.value })}
+              placeholder="Nombre de la sección"
+            />
+          ) : (
+            <p className="text-sm font-medium" style={{ color: brandUi.text }}>
+              {card.title}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {isCustom && (
+            <button
+              type="button"
+              className="text-xs"
+              style={{ color: brandUi.accent }}
+              onClick={onRemove}
+            >
+              Eliminar
+            </button>
+          )}
+          <button
+            type="button"
+            className="text-xs"
+            style={{ color: brandUi.textMuted }}
+            onClick={onClose}
+          >
+            Cerrar
+          </button>
+        </div>
       </div>
 
-      <PaletteEditor card={card} onUpdate={onUpdate} emphasize={def.kind === "palette"} />
+      <CoverImageEditor
+        card={card}
+        uploading={coverUploading}
+        onReplace={onReplaceCover}
+        onClear={() => onUpdate(setCardCoverFiles(card, []))}
+      />
+
+      {def.kind === "palette" && (
+        <PaletteEditor card={card} onUpdate={onUpdate} emphasize />
+      )}
 
       {def.kind === "link" && (
         <label className="block">
@@ -263,22 +385,78 @@ function CardEditor({
         </label>
       )}
 
-      {card.fileGroups.map((group) => (
-        <FileGroupEditor
-          key={group.id}
-          group={group}
-          cardKey={card.key}
-          uploading={uploadingKey === `${card.key}-${group.id}`}
-          gridPreview={group.label === "Presentación" || (card.key === "trama" && group.label === "Versión PNG")}
-          onUpdate={(next) =>
+      {isCustom && (
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-widest" style={{ color: brandUi.textFaint }}>
+            Link online (opcional)
+          </span>
+          <input
+            className="mt-1 w-full rounded border px-2 py-1.5 text-sm"
+            style={{ borderColor: brandUi.borderStrong }}
+            placeholder="https://…"
+            value={card.sourceUrl}
+            onChange={(e) => onUpdate({ ...card, sourceUrl: e.target.value })}
+          />
+        </label>
+      )}
+
+      {card.fileGroups
+        .filter((group) => group.label !== "Presentación")
+        .map((group) => (
+          <FileGroupEditor
+            key={group.id}
+            group={group}
+            card={card}
+            uploading={uploadingKey === `${card.id}-${group.id}`}
+            gridPreview={card.key === "trama" && group.label === "Versión PNG"}
+            canRemoveGroup={isCustom && group.label !== "Archivos"}
+            onUpdate={(next) =>
+              onUpdate({
+                ...card,
+                fileGroups: card.fileGroups.map((g) => (g.id === group.id ? next : g)),
+              })
+            }
+            onUpload={(files) => onUpload(group.id, files)}
+            onRemoveGroup={() =>
+              onUpdate({
+                ...card,
+                fileGroups: card.fileGroups.filter((g) => g.id !== group.id),
+              })
+            }
+          />
+        ))}
+
+      {isCustom && (
+        <button
+          type="button"
+          className="text-[11px]"
+          style={{ color: brandUi.blue }}
+          onClick={() =>
             onUpdate({
               ...card,
-              fileGroups: card.fileGroups.map((g) => (g.id === group.id ? next : g)),
+              fileGroups: [
+                ...card.fileGroups,
+                { id: createBrandKitId(), label: "Archivos extra", files: [] },
+              ],
             })
           }
-          onUpload={(files) => onUpload(group.id, files)}
+        >
+          + Grupo de archivos
+        </button>
+      )}
+
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-widest" style={{ color: brandUi.textFaint }}>
+          Notas para el cliente (opcional)
+        </span>
+        <textarea
+          className="mt-1 w-full min-h-[72px] rounded border px-2 py-1.5 text-sm"
+          style={{ borderColor: brandUi.borderStrong }}
+          placeholder="Indicaciones de uso, contexto, etc."
+          value={card.notes}
+          onChange={(e) => onUpdate({ ...card, notes: e.target.value })}
         />
-      ))}
+      </label>
 
       <label className="block">
         <span className="text-[10px] uppercase tracking-widest" style={{ color: brandUi.textFaint }}>
@@ -290,6 +468,70 @@ function CardEditor({
           placeholder="https://drive.google.com/…"
           value={card.driveUrl}
           onChange={(e) => onUpdate({ ...card, driveUrl: e.target.value })}
+        />
+      </label>
+    </div>
+  );
+}
+
+function CoverImageEditor({
+  card,
+  uploading,
+  onReplace,
+  onClear,
+}: {
+  card: BrandKitCard;
+  uploading: boolean;
+  onReplace: (files: FileList | null) => void;
+  onClear: () => void;
+}) {
+  const coverUrl = cardPreviewImage(card);
+
+  return (
+    <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: brandUi.border }}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-medium" style={{ color: brandUi.text }}>
+            Imagen de portada
+          </p>
+          <p className="text-[10px] mt-0.5" style={{ color: brandUi.textMuted }}>
+            Es lo que se ve en el grid y en el portal del cliente. Reemplazala cuando cambies de proyecto.
+          </p>
+        </div>
+        {coverUrl && (
+          <button type="button" className="text-[11px] shrink-0" style={{ color: brandUi.accent }} onClick={onClear}>
+            Quitar
+          </button>
+        )}
+      </div>
+
+      {coverUrl ? (
+        <div className="relative aspect-[5/2] max-w-md rounded-lg overflow-hidden border" style={{ borderColor: brandUi.border }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={coverUrl} alt={`Portada ${card.title}`} className="h-full w-full object-cover" />
+        </div>
+      ) : (
+        <div
+          className="aspect-[5/2] max-w-md rounded-lg border flex items-center justify-center"
+          style={{ borderColor: brandUi.border, background: "rgba(50,63,246,0.04)" }}
+        >
+          <span className="text-[10px]" style={{ color: brandUi.textFaint }}>
+            Sin portada — se usa la paleta de colores si hay
+          </span>
+        </div>
+      )}
+
+      <label className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-medium border cursor-pointer" style={{ borderColor: brandUi.borderStrong, color: brandUi.text }}>
+        {uploading ? "Subiendo…" : coverUrl ? "Cambiar imagen" : "Subir imagen de portada"}
+        <input
+          type="file"
+          accept="image/*,.svg"
+          className="sr-only"
+          disabled={uploading}
+          onChange={(e) => {
+            onReplace(e.target.files);
+            e.target.value = "";
+          }}
         />
       </label>
     </div>
@@ -515,25 +757,27 @@ function PaletteEditor({
 
 function FileGroupEditor({
   group,
-  cardKey,
+  card,
   uploading,
   gridPreview,
+  canRemoveGroup,
   onUpdate,
   onUpload,
+  onRemoveGroup,
 }: {
   group: BrandKitFileGroup;
-  cardKey: BrandKitCardKey;
+  card: BrandKitCard;
   uploading: boolean;
   gridPreview?: boolean;
+  canRemoveGroup?: boolean;
   onUpdate: (next: BrandKitFileGroup) => void;
   onUpload: (files: FileList | null) => void;
+  onRemoveGroup?: () => void;
 }) {
   const fileAccept =
-    group.label === "Presentación"
-      ? "image/*,.svg"
-      : cardKey === "tipografias"
-        ? ".ttf,.otf,.woff,.woff2,.eot,.ttc,font/*"
-        : undefined;
+    card.key === "tipografias"
+      ? ".ttf,.otf,.woff,.woff2,.eot,.ttc,font/*"
+      : undefined;
   const hasStaleLocalUrls =
     typeof window !== "undefined" &&
     !isLocalAdminUploadHost(window.location.hostname) &&
@@ -541,15 +785,25 @@ function FileGroupEditor({
 
   return (
     <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: brandUi.border }}>
-      <p className="text-xs font-medium" style={{ color: brandUi.text }}>
-        {group.label}
-        {group.label === "Presentación" && (
-          <span className="font-normal" style={{ color: brandUi.textMuted }}>
-            {" "}
-            — portada con imagen (tiene prioridad sobre los colores)
-          </span>
+      <div className="flex items-center justify-between gap-2">
+        {canRemoveGroup ? (
+          <input
+            className="flex-1 rounded border px-2 py-1 text-xs font-medium"
+            style={{ borderColor: brandUi.borderStrong, color: brandUi.text }}
+            value={group.label}
+            onChange={(e) => onUpdate({ ...group, label: e.target.value })}
+          />
+        ) : (
+          <p className="text-xs font-medium" style={{ color: brandUi.text }}>
+            {group.label}
+          </p>
         )}
-      </p>
+        {canRemoveGroup && onRemoveGroup && (
+          <button type="button" className="text-[11px] shrink-0" style={{ color: brandUi.accent }} onClick={onRemoveGroup}>
+            Quitar grupo
+          </button>
+        )}
+      </div>
 
       {hasStaleLocalUrls && (
         <p className="text-[10px] rounded-lg border px-2 py-1.5" style={{ borderColor: brandUi.accent, color: brandUi.accent }}>
@@ -602,12 +856,12 @@ function FileGroupEditor({
           }}
         />
         {uploading && <span className="text-[11px]" style={{ color: brandUi.textFaint }}>Subiendo…</span>}
-        {cardKey === "tipografias" && group.label !== "Presentación" && (
+        {card.key === "tipografias" && (
           <span className="text-[10px]" style={{ color: brandUi.textFaint }}>
             .ttf, .otf, .woff, .woff2
           </span>
         )}
-        {cardKey === "trama" && (
+        {card.key === "trama" && (
           <span className="text-[10px]" style={{ color: brandUi.textFaint }}>
             Podés subir varios cuadraditos a la vez
           </span>
