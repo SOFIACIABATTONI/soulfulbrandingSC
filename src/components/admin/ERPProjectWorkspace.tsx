@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useLayoutEffect, useMemo } from "reac
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { navigateAdminToPhaseHash, scrollAdminMainToHash } from "@/lib/admin-main-scroll";
+import { navigateAdminToPhaseHash, scheduleAdminScrollToHash } from "@/lib/admin-main-scroll";
 import { PhaseDocumentEditor } from "@/components/admin/PhaseDocumentEditor";
 import { PhaseManualStatusBar } from "@/components/admin/PhaseManualStatusBar";
 import { BrandKitPanel } from "@/components/admin/BrandKitPanel";
@@ -21,9 +21,7 @@ import {
   createCustomProjectPhaseId,
   parseCustomPhaseDefinitions,
   PROJECT_LAYOUT_STORAGE_KEY,
-  resolvePhaseCoverImage,
   serializeCustomPhaseDefinitions,
-  hasPhaseCoverImage,
   type CustomPhaseDefinition,
 } from "@/lib/project-phase-layout";
 import { getPhaseClientMeta, type PhaseClientMeta } from "@/lib/phase-client-store";
@@ -183,9 +181,17 @@ function parsePhases(
   return result;
 }
 
-function phaseCoverImage(content?: Pick<PhaseContent, "coverUrl">): string | undefined {
-  const resolved = resolvePhaseCoverImage({ coverUrl: content?.coverUrl });
-  return resolved ?? undefined;
+function phaseCoverImage(
+  content?: Pick<PhaseContent, "coverUrl">,
+  previewUrl?: string,
+): string | undefined {
+  const url = previewUrl?.trim() || content?.coverUrl?.trim();
+  if (!url) return undefined;
+  return `url("${url}")`;
+}
+
+function phaseHasCover(content?: Pick<PhaseContent, "coverUrl">, previewUrl?: string): boolean {
+  return Boolean(previewUrl?.trim() || content?.coverUrl?.trim());
 }
 
 function formatPhaseDateLabel(iso: string): string {
@@ -230,6 +236,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   );
   const [savingPhase, setSavingPhase] = useState<string | null>(null);
   const [coverUploadingKey, setCoverUploadingKey] = useState<string | null>(null);
+  const [previewCoverByPhase, setPreviewCoverByPhase] = useState<Record<string, string>>({});
   const [addingPhase, setAddingPhase] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteAck, setDeleteAck] = useState(false);
@@ -282,29 +289,25 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
     if (typeof window === "undefined") return;
     const hash = window.location.hash;
     if (!hash.startsWith("#fase-") && hash !== "#phases-grid") return;
-
-    const runScroll = () => scrollAdminMainToHash(hash, "auto");
-    runScroll();
-    const t1 = window.setTimeout(runScroll, 50);
-    const t2 = window.setTimeout(runScroll, 280);
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-    };
+    scheduleAdminScrollToHash(hash);
   }, [phaseList.length]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const onHashChange = () => {
+    const onPopState = () => {
       const hash = window.location.hash;
       if (!hash.startsWith("#fase-") && hash !== "#phases-grid") return;
-      window.requestAnimationFrame(() => {
-        scrollAdminMainToHash(hash);
-      });
+      scheduleAdminScrollToHash(hash);
     };
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
+
+  function goToPhasesGrid() {
+    const hash = "#phases-grid";
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash}`);
+    scheduleAdminScrollToHash(hash);
+  }
 
   useEffect(() => {
     const onFocus = () => {
@@ -614,7 +617,8 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
             const pc = phases[ph.key] ?? emptyPhaseContent();
             const stc = STATE_COLORS[pc.state] ?? STATE_COLORS.pending;
             const dateRange = formatPhaseDateRange(pc.startDate, pc.endDate);
-            const hasCover = hasPhaseCoverImage(pc);
+            const previewCover = previewCoverByPhase[ph.key];
+            const hasCover = phaseHasCover(pc, previewCover);
             return (
               <a
                 key={ph.key}
@@ -629,7 +633,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                   {hasCover ? (
                     <div className="relative h-[160px] overflow-hidden bg-neutral-50">
                       <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 ease-out group-hover:scale-105"
-                        style={{ backgroundImage: phaseCoverImage(pc) }} />
+                        style={{ backgroundImage: phaseCoverImage(pc, previewCover) }} />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/5 to-transparent" />
                       <div className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[10px] font-medium shadow-sm"
                         style={{ color: stc.color }}>
@@ -692,7 +696,8 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
           const pc = phases[ph.key] ?? emptyPhaseContent();
           const isSaving = savingPhase === ph.key;
           const isCustom = ph.genericClient === true;
-          const hasCover = hasPhaseCoverImage(pc);
+          const previewCover = previewCoverByPhase[ph.key];
+          const hasCover = phaseHasCover(pc, previewCover);
           return (
             <section key={ph.key} id={`fase-${ph.key}`}
               className="scroll-mt-24 overflow-hidden rounded-[24px] border border-neutral-200 bg-white shadow-sm">
@@ -700,7 +705,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
               {hasCover ? (
                 <div className="relative h-[180px] overflow-hidden border-b border-neutral-200 bg-neutral-50">
                   <div className="absolute inset-0 bg-cover bg-center"
-                    style={{ backgroundImage: phaseCoverImage(pc) }} />
+                    style={{ backgroundImage: phaseCoverImage(pc, previewCover) }} />
                   <div className="absolute inset-0 bg-brand-navy/10" />
                   <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-3 px-5 pb-5">
                     <div className="max-w-2xl text-white">
@@ -724,8 +729,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                         href="#phases-grid"
                         onClick={(e) => {
                           e.preventDefault();
-                          window.location.hash = "phases-grid";
-                          scrollAdminMainToHash("#phases-grid");
+                          goToPhasesGrid();
                         }}
                         className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-neutral-800"
                       >
@@ -758,8 +762,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                         href="#phases-grid"
                         onClick={(e) => {
                           e.preventDefault();
-                          window.location.hash = "phases-grid";
-                          scrollAdminMainToHash("#phases-grid");
+                          goToPhasesGrid();
                         }}
                         className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-medium text-neutral-800"
                       >
@@ -777,12 +780,29 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                   onUploadingChange={(uploading) =>
                     setCoverUploadingKey(uploading ? ph.key : null)
                   }
+                  onPreviewChange={(previewUrl) => {
+                    setPreviewCoverByPhase((prev) => {
+                      if (!previewUrl) {
+                        const next = { ...prev };
+                        delete next[ph.key];
+                        return next;
+                      }
+                      return { ...prev, [ph.key]: previewUrl };
+                    });
+                  }}
                   onChange={(coverUrl) => {
+                    setPreviewCoverByPhase((prev) => {
+                      const next = { ...prev };
+                      delete next[ph.key];
+                      return next;
+                    });
                     setPhases((prev) => ({
                       ...prev,
                       [ph.key]: { ...(prev[ph.key] ?? emptyPhaseContent()), coverUrl },
                     }));
-                    void savePhaseContent(ph.key, { coverUrl });
+                    void savePhaseContent(ph.key, { coverUrl }).then((ok) => {
+                      if (ok) scheduleAdminScrollToHash(`#fase-${ph.key}`);
+                    });
                   }}
                 />
                 {coverUploadingKey === ph.key && (

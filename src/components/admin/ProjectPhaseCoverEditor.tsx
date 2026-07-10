@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { uploadAdminImageFile } from "@/lib/admin-client-upload";
 import { brandUi } from "@/lib/brand-ui";
 
@@ -7,6 +8,7 @@ type ProjectPhaseCoverEditorProps = {
   label: string;
   coverUrl: string;
   onUploadingChange?: (uploading: boolean) => void;
+  onPreviewChange?: (previewUrl: string | null) => void;
   onChange: (coverUrl: string) => void;
 };
 
@@ -14,20 +16,40 @@ export function ProjectPhaseCoverEditor({
   label,
   coverUrl,
   onUploadingChange,
+  onPreviewChange,
   onChange,
 }: ProjectPhaseCoverEditorProps) {
-  const hasCover = Boolean(coverUrl.trim());
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const displayUrl = coverUrl.trim() || localPreview || "";
+  const hasCover = Boolean(displayUrl);
+
+  useEffect(() => {
+    return () => {
+      if (localPreview) URL.revokeObjectURL(localPreview);
+    };
+  }, [localPreview]);
 
   async function handleFile(fileList: FileList | null) {
     const file = fileList?.[0];
     if (!file) return;
+
+    if (localPreview) URL.revokeObjectURL(localPreview);
+    const blobUrl = URL.createObjectURL(file);
+    setLocalPreview(blobUrl);
+    onPreviewChange?.(blobUrl);
     onUploadingChange?.(true);
+
     try {
       const url = await uploadAdminImageFile(file);
       onChange(url);
+      setLocalPreview(null);
+      onPreviewChange?.(null);
     } catch (e) {
+      setLocalPreview(null);
+      onPreviewChange?.(null);
       window.alert(e instanceof Error ? e.message : "No se pudo subir la imagen.");
     } finally {
+      URL.revokeObjectURL(blobUrl);
       onUploadingChange?.(false);
     }
   }
@@ -42,7 +64,11 @@ export function ProjectPhaseCoverEditor({
         style={{
           borderColor: brandUi.border,
           ...(hasCover
-            ? { backgroundImage: `url("${coverUrl.trim()}")`, backgroundSize: "cover", backgroundPosition: "center" }
+            ? {
+                backgroundImage: `url("${displayUrl}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
             : {}),
         }}
         aria-hidden
@@ -52,9 +78,11 @@ export function ProjectPhaseCoverEditor({
           Portada — {label}
         </p>
         <p className="text-[10px] mt-0.5" style={{ color: brandUi.textMuted }}>
-          {hasCover
-            ? "Cambiá la imagen de la card y del encabezado de esta etapa en este proyecto."
-            : "Sin imagen — la card y el encabezado quedan en blanco hasta que subas una."}
+          {localPreview
+            ? "Subiendo imagen… la vista previa se actualiza al instante."
+            : hasCover
+              ? "Cambiá la imagen de la card y del encabezado de esta etapa en este proyecto."
+              : "Sin imagen — la card y el encabezado quedan en blanco hasta que subas una."}
         </p>
       </div>
       <div className="flex flex-wrap gap-2 shrink-0">
@@ -73,12 +101,16 @@ export function ProjectPhaseCoverEditor({
             }}
           />
         </label>
-        {hasCover && (
+        {coverUrl.trim() && (
           <button
             type="button"
             className="text-[11px]"
             style={{ color: brandUi.accent }}
-            onClick={() => onChange("")}
+            onClick={() => {
+              setLocalPreview(null);
+              onPreviewChange?.(null);
+              onChange("");
+            }}
           >
             Quitar imagen
           </button>
