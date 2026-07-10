@@ -19,7 +19,7 @@ import {
   isValidHex,
   normalizeHex,
   parseBrandKit,
-  parseBrandKitColorsText,
+  parseBrandKitColorsFromText,
   serializeBrandKit,
   setCardCoverFiles,
   type BrandKit,
@@ -549,18 +549,38 @@ function PaletteEditor({
 }) {
   const [pasteText, setPasteText] = useState("");
   const [previewColors, setPreviewColors] = useState<BrandKitColor[] | null>(null);
+  const [skippedLines, setSkippedLines] = useState<string[]>([]);
   const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function runPreview(text: string) {
-    const parsed = parseBrandKitColorsText(text);
-    if (parsed.length === 0) {
+  function runPreview(text: string, opts?: { autoApplyIfEmpty?: boolean }) {
+    const { colors, skippedLines: skipped } = parseBrandKitColorsFromText(text);
+    if (colors.length === 0) {
       setPreviewColors(null);
-      setImportError("No encontramos colores válidos. Usá una línea por color: #E1ADFF — lila claro");
+      setSkippedLines(skipped);
+      setImportSuccess(null);
+      setImportError(
+        skipped.length > 0
+          ? `No encontramos colores válidos (${skipped.length} línea(s) ignorada(s)). Formato: #E1ADFF — lila claro`
+          : "No encontramos colores válidos. Usá una línea por color: #E1ADFF — lila claro",
+      );
       return;
     }
+
     setImportError(null);
-    setPreviewColors(parsed);
+    setSkippedLines(skipped);
+    setPreviewColors(colors);
+
+    if (opts?.autoApplyIfEmpty && card.colors.length === 0) {
+      onUpdate({ ...card, colors });
+      setPasteText("");
+      setPreviewColors(null);
+      setSkippedLines([]);
+      setImportSuccess(
+        `${colors.length} color${colors.length === 1 ? "" : "es"} importado${colors.length === 1 ? "" : "s"} desde el .txt.`,
+      );
+    }
   }
 
   function applyImport(mode: "replace" | "append") {
@@ -571,16 +591,25 @@ function PaletteEditor({
     });
     setPasteText("");
     setPreviewColors(null);
+    setSkippedLines([]);
     setImportError(null);
+    setImportSuccess(
+      `${previewColors.length} color${previewColors.length === 1 ? "" : "es"} cargado${previewColors.length === 1 ? "" : "s"}.`,
+    );
   }
 
-  function handleFileUpload(fileList: FileList | null) {
+  async function handleFileUpload(fileList: FileList | null) {
     const file = fileList?.[0];
     if (!file) return;
-    void file.text().then((text) => {
+    setImportSuccess(null);
+    try {
+      const text = await file.text();
       setPasteText(text);
-      runPreview(text);
-    });
+      runPreview(text, { autoApplyIfEmpty: true });
+    } catch {
+      setImportError("No se pudo leer el archivo .txt. Guardalo como UTF-8 e intentá de nuevo.");
+      setPreviewColors(null);
+    }
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -626,10 +655,13 @@ function PaletteEditor({
           style={{ borderColor: brandUi.border, background: "rgba(255,255,255,0.6)" }}
         >
           <p className="text-[11px] font-medium" style={{ color: brandUi.text }}>
-            Importar desde texto o .txt
+            Importar colores (pegá o subí el .txt acá)
           </p>
           <p className="text-[10px]" style={{ color: brandUi.textMuted }}>
             Una línea por color. Ejemplo: <code className="font-mono">#E1ADFF — lila claro</code>
+          </p>
+          <p className="text-[10px] rounded-lg border px-2 py-1.5" style={{ borderColor: brandUi.blue, color: brandUi.textMuted }}>
+            No subas el .txt en «Referencia visual» ni en otros archivos — eso da error. Usá este importador.
           </p>
           <textarea
             className="w-full min-h-[88px] rounded border px-2 py-1.5 text-xs font-mono"
@@ -639,7 +671,9 @@ function PaletteEditor({
             onChange={(e) => {
               setPasteText(e.target.value);
               setPreviewColors(null);
+              setSkippedLines([]);
               setImportError(null);
+              setImportSuccess(null);
             }}
           />
           <div className="flex flex-wrap items-center gap-2">
@@ -669,11 +703,18 @@ function PaletteEditor({
             </p>
           )}
 
+          {importSuccess && (
+            <p className="text-[10px]" style={{ color: "#1a6b1a" }}>
+              {importSuccess}
+            </p>
+          )}
+
           {previewColors && previewColors.length > 0 && (
             <div className="space-y-2 pt-1">
               <p className="text-[10px]" style={{ color: brandUi.textMuted }}>
                 {previewColors.length} color{previewColors.length === 1 ? "" : "es"} detectado
                 {previewColors.length === 1 ? "" : "s"}
+                {skippedLines.length > 0 ? ` · ${skippedLines.length} línea(s) ignorada(s)` : ""}
               </p>
               <div className="flex h-4 rounded-full overflow-hidden border" style={{ borderColor: brandUi.border }}>
                 {previewColors.map((c) => (
@@ -711,7 +752,9 @@ function PaletteEditor({
                   style={{ color: brandUi.textFaint }}
                   onClick={() => {
                     setPreviewColors(null);
+                    setSkippedLines([]);
                     setImportError(null);
+                    setImportSuccess(null);
                   }}
                 >
                   Cancelar

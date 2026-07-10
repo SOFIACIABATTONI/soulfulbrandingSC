@@ -158,42 +158,92 @@ export function hexToCmyk(hex: string): string {
   return `${Math.round(c * 100)}, ${Math.round(m * 100)}, ${Math.round(y * 100)}, ${Math.round(k * 100)}`;
 }
 
-const BRAND_KIT_COLOR_LINE =
-  /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})\s*(?:[—\-–:·|]\s*)?(.*)?$/;
+const BRAND_KIT_COLOR_SEP = /[—\-–—:·|,|\\/]/;
 
-/** Parsea texto o .txt con una línea por color: `#E1ADFF — lila claro` */
-export function parseBrandKitColorsText(text: string): BrandKitColor[] {
-  const colors: BrandKitColor[] = [];
-  let unnamedIndex = 0;
+function expandHexDigits(hexDigits: string): string {
+  if (hexDigits.length === 3) {
+    return hexDigits
+      .split("")
+      .map((c) => c + c)
+      .join("");
+  }
+  return hexDigits;
+}
 
-  for (const line of text.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
+function colorFromMatch(hexDigits: string, rawName: string | undefined, fallbackName: () => string): BrandKitColor | null {
+  const hex = normalizeHex(`#${expandHexDigits(hexDigits)}`);
+  if (!isValidHex(hex)) return null;
+  const name = rawName?.replace(BRAND_KIT_COLOR_SEP, " ").trim() || fallbackName();
+  return {
+    id: createBrandKitId(),
+    name,
+    hex,
+    rgb: hexToRgb(hex),
+    cmyk: hexToCmyk(hex),
+  };
+}
 
-    const match = trimmed.match(BRAND_KIT_COLOR_LINE);
-    if (!match) continue;
+function parseColorLine(line: string, fallbackName: () => string): BrandKitColor | null {
+  const patterns: RegExp[] = [
+    /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})\s*(?:[—\-–—:·|,|\\/]\s*)?(.*)?$/,
+    /^(?:hex|color)\s*[:#]?\s*#?([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})\s*(?:[—\-–—:·|,|\\/]\s*)?(.*)?$/i,
+    /^#?([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})\s+(?:[—\-–—:·|,|\\/]\s*)?(.+)$/,
+    /^#?([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$/,
+  ];
 
-    let hexDigits = match[1];
-    if (hexDigits.length === 3) {
-      hexDigits = hexDigits
-        .split("")
-        .map((c) => c + c)
-        .join("");
-    }
-    const hex = normalizeHex(`#${hexDigits}`);
-    if (!isValidHex(hex)) continue;
-
-    const name = match[2]?.trim() || `Color ${++unnamedIndex}`;
-    colors.push({
-      id: createBrandKitId(),
-      name,
-      hex,
-      rgb: hexToRgb(hex),
-      cmyk: hexToCmyk(hex),
-    });
+  for (const pattern of patterns) {
+    const match = line.match(pattern);
+    if (match) return colorFromMatch(match[1], match[2], fallbackName);
   }
 
-  return colors;
+  const inline = line.match(/#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})\b/);
+  if (inline) {
+    const name = line
+      .replace(/#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})/, "")
+      .replace(/^[\s—\-–—:·|,|\\/]+/, "")
+      .trim();
+    return colorFromMatch(inline[1], name, fallbackName);
+  }
+
+  return null;
+}
+
+function isIgnorablePaletteLine(line: string): boolean {
+  if (!line) return true;
+  if (line.startsWith("//")) return true;
+  if (/^#\s*[a-zA-Z]/.test(line) && !/^#[0-9A-Fa-f]{3,6}\b/.test(line)) return true;
+  return false;
+}
+
+export type BrandKitColorsParseResult = {
+  colors: BrandKitColor[];
+  skippedLines: string[];
+};
+
+/** Parsea texto o .txt con una línea por color: `#E1ADFF — lila claro` */
+export function parseBrandKitColorsFromText(text: string): BrandKitColorsParseResult {
+  const normalized = text.replace(/^\uFEFF/, "");
+  const colors: BrandKitColor[] = [];
+  const skippedLines: string[] = [];
+  let unnamedIndex = 0;
+
+  for (const line of normalized.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || isIgnorablePaletteLine(trimmed)) continue;
+
+    const parsed = parseColorLine(trimmed, () => `Color ${++unnamedIndex}`);
+    if (parsed) {
+      colors.push(parsed);
+    } else {
+      skippedLines.push(trimmed);
+    }
+  }
+
+  return { colors, skippedLines };
+}
+
+export function parseBrandKitColorsText(text: string): BrandKitColor[] {
+  return parseBrandKitColorsFromText(text).colors;
 }
 
 /** Exporta paleta al formato entregable (.txt en el ZIP del cliente). */
