@@ -1,7 +1,11 @@
 import { resolveSiteUrl } from "@/lib/site-metadata";
 import type { AccessPurpose } from "@/lib/contract-types";
+import { parseCustomPhaseKeyFromPurpose } from "@/lib/project-phase-layout";
 
-export function accessPublicUrl(purpose: AccessPurpose, token: string): string {
+export function accessPublicUrl(purpose: string, token: string): string {
   const base = resolveSiteUrl();
-  return `${base}/cliente/${purpose}?token=${encodeURIComponent(token)}`;
+  if (parseCustomPhaseKeyFromPurpose(purpose)) {
+    return `${base}/cliente/fase?token=${encodeURIComponent(token)}`;
+  }
+  return `${base}/cliente/${purpose as AccessPurpose}?token=${encodeURIComponent(token)}`;
 }

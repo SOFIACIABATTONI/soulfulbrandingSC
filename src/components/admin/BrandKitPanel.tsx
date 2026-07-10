@@ -552,9 +552,8 @@ function PaletteEditor({
   const [skippedLines, setSkippedLines] = useState<string[]>([]);
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function runPreview(text: string, opts?: { autoApplyIfEmpty?: boolean }) {
+  function runPreview(text: string) {
     const { colors, skippedLines: skipped } = parseBrandKitColorsFromText(text);
     if (colors.length === 0) {
       setPreviewColors(null);
@@ -572,15 +571,6 @@ function PaletteEditor({
     setSkippedLines(skipped);
     setPreviewColors(colors);
 
-    if (opts?.autoApplyIfEmpty && card.colors.length === 0) {
-      onUpdate({ ...card, colors });
-      setPasteText("");
-      setPreviewColors(null);
-      setSkippedLines([]);
-      setImportSuccess(
-        `${colors.length} color${colors.length === 1 ? "" : "es"} importado${colors.length === 1 ? "" : "s"} desde el .txt.`,
-      );
-    }
   }
 
   function applyImport(mode: "replace" | "append") {
@@ -596,21 +586,6 @@ function PaletteEditor({
     setImportSuccess(
       `${previewColors.length} color${previewColors.length === 1 ? "" : "es"} cargado${previewColors.length === 1 ? "" : "s"}.`,
     );
-  }
-
-  async function handleFileUpload(fileList: FileList | null) {
-    const file = fileList?.[0];
-    if (!file) return;
-    setImportSuccess(null);
-    try {
-      const text = await file.text();
-      setPasteText(text);
-      runPreview(text, { autoApplyIfEmpty: true });
-    } catch {
-      setImportError("No se pudo leer el archivo .txt. Guardalo como UTF-8 e intentá de nuevo.");
-      setPreviewColors(null);
-    }
-    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   return (
@@ -655,13 +630,10 @@ function PaletteEditor({
           style={{ borderColor: brandUi.border, background: "rgba(255,255,255,0.6)" }}
         >
           <p className="text-[11px] font-medium" style={{ color: brandUi.text }}>
-            Importar colores (pegá o subí el .txt acá)
+            Importar colores (pegá el texto acá)
           </p>
           <p className="text-[10px]" style={{ color: brandUi.textMuted }}>
             Una línea por color. Ejemplo: <code className="font-mono">#E1ADFF — lila claro</code>
-          </p>
-          <p className="text-[10px] rounded-lg border px-2 py-1.5" style={{ borderColor: brandUi.blue, color: brandUi.textMuted }}>
-            No subas el .txt en «Referencia visual» ni en otros archivos — eso da error. Usá este importador.
           </p>
           <textarea
             className="w-full min-h-[88px] rounded border px-2 py-1.5 text-xs font-mono"
@@ -685,16 +657,6 @@ function PaletteEditor({
             >
               Vista previa
             </button>
-            <label className="rounded-full px-3 py-1 text-[11px] font-medium border cursor-pointer" style={{ borderColor: brandUi.borderStrong, color: brandUi.text }}>
-              Subir .txt
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".txt,text/plain"
-                className="sr-only"
-                onChange={(e) => handleFileUpload(e.target.files)}
-              />
-            </label>
           </div>
 
           {importError && (

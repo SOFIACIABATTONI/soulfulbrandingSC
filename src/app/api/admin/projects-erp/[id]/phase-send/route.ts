@@ -4,20 +4,27 @@ import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
 import { generateAccessToken, accessExpiryForPurpose } from "@/lib/access-token";
 import { accessPublicUrl } from "@/lib/access-url";
-import { HTML_PHASE_SEND, type HtmlPhaseKey } from "@/lib/phase-client-flow";
+import {
+  HTML_PHASE_SEND,
+  isSendableClientPhaseKey,
+  resolvePhaseSendConfig,
+  type HtmlPhaseKey,
+} from "@/lib/phase-client-flow";
 import { applyPhaseClientSent, storageKeyForHtmlPhase } from "@/lib/phase-client-store";
 import { parseProjectPhases } from "@/lib/prebrief-service";
 import { brandKitFromPhaseData, brandKitHasContent } from "@/lib/brand-kit";
 import { getManualPdfFromPhase, hasManualPdf } from "@/lib/manual-pdf";
+import { findCustomPhaseTitle } from "@/lib/project-phase-layout";
 import { syncProjectPhasesFromProgress } from "@/lib/project-phase-sync";
 import { sendPhaseDocEmailToClient } from "@/lib/send-phase-doc-email";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 const bodySchema = z.object({
-  phase: z.enum(["identidad", "manual"]),
+  phase: z.string().refine(isSendableClientPhaseKey, { message: "Fase no enviable" }),
   html: z.string().optional(),
   personalNote: z.string().optional(),
+  customTitle: z.string().optional(),
   brandKit: z.string().optional(),
   manualPdfUrl: z.string().optional(),
   manualPdfFileName: z.string().optional(),
@@ -36,9 +43,8 @@ export async function POST(req: Request, ctx: RouteParams) {
     return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
   }
 
-  const phase = parsed.data.phase as HtmlPhaseKey;
-  const config = HTML_PHASE_SEND[phase];
-  const storageKey = storageKeyForHtmlPhase(phase);
+  const phaseKey = parsed.data.phase;
+  const isCustom = phaseKey.startsWith("custom-");
 
   const project = await prisma.clientProject.findUnique({
     where: { id: projectId },
@@ -49,6 +55,15 @@ export async function POST(req: Request, ctx: RouteParams) {
   }
 
   const phases = parseProjectPhases(project.phases);
+  const customTitle = isCustom
+    ? (parsed.data.customTitle?.trim() || findCustomPhaseTitle(phases, phaseKey) || "Entrega")
+    : undefined;
+  const config = resolvePhaseSendConfig(phaseKey, { customTitle });
+  if (!config) {
+    return NextResponse.json({ error: "Fase no enviable" }, { status: 400 });
+  }
+
+  const storageKey = isCustom ? phaseKey : storageKeyForHtmlPhase(phaseKey as HtmlPhaseKey);
   const storedPhaseData = phases[storageKey] ?? {};
   const phaseData: Record<string, string> = {
     ...storedPhaseData,
@@ -66,7 +81,14 @@ export async function POST(req: Request, ctx: RouteParams) {
   const hasKit = brandKitHasContent(brandKit);
   const hasPdf = hasManualPdf(phaseData);
 
-  if (phase === "manual") {
+  if (isCustom) {
+    if (!hasDoc) {
+      return NextResponse.json(
+        { error: "Completá el documento antes de enviar." },
+        { status: 400 },
+      );
+    }
+  } else if (phaseKey === "manual") {
     if (!hasPdf) {
       return NextResponse.json(
         { error: "Subí el PDF del manual antes de enviar." },
@@ -86,10 +108,10 @@ export async function POST(req: Request, ctx: RouteParams) {
   nextPhases[storageKey] = {
     ...nextPhases[storageKey],
     ...(hasDoc ? { body: html, bodyFormat: "html" as const } : {}),
-    ...(phase === "identidad" && hasKit && phaseData.brandKit
+    ...(phaseKey === "identidad" && hasKit && phaseData.brandKit
       ? { brandKit: phaseData.brandKit }
       : {}),
-    ...(phase === "manual" && manualPdf
+    ...(phaseKey === "manual" && manualPdf
       ? {
           manualPdfUrl: manualPdf.url,
           manualPdfFileName: manualPdf.fileName,

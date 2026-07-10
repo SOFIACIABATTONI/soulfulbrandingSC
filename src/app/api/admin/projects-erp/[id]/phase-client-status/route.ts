@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
-import { HTML_PHASE_SEND, type HtmlPhaseKey } from "@/lib/phase-client-flow";
+import { resolvePhaseSendConfig } from "@/lib/phase-client-flow";
 import {
   applyPhaseClientReceived,
   applyPhaseClientReopened,
@@ -11,19 +11,18 @@ import { parseProjectPhases } from "@/lib/prebrief-service";
 import {
   syncProjectPhasesFromProgress,
   WORKSPACE_PHASE_KEYS,
-  type WorkspacePhaseKey,
 } from "@/lib/project-phase-sync";
+import { findCustomPhaseTitle } from "@/lib/project-phase-layout";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 const bodySchema = z.object({
-  phase: z.enum(WORKSPACE_PHASE_KEYS),
+  phase: z.union([
+    z.enum(WORKSPACE_PHASE_KEYS),
+    z.string().regex(/^custom-[a-zA-Z0-9-]+$/),
+  ]),
   action: z.enum(["mark_received", "reopen_ack"]),
 });
-
-function isHtmlPhaseKey(phase: WorkspacePhaseKey): phase is HtmlPhaseKey {
-  return phase === "identidad" || phase === "manual";
-}
 
 export async function POST(req: Request, ctx: RouteParams) {
   if (!(await isAdminRequest())) {
@@ -50,7 +49,10 @@ export async function POST(req: Request, ctx: RouteParams) {
 
   const phases = parseProjectPhases(project.phases);
   const now = new Date();
-  const htmlConfig = isHtmlPhaseKey(phase) ? HTML_PHASE_SEND[phase] : null;
+  const customTitle = phase.startsWith("custom-")
+    ? findCustomPhaseTitle(phases, phase) ?? undefined
+    : undefined;
+  const htmlConfig = resolvePhaseSendConfig(phase, { customTitle });
 
   if (parsed.data.action === "mark_received") {
     const nextPhases = applyPhaseClientReceived(phases, storageKey);

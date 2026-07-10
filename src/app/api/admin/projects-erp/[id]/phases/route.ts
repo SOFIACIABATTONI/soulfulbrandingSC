@@ -2,12 +2,20 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
 import { syncProjectPhasesFromProgress } from "@/lib/project-phase-sync";
+import { PROJECT_LAYOUT_STORAGE_KEY } from "@/lib/project-phase-layout";
 import { z } from "zod";
 
+const BUILTIN_PHASE_KEYS = ["onboarding", "prebrief", "narrativa", "identidad", "manual"] as const;
+
+const phaseKeySchema = z.union([
+  z.enum(BUILTIN_PHASE_KEYS),
+  z.literal(PROJECT_LAYOUT_STORAGE_KEY),
+  z.string().regex(/^custom-[a-zA-Z0-9-]+$/),
+]);
+
 // PATCH /api/admin/projects-erp/[id]/phases
-// Body: { phase, state?, content?: { overview, objective, deliverables, assets, notes, owner } }
 const patchSchema = z.object({
-  phase: z.enum(["onboarding", "prebrief", "narrativa", "identidad", "manual"]),
+  phase: phaseKeySchema,
   state: z.enum(["done", "active", "pending"]).optional(),
   content: z
     .object({
@@ -28,6 +36,8 @@ const patchSchema = z.object({
       clientStatus: z.string().optional(),
       clientSentAt: z.string().optional(),
       clientReceivedAt: z.string().optional(),
+      coverUrl: z.string().optional(),
+      customPhases: z.string().optional(),
     })
     .optional(),
 });
@@ -44,7 +54,7 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Datos inválidos", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
   const { phase, content } = parsed.data;
@@ -56,7 +66,8 @@ export async function PATCH(req: Request, ctx: RouteParams) {
     if (!project) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
     const phases = (project.phases as Record<string, Record<string, string> | string>) ?? {};
-    const current = typeof phases[phase] === "object" ? (phases[phase] as Record<string, string>) : {};
+    const current =
+      typeof phases[phase] === "object" ? (phases[phase] as Record<string, string>) : {};
     phases[phase] = {
       ...current,
       ...(content ?? {}),

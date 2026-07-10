@@ -184,11 +184,14 @@ function colorFromMatch(hexDigits: string, rawName: string | undefined, fallback
 }
 
 function parseColorLine(line: string, fallbackName: () => string): BrandKitColor | null {
+  // Importante: {6} antes que {3} — si no, #3A1E66 se lee como #3A1 + "E66 …"
+  const hexCapture = "([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})";
+  const sep = "(?:[—\\-–—:·|,|\\\\/]\\s*)?";
   const patterns: RegExp[] = [
-    /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})\s*(?:[—\-–—:·|,|\\/]\s*)?(.*)?$/,
-    /^(?:hex|color)\s*[:#]?\s*#?([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})\s*(?:[—\-–—:·|,|\\/]\s*)?(.*)?$/i,
-    /^#?([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})\s+(?:[—\-–—:·|,|\\/]\s*)?(.+)$/,
-    /^#?([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$/,
+    new RegExp(`^#${hexCapture}\\s*${sep}(.*)?$`),
+    new RegExp(`^(?:hex|color)\\s*[:#]?\\s*#?${hexCapture}\\s*${sep}(.*)?$`, "i"),
+    new RegExp(`^#?${hexCapture}\\s+${sep}(.+)$`),
+    new RegExp(`^#?${hexCapture}$`),
   ];
 
   for (const pattern of patterns) {
@@ -220,7 +223,7 @@ export type BrandKitColorsParseResult = {
   skippedLines: string[];
 };
 
-/** Parsea texto o .txt con una línea por color: `#E1ADFF — lila claro` */
+/** Parsea texto pegado con una línea por color: `#E1ADFF — lila claro` */
 export function parseBrandKitColorsFromText(text: string): BrandKitColorsParseResult {
   const normalized = text.replace(/^\uFEFF/, "");
   const colors: BrandKitColor[] = [];

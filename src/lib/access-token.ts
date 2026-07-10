@@ -20,7 +20,7 @@ export function isPermanentAccessPurpose(purpose: string): boolean {
 }
 
 /** Identidad y manual: enlace sin vencimiento para que el cliente conserve su marca. */
-export function accessExpiryForPurpose(purpose: AccessPurpose): Date {
+export function accessExpiryForPurpose(purpose: string): Date {
   if (isPermanentAccessPurpose(purpose)) {
     return new Date("2099-12-31T23:59:59.999Z");
   }

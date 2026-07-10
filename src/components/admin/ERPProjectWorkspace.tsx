@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,18 @@ import { getManualPdfFromPhase } from "@/lib/manual-pdf";
 import { PhaseNotesEmailBar } from "@/components/admin/PhaseNotesEmailBar";
 import { ProjectFlowBar } from "@/components/admin/ProjectFlowBar";
 import { ProjectTrackingFab } from "@/components/admin/ProjectTrackingFab";
+import { ProjectPhaseCoverEditor } from "@/components/admin/ProjectPhaseCoverEditor";
+import { GenericProjectPhasePanel } from "@/components/admin/GenericProjectPhasePanel";
+import type { ProjectPhaseDefinition } from "@/lib/project-phase-catalog";
+import {
+  buildProjectPhaseList,
+  createCustomProjectPhaseId,
+  parseCustomPhaseDefinitions,
+  PROJECT_LAYOUT_STORAGE_KEY,
+  resolvePhaseCoverImage,
+  serializeCustomPhaseDefinitions,
+  type CustomPhaseDefinition,
+} from "@/lib/project-phase-layout";
 import { getPhaseClientMeta, type PhaseClientMeta } from "@/lib/phase-client-store";
 import type { WorkspacePhaseKey } from "@/lib/project-phase-sync";
 import {
@@ -88,41 +100,12 @@ type PhaseContent = {
   clientStatus: string;
   clientSentAt: string;
   clientReceivedAt: string;
+  coverUrl: string;
 };
 
-// ── fases del proyecto ─────────────────────────────────────
-const PHASES = [
-  {
-    key: "onboarding", title: "1) Onboarding",
-    desc: "Primer contacto, alineación inicial y recopilación de contexto del proyecto.",
-    cover: "/admin/project-phases/onboarding.jpg",
-    fallback: "https://images.unsplash.com/photo-1563241527-3004b7be0ffd?q=80&w=800&auto=format&fit=crop",
-  },
-  {
-    key: "prebrief", title: "2) Pre-brief",
-    desc: "Base estratégica previa al brief formal con información esencial del negocio.",
-    cover: "/admin/project-phases/pre-brief.jpg",
-    fallback: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=800&auto=format&fit=crop",
-  },
-  {
-    key: "narrativa", title: "3) Narrativa de marca",
-    desc: "Narrativa, posicionamiento, conceptos clave y dirección estratégica.",
-    cover: "/admin/project-phases/estrategia-de-marca.jpg",
-    fallback: "https://images.unsplash.com/photo-1506806732259-39c2d0268443?q=80&w=800&auto=format&fit=crop",
-  },
-  {
-    key: "identidad", title: "4) Identidad Visual",
-    desc: "Construcción del sistema visual, recursos gráficos y lineamientos de aplicación.",
-    cover: "/admin/project-phases/identidad-visual.jpg",
-    fallback: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop",
-  },
-  {
-    key: "manual", title: "5) Manual de marca",
-    desc: "Documento madre para ordenar el sistema, sus reglas y sus usos recomendados.",
-    cover: "/admin/project-phases/manualde-marca.jpg",
-    fallback: "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?q=80&w=800&auto=format&fit=crop",
-  },
-];
+function buildPhaseListFromRaw(raw: Record<string, Record<string, string>>): ProjectPhaseDefinition[] {
+  return buildProjectPhaseList(parseCustomPhaseDefinitions(raw));
+}
 
 const STATE_OPTIONS = [
   { value: "pending", label: "Pendiente" },
@@ -168,12 +151,16 @@ function emptyPhaseContent(): PhaseContent {
     clientStatus: "",
     clientSentAt: "",
     clientReceivedAt: "",
+    coverUrl: "",
   };
 }
 
-function parsePhases(raw: Record<string, Record<string, string>>): Record<string, PhaseContent> {
+function parsePhases(
+  raw: Record<string, Record<string, string>>,
+  phaseList: ProjectPhaseDefinition[],
+): Record<string, PhaseContent> {
   const result: Record<string, PhaseContent> = {};
-  for (const ph of PHASES) {
+  for (const ph of phaseList) {
     const saved = raw[ph.key] ?? {};
     result[ph.key] = {
       state: saved.state ?? "pending",
@@ -189,9 +176,17 @@ function parsePhases(raw: Record<string, Record<string, string>>): Record<string
       clientStatus: saved.clientStatus ?? "",
       clientSentAt: saved.clientSentAt ?? "",
       clientReceivedAt: saved.clientReceivedAt ?? "",
+      coverUrl: saved.coverUrl ?? "",
     };
   }
   return result;
+}
+
+function phaseCoverImage(
+  ph: ProjectPhaseDefinition,
+  content?: Pick<PhaseContent, "coverUrl">,
+): string {
+  return resolvePhaseCoverImage(ph, { coverUrl: content?.coverUrl });
 }
 
 function formatPhaseDateLabel(iso: string): string {
@@ -208,10 +203,6 @@ function formatPhaseDateRange(startDate: string, endDate: string): string | null
   if (start && end) return `${formatPhaseDateLabel(start)} — ${formatPhaseDateLabel(end)}`;
   if (start) return `Desde ${formatPhaseDateLabel(start)}`;
   return `Hasta ${formatPhaseDateLabel(end)}`;
-}
-
-function phaseCover(ph: typeof PHASES[0]) {
-  return `url("${ph.cover}"), url("${ph.fallback}")`;
 }
 
 function toDateInputValue(d: string | null): string {
@@ -231,10 +222,16 @@ const DELETE_CONFIRM_PHRASE = "ELIMINAR";
 export function ERPProjectWorkspace({ project: initial }: { project: ClientProject }) {
   const router = useRouter();
   const [project, setProject] = useState(initial);
+  const [rawPhases, setRawPhases] = useState<Record<string, Record<string, string>>>(
+    () => initial.phases ?? {},
+  );
+  const phaseList = useMemo(() => buildPhaseListFromRaw(rawPhases), [rawPhases]);
   const [phases, setPhases] = useState<Record<string, PhaseContent>>(() =>
-    parsePhases(initial.phases ?? {})
+    parsePhases(initial.phases ?? {}, buildPhaseListFromRaw(initial.phases ?? {})),
   );
   const [savingPhase, setSavingPhase] = useState<string | null>(null);
+  const [coverUploadingKey, setCoverUploadingKey] = useState<string | null>(null);
+  const [addingPhase, setAddingPhase] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteAck, setDeleteAck] = useState(false);
   const [deletePhrase, setDeletePhrase] = useState("");
@@ -256,7 +253,8 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         progress?: PhaseSyncProgress | null;
       };
       if (j.phases) {
-        setPhases(parsePhases(j.phases));
+        setRawPhases(j.phases);
+        setPhases(parsePhases(j.phases, buildPhaseListFromRaw(j.phases)));
       }
       if (j.progress) {
         setProject((p) => ({
@@ -303,7 +301,8 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
       if (res.ok) {
         const j = (await res.json()) as { phases?: Record<string, Record<string, string>> };
         if (j.phases) {
-          setPhases(parsePhases(j.phases));
+          setRawPhases(j.phases);
+          setPhases(parsePhases(j.phases, buildPhaseListFromRaw(j.phases)));
         }
       }
       setSavingPhase(null);
@@ -369,12 +368,12 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
       const pc = phases[phaseKey];
       if (!pc) return;
 
-      const idx = PHASES.findIndex((p) => p.key === phaseKey);
+      const idx = phaseList.findIndex((p) => p.key === phaseKey);
       let cascadeNextKey: string | null = null;
       let cascadeStart = "";
 
-      if (pc.endDate.trim() && idx >= 0 && idx < PHASES.length - 1) {
-        cascadeNextKey = PHASES[idx + 1].key;
+      if (pc.endDate.trim() && idx >= 0 && idx < phaseList.length - 1) {
+        cascadeNextKey = phaseList[idx + 1].key;
         const nextStart = phases[cascadeNextKey]?.startDate ?? "";
         if (!nextStart.trim()) {
           cascadeStart = pc.endDate;
@@ -395,8 +394,70 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         });
       }
     },
-    [phases, savePhaseContent],
+    [phases, savePhaseContent, phaseList],
   );
+
+  const saveCustomPhaseLayout = useCallback(
+    async (defs: CustomPhaseDefinition[]) => {
+      const res = await fetch(`/api/admin/projects-erp/${project.id}/phases`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phase: PROJECT_LAYOUT_STORAGE_KEY,
+          content: { customPhases: serializeCustomPhaseDefinitions(defs) },
+        }),
+      });
+      if (res.ok) {
+        const j = (await res.json()) as { phases?: Record<string, Record<string, string>> };
+        if (j.phases) {
+          setRawPhases(j.phases);
+          setPhases(parsePhases(j.phases, buildPhaseListFromRaw(j.phases)));
+        }
+      }
+      return res.ok;
+    },
+    [project.id],
+  );
+
+  async function addCustomPhase() {
+    const title = window.prompt("Nombre de la nueva etapa", "Testimonio")?.trim();
+    if (!title) return;
+    setAddingPhase(true);
+    const key = createCustomProjectPhaseId();
+    const defs = [
+      ...parseCustomPhaseDefinitions(rawPhases),
+      {
+        key,
+        title,
+        desc: "Documento para el cliente — contenido editable y envío por mail.",
+      },
+    ];
+    const ok = await saveCustomPhaseLayout(defs);
+    setAddingPhase(false);
+    if (ok) {
+      window.location.hash = `fase-${key}`;
+    }
+  }
+
+  async function updateCustomPhaseDef(
+    phaseKey: string,
+    patch: Partial<Pick<CustomPhaseDefinition, "title" | "desc">>,
+  ) {
+    const defs = parseCustomPhaseDefinitions(rawPhases).map((d) =>
+      d.key === phaseKey ? { ...d, ...patch } : d,
+    );
+    await saveCustomPhaseLayout(defs);
+  }
+
+  async function removeCustomPhase(phaseKey: string) {
+    const def = parseCustomPhaseDefinitions(rawPhases).find((d) => d.key === phaseKey);
+    if (!def) return;
+    const ok = window.confirm(`¿Eliminar la etapa "${def.title}"? No se puede deshacer.`);
+    if (!ok) return;
+    const defs = parseCustomPhaseDefinitions(rawPhases).filter((d) => d.key !== phaseKey);
+    await saveCustomPhaseLayout(defs);
+  }
 
   function updateField(phaseKey: string, field: keyof PhaseContent, value: string) {
     setPhases((prev) => ({
@@ -522,8 +583,8 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
           </p>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {PHASES.map((ph) => {
-            const pc = phases[ph.key];
+          {phaseList.map((ph) => {
+            const pc = phases[ph.key] ?? emptyPhaseContent();
             const stc = STATE_COLORS[pc.state] ?? STATE_COLORS.pending;
             const dateRange = formatPhaseDateRange(pc.startDate, pc.endDate);
             return (
@@ -532,7 +593,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                 <article>
                   <div className="relative h-[160px] overflow-hidden bg-neutral-100">
                     <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 ease-out group-hover:scale-105"
-                      style={{ backgroundImage: phaseCover(ph) }} />
+                      style={{ backgroundImage: phaseCoverImage(ph, pc) }} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/5 to-transparent" />
                     <div className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[10px] font-medium shadow-sm"
                       style={{ color: stc.color }}>
@@ -562,21 +623,36 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
               </a>
             );
           })}
+          <button
+            type="button"
+            disabled={addingPhase}
+            onClick={() => void addCustomPhase()}
+            className="flex min-h-[260px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-neutral-200 bg-neutral-50/50 px-4 py-8 text-center transition-colors hover:border-[#F03172] hover:bg-white disabled:opacity-50"
+          >
+            <span className="text-2xl font-light text-neutral-400">+</span>
+            <span className="text-sm font-medium text-neutral-600">
+              {addingPhase ? "Creando etapa…" : "Nueva etapa"}
+            </span>
+            <span className="text-xs text-neutral-400 max-w-[200px]">
+              Ej: Testimonio, encuesta o entrega extra con mail al cliente
+            </span>
+          </button>
         </div>
       </div>
 
       {/* ── Secciones de fases ── */}
       <div className="space-y-6">
-        {PHASES.map((ph) => {
-          const pc = phases[ph.key];
+        {phaseList.map((ph) => {
+          const pc = phases[ph.key] ?? emptyPhaseContent();
           const isSaving = savingPhase === ph.key;
+          const isCustom = ph.genericClient === true;
           return (
             <section key={ph.key} id={`fase-${ph.key}`}
               className="scroll-mt-24 overflow-hidden rounded-[24px] border border-neutral-200 bg-white shadow-sm">
               {/* Portada */}
               <div className="relative h-[180px] overflow-hidden border-b border-neutral-200 bg-neutral-100">
                 <div className="absolute inset-0 bg-cover bg-center"
-                  style={{ backgroundImage: phaseCover(ph) }} />
+                  style={{ backgroundImage: phaseCoverImage(ph, pc) }} />
                 <div className="absolute inset-0 bg-brand-navy/10" />
                 <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-3 px-5 pb-5">
                   <div className="max-w-2xl text-white">
@@ -586,15 +662,79 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                     <h3 className="mt-1 text-2xl font-semibold">{ph.title}</h3>
                     <p className="mt-1 text-sm text-white/85">{ph.desc}</p>
                   </div>
-                  <a href="#phases-grid"
-                    className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-neutral-800">
-                    Volver a cards
-                  </a>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {isCustom && (
+                      <button
+                        type="button"
+                        onClick={() => void removeCustomPhase(ph.key)}
+                        className="rounded-full bg-red-600/90 px-4 py-2 text-xs font-medium text-white"
+                      >
+                        Eliminar etapa
+                      </button>
+                    )}
+                    <a href="#phases-grid"
+                      className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-neutral-800">
+                      Volver a cards
+                    </a>
+                  </div>
                 </div>
               </div>
 
+              <div className="border-b px-5 py-4 md:px-6" style={{ borderColor: "rgba(19,25,69,0.08)" }}>
+                <ProjectPhaseCoverEditor
+                  label={ph.title}
+                  coverUrl={pc.coverUrl}
+                  fallbackUrl={ph.fallback}
+                  onUploadingChange={(uploading) =>
+                    setCoverUploadingKey(uploading ? ph.key : null)
+                  }
+                  onChange={(coverUrl) => {
+                    setPhases((prev) => ({
+                      ...prev,
+                      [ph.key]: { ...(prev[ph.key] ?? emptyPhaseContent()), coverUrl },
+                    }));
+                    void savePhaseContent(ph.key, { coverUrl });
+                  }}
+                />
+                {coverUploadingKey === ph.key && (
+                  <p className="text-[11px] mt-2" style={{ color: "#323FF6" }}>
+                    Subiendo imagen…
+                  </p>
+                )}
+                {isCustom && (
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-neutral-600">Título</span>
+                      <input
+                        className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+                        defaultValue={ph.title}
+                        onBlur={(e) => {
+                          const title = e.target.value.trim();
+                          if (title && title !== ph.title) {
+                            void updateCustomPhaseDef(ph.key, { title });
+                          }
+                        }}
+                      />
+                    </label>
+                    <label className="block sm:col-span-2">
+                      <span className="mb-1 block text-xs font-medium text-neutral-600">Descripción</span>
+                      <textarea
+                        className="w-full min-h-[64px] rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+                        defaultValue={ph.desc}
+                        onBlur={(e) => {
+                          const desc = e.target.value.trim();
+                          if (desc !== ph.desc) {
+                            void updateCustomPhaseDef(ph.key, { desc });
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
               {/* Herramientas por etapa (contrato, pre-brief, etc.) */}
-              {(ph.key === "onboarding" || ph.key === "prebrief" || ph.key === "narrativa") && (
+              {!isCustom && (ph.key === "onboarding" || ph.key === "prebrief" || ph.key === "narrativa") && (
                 <div
                   className="border-b px-5 py-5 md:px-6 space-y-4"
                   style={{ borderColor: "rgba(240,49,114,0.2)", background: "rgba(240,49,114,0.03)" }}
@@ -671,7 +811,44 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
 
               {/* Contenido de la fase — ancho completo */}
               <div className="space-y-4 p-5 md:p-6">
-                    {ph.key === "identidad" && (
+                    {isCustom && (
+                      <GenericProjectPhasePanel
+                        projectId={project.id}
+                        phaseKey={ph.key}
+                        phaseTitle={ph.title}
+                        clientEmail={project.client.email}
+                        saved={{
+                          body: pc.body,
+                          bodyFormat: pc.bodyFormat,
+                          clientStatus: pc.clientStatus,
+                          clientSentAt: pc.clientSentAt,
+                          clientReceivedAt: pc.clientReceivedAt,
+                        }}
+                        saving={isSaving}
+                        meta={getPhaseClientMeta({
+                          clientStatus: pc.clientStatus,
+                          clientSentAt: pc.clientSentAt,
+                          clientReceivedAt: pc.clientReceivedAt,
+                        })}
+                        onSave={async ({ body, bodyFormat }) => {
+                          setPhases((prev) => ({
+                            ...prev,
+                            [ph.key]: { ...(prev[ph.key] ?? emptyPhaseContent()), body, bodyFormat },
+                          }));
+                          return savePhaseContent(ph.key, { body, bodyFormat });
+                        }}
+                        onSent={() => {
+                          const now = new Date().toISOString();
+                          handlePhaseMetaChange(ph.key, {
+                            clientStatus: "enviado",
+                            clientSentAt: now,
+                            clientReceivedAt: "",
+                          });
+                        }}
+                        onMetaChange={(meta) => handlePhaseMetaChange(ph.key, meta)}
+                      />
+                    )}
+                    {!isCustom && ph.key === "identidad" && (
                       <BrandKitPanel
                         phaseLabel="Identidad visual"
                         brandKitJson={pc.brandKit}
@@ -685,7 +862,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                         }}
                       />
                     )}
-                    {ph.key === "manual" && (
+                    {!isCustom && ph.key === "manual" && (
                       <ManualPdfPanel
                         pdf={getManualPdfFromPhase(pc)}
                         saving={isSaving}
@@ -727,7 +904,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                         }}
                       />
                     )}
-                    {ph.key === "identidad" && (
+                    {!isCustom && ph.key === "identidad" && (
                       <PhaseDocumentEditor
                         phaseKey="identidad"
                         title={PHASE_DOCUMENT_TITLES.identidad}
@@ -763,6 +940,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                         }}
                       />
                     )}
+                    {!isCustom && (
                     <PhaseManualStatusBar
                       projectId={project.id}
                       phaseKey={ph.key as WorkspacePhaseKey}
@@ -783,8 +961,9 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                               : undefined
                       }
                     />
+                    )}
 
-                {(ph.key === "onboarding" || ph.key === "prebrief" || ph.key === "narrativa") && (
+                {!isCustom && (ph.key === "onboarding" || ph.key === "prebrief" || ph.key === "narrativa") && (
                   <details className="group rounded-2xl border border-neutral-200 bg-neutral-50/80 open:bg-neutral-50">
                     <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3 select-none [&::-webkit-details-marker]:hidden">
                       <div>
@@ -917,7 +1096,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
       startDate={project.startDate}
       deliveryDate={project.deliveryDate}
       savingProjectDates={savingProjectDates}
-      phases={PHASES.map((p) => ({
+      phases={phaseList.map((p) => ({
         key: p.key,
         title: p.title,
         state: phases[p.key]?.state ?? "pending",

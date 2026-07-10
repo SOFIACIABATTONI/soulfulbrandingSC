@@ -11,7 +11,8 @@ import { brandUi } from "@/lib/brand-ui";
 
 type PhaseManualStatusBarProps = {
   projectId: string;
-  phaseKey: WorkspacePhaseKey;
+  phaseKey: WorkspacePhaseKey | string;
+  phaseLabel?: string;
   meta: PhaseClientMeta;
   onMetaChange?: (meta: PhaseClientMeta) => void;
   disabled?: boolean;
@@ -21,6 +22,7 @@ type PhaseManualStatusBarProps = {
 export function PhaseManualStatusBar({
   projectId,
   phaseKey,
+  phaseLabel,
   meta,
   onMetaChange,
   disabled = false,
@@ -28,7 +30,11 @@ export function PhaseManualStatusBar({
 }: PhaseManualStatusBarProps) {
   const [statusBusy, setStatusBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const phaseLabel = WORKSPACE_PHASE_LABELS[phaseKey];
+  const resolvedLabel =
+    phaseLabel ??
+    (phaseKey in WORKSPACE_PHASE_LABELS
+      ? WORKSPACE_PHASE_LABELS[phaseKey as WorkspacePhaseKey]
+      : String(phaseKey));
 
   async function updateClientStatus(action: "mark_received" | "reopen_ack") {
     setStatusBusy(true);
@@ -58,7 +64,7 @@ export function PhaseManualStatusBar({
     }
     setMessage(
       action === "mark_received"
-        ? `${phaseLabel} marcada como recibida. La etapa queda completada.`
+        ? `${resolvedLabel} marcada como recibida. La etapa queda completada.`
         : "Confirmación reabierta. Podés volver a marcar recibido o esperar confirmación del cliente.",
     );
   }
@@ -71,7 +77,7 @@ export function PhaseManualStatusBar({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium" style={{ color: brandUi.text }}>
-            Seguimiento — {phaseLabel}
+            Seguimiento — {resolvedLabel}
           </p>
           <p className="text-xs mt-1" style={{ color: brandUi.textMuted }}>
             {hint ??
