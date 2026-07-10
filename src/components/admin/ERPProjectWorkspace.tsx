@@ -279,6 +279,22 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   }, [refreshPhaseStates]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const scrollToPhaseHash = () => {
+      const hash = window.location.hash;
+      if (!hash.startsWith("#fase-")) return;
+      const el = document.querySelector(hash);
+      if (!el) return;
+      window.requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    };
+    scrollToPhaseHash();
+    window.addEventListener("hashchange", scrollToPhaseHash);
+    return () => window.removeEventListener("hashchange", scrollToPhaseHash);
+  }, [phaseList.length]);
+
+  useEffect(() => {
     const onFocus = () => {
       if (document.visibilityState !== "visible") return;
       void refreshPhaseStates();
@@ -591,19 +607,26 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
               <a key={ph.key} href={`#fase-${ph.key}`}
                 className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                 <article>
-                  <div className="relative h-[160px] overflow-hidden bg-neutral-50">
-                    {hasCover && (
+                  {hasCover ? (
+                    <div className="relative h-[160px] overflow-hidden bg-neutral-50">
                       <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 ease-out group-hover:scale-105"
                         style={{ backgroundImage: phaseCoverImage(pc) }} />
-                    )}
-                    {hasCover && (
                       <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/5 to-transparent" />
-                    )}
-                    <div className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[10px] font-medium shadow-sm"
-                      style={{ color: stc.color }}>
-                      {STATE_OPTIONS.find((s) => s.value === pc.state)?.label ?? "Pendiente"}
+                      <div className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[10px] font-medium shadow-sm"
+                        style={{ color: stc.color }}>
+                        {STATE_OPTIONS.find((s) => s.value === pc.state)?.label ?? "Pendiente"}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex items-center justify-end border-b border-neutral-100 px-4 py-2">
+                      <span
+                        className="rounded-full px-3 py-1 text-[10px] font-medium"
+                        style={{ background: stc.bg, color: stc.color }}
+                      >
+                        {STATE_OPTIONS.find((s) => s.value === pc.state)?.label ?? "Pendiente"}
+                      </span>
+                    </div>
+                  )}
                   <div className="p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
@@ -655,37 +678,64 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
             <section key={ph.key} id={`fase-${ph.key}`}
               className="scroll-mt-24 overflow-hidden rounded-[24px] border border-neutral-200 bg-white shadow-sm">
               {/* Portada */}
-              <div className="relative h-[180px] overflow-hidden border-b border-neutral-200 bg-neutral-50">
-                {hasCover && (
+              {hasCover ? (
+                <div className="relative h-[180px] overflow-hidden border-b border-neutral-200 bg-neutral-50">
                   <div className="absolute inset-0 bg-cover bg-center"
                     style={{ backgroundImage: phaseCoverImage(pc) }} />
-                )}
-                {hasCover && <div className="absolute inset-0 bg-brand-navy/10" />}
-                <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-3 px-5 pb-5">
-                  <div className={`max-w-2xl ${hasCover ? "text-white" : "text-neutral-900"}`}>
-                    <p className={`text-xs font-medium uppercase tracking-[0.2em] ${hasCover ? "text-white/70" : "text-neutral-400"}`}>
-                      Etapa del proyecto
-                    </p>
-                    <h3 className="mt-1 text-2xl font-semibold">{ph.title}</h3>
-                    <p className={`mt-1 text-sm ${hasCover ? "text-white/85" : "text-neutral-500"}`}>{ph.desc}</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {isCustom && (
-                      <button
-                        type="button"
-                        onClick={() => void removeCustomPhase(ph.key)}
-                        className="rounded-full bg-red-600/90 px-4 py-2 text-xs font-medium text-white"
-                      >
-                        Eliminar etapa
-                      </button>
-                    )}
-                    <a href="#phases-grid"
-                      className={`rounded-full px-4 py-2 text-xs font-medium ${hasCover ? "bg-white/90 text-neutral-800" : "border border-neutral-200 bg-white text-neutral-800"}`}>
-                      Volver a cards
-                    </a>
+                  <div className="absolute inset-0 bg-brand-navy/10" />
+                  <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-3 px-5 pb-5">
+                    <div className="max-w-2xl text-white">
+                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/70">
+                        Etapa del proyecto
+                      </p>
+                      <h3 className="mt-1 text-2xl font-semibold">{ph.title}</h3>
+                      <p className="mt-1 text-sm text-white/85">{ph.desc}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isCustom && (
+                        <button
+                          type="button"
+                          onClick={() => void removeCustomPhase(ph.key)}
+                          className="rounded-full bg-red-600/90 px-4 py-2 text-xs font-medium text-white"
+                        >
+                          Eliminar etapa
+                        </button>
+                      )}
+                      <a href="#phases-grid"
+                        className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-neutral-800">
+                        Volver a cards
+                      </a>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="border-b border-neutral-200 px-5 py-5 md:px-6">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="max-w-2xl">
+                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-400">
+                        Etapa del proyecto
+                      </p>
+                      <h3 className="mt-1 text-2xl font-semibold text-neutral-900">{ph.title}</h3>
+                      <p className="mt-1 text-sm text-neutral-500">{ph.desc}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isCustom && (
+                        <button
+                          type="button"
+                          onClick={() => void removeCustomPhase(ph.key)}
+                          className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-medium text-red-700"
+                        >
+                          Eliminar etapa
+                        </button>
+                      )}
+                      <a href="#phases-grid"
+                        className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-medium text-neutral-800">
+                        Volver a cards
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="border-b px-5 py-4 md:px-6" style={{ borderColor: "rgba(19,25,69,0.08)" }}>
                 <ProjectPhaseCoverEditor

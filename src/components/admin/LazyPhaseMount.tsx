@@ -14,7 +14,10 @@ type LazyPhaseMountProps = {
  */
 export function LazyPhaseMount({ phaseKey, children }: LazyPhaseMountProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.location.hash === `#fase-${phaseKey}`;
+  });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
