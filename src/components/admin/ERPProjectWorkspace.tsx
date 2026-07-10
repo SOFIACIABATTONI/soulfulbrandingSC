@@ -1,10 +1,10 @@
 ﻿"use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LazyPhaseMount } from "@/components/admin/LazyPhaseMount";
+import { navigateAdminToPhaseHash, scrollAdminMainToHash } from "@/lib/admin-main-scroll";
 import { PhaseDocumentEditor } from "@/components/admin/PhaseDocumentEditor";
 import { PhaseManualStatusBar } from "@/components/admin/PhaseManualStatusBar";
 import { BrandKitPanel } from "@/components/admin/BrandKitPanel";
@@ -278,21 +278,33 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
     void refreshPhaseStates();
   }, [refreshPhaseStates]);
 
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash;
+    if (!hash.startsWith("#fase-") && hash !== "#phases-grid") return;
+
+    const runScroll = () => scrollAdminMainToHash(hash, "auto");
+    runScroll();
+    const t1 = window.setTimeout(runScroll, 50);
+    const t2 = window.setTimeout(runScroll, 280);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [phaseList.length]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const scrollToPhaseHash = () => {
+    const onHashChange = () => {
       const hash = window.location.hash;
-      if (!hash.startsWith("#fase-")) return;
-      const el = document.querySelector(hash);
-      if (!el) return;
+      if (!hash.startsWith("#fase-") && hash !== "#phases-grid") return;
       window.requestAnimationFrame(() => {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        scrollAdminMainToHash(hash);
       });
     };
-    scrollToPhaseHash();
-    window.addEventListener("hashchange", scrollToPhaseHash);
-    return () => window.removeEventListener("hashchange", scrollToPhaseHash);
-  }, [phaseList.length]);
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   useEffect(() => {
     const onFocus = () => {
@@ -604,8 +616,15 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
             const dateRange = formatPhaseDateRange(pc.startDate, pc.endDate);
             const hasCover = hasPhaseCoverImage(pc);
             return (
-              <a key={ph.key} href={`#fase-${ph.key}`}
-                className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <a
+                key={ph.key}
+                href={`#fase-${ph.key}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigateAdminToPhaseHash(ph.key);
+                }}
+                className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              >
                 <article>
                   {hasCover ? (
                     <div className="relative h-[160px] overflow-hidden bg-neutral-50">
@@ -701,8 +720,15 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                           Eliminar etapa
                         </button>
                       )}
-                      <a href="#phases-grid"
-                        className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-neutral-800">
+                      <a
+                        href="#phases-grid"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          window.location.hash = "phases-grid";
+                          scrollAdminMainToHash("#phases-grid");
+                        }}
+                        className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-neutral-800"
+                      >
                         Volver a cards
                       </a>
                     </div>
@@ -728,8 +754,15 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                           Eliminar etapa
                         </button>
                       )}
-                      <a href="#phases-grid"
-                        className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-medium text-neutral-800">
+                      <a
+                        href="#phases-grid"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          window.location.hash = "phases-grid";
+                          scrollAdminMainToHash("#phases-grid");
+                        }}
+                        className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-medium text-neutral-800"
+                      >
                         Volver a cards
                       </a>
                     </div>
@@ -804,63 +837,57 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                   </p>
 
                   {ph.key === "onboarding" && (
-                    <LazyPhaseMount phaseKey="onboarding">
-                      <>
-                        <ContractEditor
-                          embedded
-                          projectId={project.id}
-                          clientName={project.client.name}
-                          projectTitle={project.title}
-                        />
-                        <div
-                          className="rounded-2xl border bg-white p-4 flex flex-wrap items-center justify-between gap-3 text-sm"
-                          style={{ borderColor: "rgba(19,25,69,0.1)" }}
-                        >
-                          <div>
-                            <p className="font-medium text-neutral-900">Seña del proyecto</p>
-                            <p className="text-xs text-neutral-500 mt-0.5">
-                              {(() => {
-                                const sena = project.invoices.find((i) => i.type === "sena");
-                                if (!sena) return "Sin recibo de seña vinculado aún.";
-                                return sena.status === "pagado"
-                                  ? `Pagada · ${sena.number}`
-                                  : `Pendiente · ${sena.number}`;
-                              })()}
-                            </p>
-                          </div>
-                          <Link
-                            href={`/admin/facturas?clientId=${project.client.id}&projectId=${project.id}`}
-                            className="text-xs font-medium hover:underline"
-                            style={{ color: "#F03172" }}
-                          >
-                            Gestionar facturas →
-                          </Link>
-                        </div>
-                      </>
-                    </LazyPhaseMount>
-                  )}
-
-                  {ph.key === "prebrief" && (
-                    <LazyPhaseMount phaseKey="prebrief">
-                      <PrebriefPanel
-                        embedded
-                        projectId={project.id}
-                        clientName={project.client.name}
-                        clientEmail={project.client.email}
-                      />
-                    </LazyPhaseMount>
-                  )}
-
-                  {ph.key === "narrativa" && (
-                    <LazyPhaseMount phaseKey="narrativa">
-                      <NarrativaPanel
+                    <>
+                      <ContractEditor
                         embedded
                         projectId={project.id}
                         clientName={project.client.name}
                         projectTitle={project.title}
-                        clientEmail={project.client.email}
                       />
-                    </LazyPhaseMount>
+                      <div
+                        className="rounded-2xl border bg-white p-4 flex flex-wrap items-center justify-between gap-3 text-sm"
+                        style={{ borderColor: "rgba(19,25,69,0.1)" }}
+                      >
+                        <div>
+                          <p className="font-medium text-neutral-900">Seña del proyecto</p>
+                          <p className="text-xs text-neutral-500 mt-0.5">
+                            {(() => {
+                              const sena = project.invoices.find((i) => i.type === "sena");
+                              if (!sena) return "Sin recibo de seña vinculado aún.";
+                              return sena.status === "pagado"
+                                ? `Pagada · ${sena.number}`
+                                : `Pendiente · ${sena.number}`;
+                            })()}
+                          </p>
+                        </div>
+                        <Link
+                          href={`/admin/facturas?clientId=${project.client.id}&projectId=${project.id}`}
+                          className="text-xs font-medium hover:underline"
+                          style={{ color: "#F03172" }}
+                        >
+                          Gestionar facturas →
+                        </Link>
+                      </div>
+                    </>
+                  )}
+
+                  {ph.key === "prebrief" && (
+                    <PrebriefPanel
+                      embedded
+                      projectId={project.id}
+                      clientName={project.client.name}
+                      clientEmail={project.client.email}
+                    />
+                  )}
+
+                  {ph.key === "narrativa" && (
+                    <NarrativaPanel
+                      embedded
+                      projectId={project.id}
+                      clientName={project.client.name}
+                      projectTitle={project.title}
+                      clientEmail={project.client.email}
+                    />
                   )}
                 </div>
               )}
