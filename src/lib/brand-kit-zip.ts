@@ -1,10 +1,13 @@
 import JSZip from "jszip";
 import {
   brandKitHasContent,
+  buildPaletteColorsTxt,
   cardHasContent,
   deliverableCardFiles,
   isBrandKitPresentationGroup,
+  isValidHex,
   normalizeHex,
+  PALETTE_CARD_KEY,
   type BrandKit,
   type BrandKitCard,
 } from "@/lib/brand-kit";
@@ -206,6 +209,11 @@ export async function buildBrandKitZipBuffer(opts: {
         skippedFiles,
       }),
     );
+
+    const paletteCard = opts.brandKit.cards.find((c) => c.key === PALETTE_CARD_KEY);
+    if (paletteCard?.colors.some((c) => isValidHex(c.hex))) {
+      zip.file("paleta-colores/colores.txt", buildPaletteColorsTxt(paletteCard.colors));
+    }
   }
 
   if (opts.htmlBody?.trim()) {

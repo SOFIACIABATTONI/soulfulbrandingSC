@@ -11,10 +11,12 @@ import {
   createBrandKitId,
   getBrandKitCardDef,
   hexToRgb,
+  hexToCmyk,
   isImageAssetFile,
   isValidHex,
   normalizeHex,
   parseBrandKit,
+  parseBrandKitColorsText,
   serializeBrandKit,
   type BrandKit,
   type BrandKitAssetFile,
@@ -303,6 +305,43 @@ function PaletteEditor({
   onUpdate: (next: BrandKitCard) => void;
   emphasize?: boolean;
 }) {
+  const [pasteText, setPasteText] = useState("");
+  const [previewColors, setPreviewColors] = useState<BrandKitColor[] | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function runPreview(text: string) {
+    const parsed = parseBrandKitColorsText(text);
+    if (parsed.length === 0) {
+      setPreviewColors(null);
+      setImportError("No encontramos colores válidos. Usá una línea por color: #E1ADFF — lila claro");
+      return;
+    }
+    setImportError(null);
+    setPreviewColors(parsed);
+  }
+
+  function applyImport(mode: "replace" | "append") {
+    if (!previewColors?.length) return;
+    onUpdate({
+      ...card,
+      colors: mode === "replace" ? previewColors : [...card.colors, ...previewColors],
+    });
+    setPasteText("");
+    setPreviewColors(null);
+    setImportError(null);
+  }
+
+  function handleFileUpload(fileList: FileList | null) {
+    const file = fileList?.[0];
+    if (!file) return;
+    void file.text().then((text) => {
+      setPasteText(text);
+      runPreview(text);
+    });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   return (
     <div
       className="rounded-lg border p-3 space-y-3"
@@ -338,6 +377,108 @@ function PaletteEditor({
           + Tono
         </button>
       </div>
+
+      {emphasize && (
+        <div
+          className="rounded-lg border p-3 space-y-2"
+          style={{ borderColor: brandUi.border, background: "rgba(255,255,255,0.6)" }}
+        >
+          <p className="text-[11px] font-medium" style={{ color: brandUi.text }}>
+            Importar desde texto o .txt
+          </p>
+          <p className="text-[10px]" style={{ color: brandUi.textMuted }}>
+            Una línea por color. Ejemplo: <code className="font-mono">#E1ADFF — lila claro</code>
+          </p>
+          <textarea
+            className="w-full min-h-[88px] rounded border px-2 py-1.5 text-xs font-mono"
+            style={{ borderColor: brandUi.borderStrong }}
+            placeholder={"#3A1E66 — púrpura oscuro\n#E1ADFF — lila claro"}
+            value={pasteText}
+            onChange={(e) => {
+              setPasteText(e.target.value);
+              setPreviewColors(null);
+              setImportError(null);
+            }}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-full px-3 py-1 text-[11px] font-medium border"
+              style={{ borderColor: brandUi.borderStrong, color: brandUi.text }}
+              onClick={() => runPreview(pasteText)}
+            >
+              Vista previa
+            </button>
+            <label className="rounded-full px-3 py-1 text-[11px] font-medium border cursor-pointer" style={{ borderColor: brandUi.borderStrong, color: brandUi.text }}>
+              Subir .txt
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,text/plain"
+                className="sr-only"
+                onChange={(e) => handleFileUpload(e.target.files)}
+              />
+            </label>
+          </div>
+
+          {importError && (
+            <p className="text-[10px]" style={{ color: brandUi.accent }}>
+              {importError}
+            </p>
+          )}
+
+          {previewColors && previewColors.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <p className="text-[10px]" style={{ color: brandUi.textMuted }}>
+                {previewColors.length} color{previewColors.length === 1 ? "" : "es"} detectado
+                {previewColors.length === 1 ? "" : "s"}
+              </p>
+              <div className="flex h-4 rounded-full overflow-hidden border" style={{ borderColor: brandUi.border }}>
+                {previewColors.map((c) => (
+                  <div key={c.id} className="flex-1" style={{ background: normalizeHex(c.hex) }} aria-hidden />
+                ))}
+              </div>
+              <ul className="space-y-0.5 max-h-32 overflow-y-auto">
+                {previewColors.map((c) => (
+                  <li key={c.id} className="text-[10px] font-mono" style={{ color: brandUi.textMuted }}>
+                    {normalizeHex(c.hex)} — {c.name}
+                    {c.rgb ? ` · RGB ${c.rgb}` : ""}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="rounded-full px-3 py-1 text-[11px] font-medium text-white"
+                  style={{ background: brandUi.blue }}
+                  onClick={() => applyImport("replace")}
+                >
+                  Reemplazar paleta
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full px-3 py-1 text-[11px] font-medium border"
+                  style={{ borderColor: brandUi.borderStrong, color: brandUi.text }}
+                  onClick={() => applyImport("append")}
+                >
+                  Agregar al final
+                </button>
+                <button
+                  type="button"
+                  className="text-[11px]"
+                  style={{ color: brandUi.textFaint }}
+                  onClick={() => {
+                    setPreviewColors(null);
+                    setImportError(null);
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {card.colors.length > 0 && (
         <div className="flex h-3 rounded-full overflow-hidden border" style={{ borderColor: brandUi.border }}>
@@ -504,7 +645,12 @@ function ColorSpecRow({
           value={isValidHex(hex) ? hex : "#131945"}
           onChange={(e) => {
             const nextHex = e.target.value;
-            onChange({ ...color, hex: nextHex, rgb: hexToRgb(nextHex) || color.rgb });
+            onChange({
+              ...color,
+              hex: nextHex,
+              rgb: hexToRgb(nextHex) || color.rgb,
+              cmyk: hexToCmyk(nextHex) || color.cmyk,
+            });
           }}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
           aria-label="Selector de color"
@@ -525,7 +671,12 @@ function ColorSpecRow({
           value={color.hex}
           onChange={(e) => {
             const nextHex = e.target.value;
-            onChange({ ...color, hex: nextHex, rgb: hexToRgb(nextHex) || color.rgb });
+            onChange({
+              ...color,
+              hex: nextHex,
+              rgb: hexToRgb(nextHex) || color.rgb,
+              cmyk: hexToCmyk(nextHex) || color.cmyk,
+            });
           }}
         />
         <input

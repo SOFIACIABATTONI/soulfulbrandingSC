@@ -131,6 +131,77 @@ export function hexToRgb(hex: string): string {
   return `${r}, ${g}, ${b}`;
 }
 
+/** Aproximación CMYK desde hex (referencia pantalla; no sustituye valores de imprenta). */
+export function hexToCmyk(hex: string): string {
+  const h = normalizeHex(hex).slice(1);
+  if (h.length !== 6) return "";
+  const r = Number.parseInt(h.slice(0, 2), 16) / 255;
+  const g = Number.parseInt(h.slice(2, 4), 16) / 255;
+  const b = Number.parseInt(h.slice(4, 6), 16) / 255;
+  if ([r, g, b].some((n) => Number.isNaN(n))) return "";
+  const k = 1 - Math.max(r, g, b);
+  if (k >= 1 - 1e-6) return "0, 0, 0, 100";
+  const c = (1 - r - k) / (1 - k);
+  const m = (1 - g - k) / (1 - k);
+  const y = (1 - b - k) / (1 - k);
+  return `${Math.round(c * 100)}, ${Math.round(m * 100)}, ${Math.round(y * 100)}, ${Math.round(k * 100)}`;
+}
+
+const BRAND_KIT_COLOR_LINE =
+  /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})\s*(?:[—\-–:·|]\s*)?(.*)?$/;
+
+/** Parsea texto o .txt con una línea por color: `#E1ADFF — lila claro` */
+export function parseBrandKitColorsText(text: string): BrandKitColor[] {
+  const colors: BrandKitColor[] = [];
+  let unnamedIndex = 0;
+
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const match = trimmed.match(BRAND_KIT_COLOR_LINE);
+    if (!match) continue;
+
+    let hexDigits = match[1];
+    if (hexDigits.length === 3) {
+      hexDigits = hexDigits
+        .split("")
+        .map((c) => c + c)
+        .join("");
+    }
+    const hex = normalizeHex(`#${hexDigits}`);
+    if (!isValidHex(hex)) continue;
+
+    const name = match[2]?.trim() || `Color ${++unnamedIndex}`;
+    colors.push({
+      id: createBrandKitId(),
+      name,
+      hex,
+      rgb: hexToRgb(hex),
+      cmyk: hexToCmyk(hex),
+    });
+  }
+
+  return colors;
+}
+
+/** Exporta paleta al formato entregable (.txt en el ZIP del cliente). */
+export function buildPaletteColorsTxt(colors: BrandKitColor[]): string {
+  const valid = colors.filter((c) => isValidHex(c.hex));
+  if (valid.length === 0) return "";
+
+  return valid
+    .map((c) => {
+      const hex = normalizeHex(c.hex);
+      const lines = [`${hex} — ${c.name.trim() || "Color"}`];
+      if (c.rgb.trim()) lines.push(`RGB: ${c.rgb.trim()}`);
+      const cmyk = c.cmyk.trim() || hexToCmyk(hex);
+      if (cmyk) lines.push(`CMYK: ${cmyk}`);
+      return lines.join("\n");
+    })
+    .join("\n\n");
+}
+
 function emptyFileGroup(label: string): BrandKitFileGroup {
   return { id: createBrandKitId(), label, files: [] };
 }
