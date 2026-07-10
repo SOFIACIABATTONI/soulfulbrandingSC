@@ -218,6 +218,41 @@ export function blobStorageErrorMessage(cause?: string): string {
   );
 }
 
+/** Credenciales para issueSignedToken (subidas grandes con OIDC, sin read-write token). */
+export async function resolveBlobSignedTokenAuth(): Promise<{
+  token?: string;
+  storeId?: string;
+  oidcToken?: string;
+}> {
+  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  if (token) return { token };
+
+  const storeId = process.env.BLOB_STORE_ID?.trim();
+  if (!storeId) return {};
+
+  if (process.env.VERCEL === "1") {
+    try {
+      const { getVercelOidcToken } = await import("@vercel/oidc");
+      const oidcToken = await getVercelOidcToken();
+      if (oidcToken) return { storeId, oidcToken };
+    } catch {
+      // fallback below
+    }
+  }
+
+  const envOidc = process.env.VERCEL_OIDC_TOKEN?.trim();
+  if (envOidc) return { storeId, oidcToken: envOidc };
+
+  return { storeId };
+}
+
+export function blobClientUploadUnavailableMessage(): string {
+  if (hasBlobCredentials()) {
+    return "No se pudo iniciar la subida directa a Blob. Probá de nuevo o contactá soporte.";
+  }
+  return blobStorageErrorMessage();
+}
+
 export function blobTokenMissingMessage(): string {
   return blobStorageErrorMessage();
 }

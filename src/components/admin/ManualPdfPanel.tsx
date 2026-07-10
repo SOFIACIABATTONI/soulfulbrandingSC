@@ -3,13 +3,12 @@
 import { useRef, useState } from "react";
 import { brandUi, clientFrame } from "@/lib/brand-ui";
 import { uploadManualPdfFile } from "@/lib/admin-client-upload";
-import { MANUAL_PDF_MAX_BYTES, VERCEL_SERVER_UPLOAD_MAX_BYTES } from "@/lib/admin-blob-upload";
+import { MANUAL_PDF_MAX_BYTES } from "@/lib/admin-blob-upload";
 import type { ManualPdfMeta } from "@/lib/manual-pdf";
 import type { PhaseClientSendActionsProps } from "@/components/admin/PhaseClientSendActions";
 import { PhaseClientSendActions } from "@/components/admin/PhaseClientSendActions";
 
 const MAX_BYTES = MANUAL_PDF_MAX_BYTES;
-const SERVER_UPLOAD_HINT_MB = Math.round(VERCEL_SERVER_UPLOAD_MAX_BYTES / (1024 * 1024));
 
 function isUploadErrorMessage(message: string): boolean {
   const lower = message.toLowerCase();
@@ -150,7 +149,7 @@ export function ManualPdfPanel({ pdf, saving = false, onSave, clientSend }: Manu
             {uploading ? "Subiendo PDF…" : "Subir PDF del manual"}
           </span>
           <span className="text-xs mt-1" style={{ color: brandUi.textMuted }}>
-            Máx. 150 MB · solo PDF · hasta {SERVER_UPLOAD_HINT_MB} MB sin configuración extra
+            Máx. 150 MB · solo PDF · archivos grandes se suben directo a Blob
           </span>
         </button>
       )}

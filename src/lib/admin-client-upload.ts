@@ -1,6 +1,6 @@
 "use client";
 
-import { upload as blobClientUpload } from "@vercel/blob/client";
+import { uploadPresigned } from "@vercel/blob/client";
 import {
   ADMIN_IMAGE_ALLOWED_CONTENT_TYPES,
   ADMIN_IMAGE_MAX_BYTES,
@@ -9,6 +9,7 @@ import {
   buildAdminImagePathname,
   buildBrandAssetPathname,
   buildManualPdfPathname,
+  blobClientUploadUnavailableMessage,
   isLocalAdminUploadHost,
   isPdfFile,
   MANUAL_PDF_MAX_BYTES,
@@ -17,8 +18,8 @@ import {
 } from "@/lib/admin-blob-upload";
 
 const BLOB_UPLOAD_URL = "/api/admin/blob-upload";
-const LARGE_UPLOAD_TOKEN_HINT =
-  "Archivos mayores a 4 MB requieren BLOB_READ_WRITE_TOKEN en Vercel (Storage → Blob → Read-Write Token → Preview + Production → redeploy).";
+const LARGE_UPLOAD_HINT =
+  "Si el archivo pesa más de 4 MB, se sube directo a Blob. Verificá que el store esté conectado al proyecto en Vercel (Preview + Production).";
 
 type UploadPayload = {
   kind: "brand" | "manual" | "image";
@@ -62,7 +63,7 @@ async function uploadViaBlobClient(
   opts?: { multipart?: boolean; contentType?: string },
 ): Promise<{ url: string; fileName: string; mime: string }> {
   try {
-    const blob = await blobClientUpload(pathname, file, {
+    const blob = await uploadPresigned(pathname, file, {
       access: "public",
       handleUploadUrl: BLOB_UPLOAD_URL,
       clientPayload: JSON.stringify(payload),
@@ -72,12 +73,8 @@ async function uploadViaBlobClient(
     return { url: blob.url, fileName: payload.fileName, mime: payload.mime };
   } catch (error) {
     const raw = error instanceof Error ? error.message : "";
-    if (
-      raw.includes("BLOB_READ_WRITE") ||
-      raw.includes("read-write token") ||
-      raw.includes("HTTP 500")
-    ) {
-      throw new Error(LARGE_UPLOAD_TOKEN_HINT);
+    if (raw.includes("HTTP 500") || raw.includes("Failed to retrieve")) {
+      throw new Error(`${blobClientUploadUnavailableMessage()} ${LARGE_UPLOAD_HINT}`);
     }
     throw error;
   }
@@ -125,7 +122,7 @@ async function compressImageForServerUpload(file: File, maxBytes: number): Promi
     }
 
     throw new Error(
-      `No se pudo optimizar la imagen por debajo de ${Math.round(maxBytes / (1024 * 1024))} MB. ${LARGE_UPLOAD_TOKEN_HINT}`,
+      `No se pudo optimizar la imagen por debajo de ${Math.round(maxBytes / (1024 * 1024))} MB. ${LARGE_UPLOAD_HINT}`,
     );
   } finally {
     bitmap.close();
@@ -193,7 +190,7 @@ export async function uploadManualPdfFile(
     pathname,
     file,
     { kind: "manual", fileName: file.name, mime: "application/pdf" },
-    { contentType: "application/pdf", multipart: true },
+    { contentType: "application/pdf", multipart: file.size > 8 * 1024 * 1024 },
   );
 }
 
