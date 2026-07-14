@@ -78,7 +78,14 @@ export async function PATCH(req: Request, ctx: RouteParams) {
       data: { phases },
     });
 
-    const syncedPhases = await syncProjectPhasesFromProgress(id);
+    const isCoverOnlyUpdate =
+      content &&
+      Object.keys(content).length === 1 &&
+      Object.prototype.hasOwnProperty.call(content, "coverUrl");
+
+    const syncedPhases = isCoverOnlyUpdate
+      ? phases
+      : await syncProjectPhasesFromProgress(id);
     return NextResponse.json({ ok: true, phases: syncedPhases ?? phases });
   } catch {
     return NextResponse.json({ error: "No encontrado" }, { status: 404 });

@@ -235,7 +235,6 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
     parsePhases(initial.phases ?? {}, buildPhaseListFromRaw(initial.phases ?? {})),
   );
   const [savingPhase, setSavingPhase] = useState<string | null>(null);
-  const [coverUploadingKey, setCoverUploadingKey] = useState<string | null>(null);
   const [previewCoverByPhase, setPreviewCoverByPhase] = useState<Record<string, string>>({});
   const [addingPhase, setAddingPhase] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -338,7 +337,32 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
       setSavingPhase(null);
       return res.ok;
     },
-    [project.id]
+    [project.id],
+  );
+
+  const savePhaseCoverUrl = useCallback(
+    async (key: string, coverUrl: string): Promise<boolean> => {
+      const res = await fetch(`/api/admin/projects-erp/${project.id}/phases`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phase: key, content: { coverUrl } }),
+      });
+      if (res.ok) {
+        setRawPhases((prev) => {
+          const next = { ...prev };
+          const cur =
+            typeof next[key] === "object" && next[key] !== null
+              ? { ...(next[key] as Record<string, string>) }
+              : {};
+          next[key] = { ...cur, coverUrl };
+          return next;
+        });
+        return true;
+      }
+      return false;
+    },
+    [project.id],
   );
 
   const handlePhaseMetaChange = useCallback(
@@ -777,9 +801,6 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                 <ProjectPhaseCoverEditor
                   label={ph.title}
                   coverUrl={pc.coverUrl}
-                  onUploadingChange={(uploading) =>
-                    setCoverUploadingKey(uploading ? ph.key : null)
-                  }
                   onPreviewChange={(previewUrl) => {
                     setPreviewCoverByPhase((prev) => {
                       if (!previewUrl) {
@@ -800,16 +821,9 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                       ...prev,
                       [ph.key]: { ...(prev[ph.key] ?? emptyPhaseContent()), coverUrl },
                     }));
-                    void savePhaseContent(ph.key, { coverUrl }).then((ok) => {
-                      if (ok) scheduleAdminScrollToHash(`#fase-${ph.key}`);
-                    });
                   }}
+                  onSave={(coverUrl) => savePhaseCoverUrl(ph.key, coverUrl)}
                 />
-                {coverUploadingKey === ph.key && (
-                  <p className="text-[11px] mt-2" style={{ color: "#323FF6" }}>
-                    Subiendo imagen…
-                  </p>
-                )}
                 {isCustom && (
                   <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <label className="block">

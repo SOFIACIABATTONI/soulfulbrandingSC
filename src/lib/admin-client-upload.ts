@@ -180,6 +180,49 @@ async function prepareFileForVercelUpload(file: File): Promise<File> {
   return compressImageForServerUpload(file, VERCEL_SERVER_UPLOAD_MAX_BYTES);
 }
 
+const PHASE_COVER_MAX_PX = 1920;
+const PHASE_COVER_JPEG_QUALITY = 0.84;
+const PHASE_COVER_SKIP_BYTES = 600 * 1024;
+
+/** Redimensiona portadas de etapa en un solo paso (evita compresión iterativa en el hilo principal). */
+export async function preparePhaseCoverFile(file: File): Promise<File> {
+  const mime = resolveBrandAssetMime(file);
+  if (!mime || !ADMIN_IMAGE_ALLOWED_CONTENT_TYPES.includes(mime)) return file;
+  if (mime === "image/svg+xml" || mime === "image/gif") return file;
+
+  const bitmap = await createImageBitmap(file);
+  try {
+    const maxSide = Math.max(bitmap.width, bitmap.height);
+    const needsResize = maxSide > PHASE_COVER_MAX_PX;
+    if (!needsResize && file.size <= PHASE_COVER_SKIP_BYTES) return file;
+
+    const scale = needsResize ? PHASE_COVER_MAX_PX / maxSide : 1;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+    const outputMime =
+      mime === "image/png" ? "image/jpeg" : mime === "image/webp" ? "image/webp" : "image/jpeg";
+    const quality = outputMime === "image/jpeg" ? PHASE_COVER_JPEG_QUALITY : 0.88;
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, outputMime, quality);
+    });
+    if (!blob) return file;
+
+    const base = file.name.replace(/\.[^.]+$/, "");
+    const ext = outputMime === "image/jpeg" ? ".jpg" : outputMime === "image/webp" ? ".webp" : ".png";
+    const result = new File([blob], `${base}${ext}`, { type: outputMime });
+    if (result.size > file.size && !needsResize) return file;
+    return result;
+  } finally {
+    bitmap.close();
+  }
+}
+
 function useLocalFilesystemUpload(): boolean {
   if (typeof window === "undefined") return false;
   return isLocalAdminUploadHost(window.location.hostname);
@@ -245,6 +288,52 @@ export async function uploadManualPdfFile(
 
   onProgress?.({ loaded: file.size, total: file.size, percentage: 92, phase: "save" });
   return result;
+}
+
+export async function uploadPhaseCoverImageFile(
+  file: File,
+  onProgress?: (event: UploadProgressEvent) => void,
+): Promise<string> {
+  onProgress?.({ loaded: 0, total: file.size, percentage: 4, phase: "upload" });
+
+  const prepared = await preparePhaseCoverFile(file);
+  onProgress?.({
+    loaded: Math.round(prepared.size * 0.2),
+    total: prepared.size,
+    percentage: 18,
+    phase: "upload",
+  });
+
+  const mime = resolveBrandAssetMime(prepared);
+  if (!mime || !ADMIN_IMAGE_ALLOWED_CONTENT_TYPES.includes(mime)) {
+    throw new Error("Tipo no permitido.");
+  }
+  if (prepared.size > ADMIN_IMAGE_MAX_BYTES) {
+    throw new Error("Máximo 8MB");
+  }
+
+  const mapUploadProgress = (event: UploadProgressEvent) => {
+    onProgress?.({
+      ...event,
+      percentage: 18 + Math.round(event.percentage * 0.7),
+    });
+  };
+
+  if (useServerBlobUpload(prepared)) {
+    const j = await postFormUpload("/api/upload", prepared, undefined, mapUploadProgress);
+    onProgress?.({ loaded: prepared.size, total: prepared.size, percentage: 90, phase: "save" });
+    return j.url;
+  }
+
+  const pathname = buildAdminImagePathname(prepared.name, mime);
+  const uploaded = await uploadViaBlobClient(
+    pathname,
+    prepared,
+    { kind: "image", fileName: prepared.name, mime },
+    { contentType: mime, onProgress: mapUploadProgress },
+  );
+  onProgress?.({ loaded: prepared.size, total: prepared.size, percentage: 90, phase: "save" });
+  return uploaded.url;
 }
 
 export async function uploadAdminImageFile(
