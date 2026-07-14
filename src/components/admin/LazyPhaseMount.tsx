@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ADMIN_PHASE_NAVIGATE_EVENT } from "@/lib/admin-main-scroll";
 
 type LazyPhaseMountProps = {
   /** Clave de fase: onboarding, prebrief, narrativa… */
@@ -51,8 +52,18 @@ export function LazyPhaseMount({ phaseKey, children }: LazyPhaseMountProps) {
         setMounted(true);
       }
     }
+    function onPhaseNavigate(event: Event) {
+      const detail = (event as CustomEvent<{ phaseKey?: string }>).detail;
+      if (detail?.phaseKey === phaseKey) {
+        setMounted(true);
+      }
+    }
     window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
+    window.addEventListener(ADMIN_PHASE_NAVIGATE_EVENT, onPhaseNavigate);
+    return () => {
+      window.removeEventListener("hashchange", onHashChange);
+      window.removeEventListener(ADMIN_PHASE_NAVIGATE_EVENT, onPhaseNavigate);
+    };
   }, [phaseKey]);
 
   return (

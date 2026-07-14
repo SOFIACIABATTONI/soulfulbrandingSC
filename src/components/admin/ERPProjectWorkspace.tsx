@@ -14,6 +14,7 @@ import { PhaseNotesEmailBar } from "@/components/admin/PhaseNotesEmailBar";
 import { ProjectFlowBar } from "@/components/admin/ProjectFlowBar";
 import { ProjectTrackingFab } from "@/components/admin/ProjectTrackingFab";
 import { ProjectPhaseCoverEditor } from "@/components/admin/ProjectPhaseCoverEditor";
+import { LazyPhaseMount } from "@/components/admin/LazyPhaseMount";
 import { GenericProjectPhasePanel } from "@/components/admin/GenericProjectPhasePanel";
 import type { ProjectPhaseDefinition } from "@/lib/project-phase-catalog";
 import {
@@ -358,6 +359,10 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
           next[key] = { ...cur, coverUrl };
           return next;
         });
+        setPhases((prev) => ({
+          ...prev,
+          [key]: { ...(prev[key] ?? emptyPhaseContent()), coverUrl },
+        }));
         return true;
       }
       return false;
@@ -811,17 +816,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                       return { ...prev, [ph.key]: previewUrl };
                     });
                   }}
-                  onChange={(coverUrl) => {
-                    setPreviewCoverByPhase((prev) => {
-                      const next = { ...prev };
-                      delete next[ph.key];
-                      return next;
-                    });
-                    setPhases((prev) => ({
-                      ...prev,
-                      [ph.key]: { ...(prev[ph.key] ?? emptyPhaseContent()), coverUrl },
-                    }));
-                  }}
+                  onChange={() => {}}
                   onSave={(coverUrl) => savePhaseCoverUrl(ph.key, coverUrl)}
                 />
                 {isCustom && (
@@ -856,6 +851,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                 )}
               </div>
 
+              <LazyPhaseMount phaseKey={ph.key}>
               {/* Herramientas por etapa (contrato, pre-brief, etc.) */}
               {!isCustom && (ph.key === "onboarding" || ph.key === "prebrief" || ph.key === "narrativa") && (
                 <div
@@ -1200,6 +1196,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                   </div>
                 </details>
               </div>
+              </LazyPhaseMount>
             </section>
           );
         })}

@@ -88,15 +88,16 @@ export function ProjectPhaseCoverEditor({
   }, [localPreview]);
 
   async function persistCover(url: string) {
-    onChange(url);
-    if (!onSave) return;
     setUploadProgress((prev) =>
       prev ? { ...prev, percentage: 95, phase: "save" } : { loaded: 0, total: 1, percentage: 95, phase: "save" },
     );
-    const ok = await onSave(url);
+    const ok = onSave ? await onSave(url) : true;
     if (!ok) {
       window.alert("No se pudo guardar la portada en el proyecto.");
+      return false;
     }
+    onChange(url);
+    return true;
   }
 
   async function handleFile(fileList: FileList | null) {
@@ -114,9 +115,11 @@ export function ProjectPhaseCoverEditor({
 
     try {
       const url = await uploadPhaseCoverImageFile(file, (event) => setUploadProgress(event));
-      setLocalPreview(null);
-      onPreviewChange?.(null);
-      await persistCover(url);
+      const saved = await persistCover(url);
+      if (saved) {
+        setLocalPreview(null);
+        onPreviewChange?.(null);
+      }
     } catch (e) {
       setLocalPreview(null);
       onPreviewChange?.(null);
@@ -130,19 +133,20 @@ export function ProjectPhaseCoverEditor({
 
   async function handleRemove() {
     if (uploading) return;
-    setLocalPreview(null);
-    onPreviewChange?.(null);
-    onChange("");
-    if (onSave) {
-      setUploading(true);
-      setUploadProgress({ loaded: 0, total: 1, percentage: 95, phase: "save" });
-      try {
-        const ok = await onSave("");
-        if (!ok) window.alert("No se pudo quitar la portada.");
-      } finally {
-        setUploading(false);
-        setUploadProgress(null);
+    setUploading(true);
+    setUploadProgress({ loaded: 0, total: 1, percentage: 95, phase: "save" });
+    try {
+      const ok = onSave ? await onSave("") : true;
+      if (!ok) {
+        window.alert("No se pudo quitar la portada.");
+        return;
       }
+      setLocalPreview(null);
+      onPreviewChange?.(null);
+      onChange("");
+    } finally {
+      setUploading(false);
+      setUploadProgress(null);
     }
   }
 

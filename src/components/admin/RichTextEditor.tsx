@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
 import Highlight from "@tiptap/extension-highlight";
@@ -14,7 +13,6 @@ import { Table } from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
-import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import { brandUi, clientFrame } from "@/lib/brand-ui";
 import "./rich-text-editor.css";
@@ -82,8 +80,8 @@ export function RichTextEditor({
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
+        link: { openOnClick: false },
       }),
-      Underline,
       TextStyle,
       Color,
       Highlight.configure({ multicolor: true }),
@@ -93,7 +91,6 @@ export function RichTextEditor({
       TableRow,
       TableHeader,
       TableCell,
-      Link.configure({ openOnClick: false }),
       Placeholder.configure({ placeholder }),
     ],
     content: value,

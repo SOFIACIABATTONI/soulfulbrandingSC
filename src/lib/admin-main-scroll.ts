@@ -1,5 +1,14 @@
 const ADMIN_SCROLL_MARGIN = 96;
 
+export const ADMIN_PHASE_NAVIGATE_EVENT = "admin-phase-navigate";
+
+export function dispatchAdminPhaseNavigate(phaseKey: string): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(ADMIN_PHASE_NAVIGATE_EVENT, { detail: { phaseKey } }),
+  );
+}
+
 export function getAdminScrollContainer(): HTMLElement | null {
   if (typeof document === "undefined") return null;
   const main = document.querySelector("main");
@@ -48,6 +57,7 @@ export function navigateAdminToPhaseHash(phaseKey: string): void {
   if (typeof window === "undefined") return;
   const hash = `#fase-${phaseKey}`;
   syncPhaseHashInUrl(hash);
+  dispatchAdminPhaseNavigate(phaseKey);
 
   const run = () => scrollAdminMainToHash(hash, "smooth");
   run();
