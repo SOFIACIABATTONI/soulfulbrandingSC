@@ -4,7 +4,11 @@ import { useState, useCallback, useEffect, useLayoutEffect, useMemo } from "reac
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { navigateAdminToPhaseHash, scheduleAdminScrollToHash } from "@/lib/admin-main-scroll";
+import {
+  ADMIN_PHASE_NAVIGATE_EVENT,
+  navigateAdminToPhaseHash,
+  scrollAdminMainToTop,
+} from "@/lib/admin-main-scroll";
 import { PhaseDocumentEditor } from "@/components/admin/PhaseDocumentEditor";
 import { PhaseManualStatusBar } from "@/components/admin/PhaseManualStatusBar";
 import { BrandKitPanel } from "@/components/admin/BrandKitPanel";
@@ -14,7 +18,6 @@ import { PhaseNotesEmailBar } from "@/components/admin/PhaseNotesEmailBar";
 import { ProjectFlowBar } from "@/components/admin/ProjectFlowBar";
 import { ProjectTrackingFab } from "@/components/admin/ProjectTrackingFab";
 import { ProjectPhaseCoverEditor } from "@/components/admin/ProjectPhaseCoverEditor";
-import { LazyPhaseMount } from "@/components/admin/LazyPhaseMount";
 import { GenericProjectPhasePanel } from "@/components/admin/GenericProjectPhasePanel";
 import type { ProjectPhaseDefinition } from "@/lib/project-phase-catalog";
 import {
@@ -199,7 +202,8 @@ function formatPhaseDateLabel(iso: string): string {
   if (!iso) return "";
   const d = new Date(`${iso}T12:00:00`);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+  const months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 function formatPhaseDateRange(startDate: string, endDate: string): string | null {
@@ -237,6 +241,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   );
   const [savingPhase, setSavingPhase] = useState<string | null>(null);
   const [previewCoverByPhase, setPreviewCoverByPhase] = useState<Record<string, string>>({});
+  const [activePhaseKey, setActivePhaseKey] = useState<string | null>(null);
   const [addingPhase, setAddingPhase] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteAck, setDeleteAck] = useState(false);
@@ -286,27 +291,46 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   }, [refreshPhaseStates]);
 
   useLayoutEffect(() => {
-    if (typeof window === "undefined") return;
     const hash = window.location.hash;
-    if (!hash.startsWith("#fase-") && hash !== "#phases-grid") return;
-    scheduleAdminScrollToHash(hash);
-  }, [phaseList.length]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onPopState = () => {
-      const hash = window.location.hash;
-      if (!hash.startsWith("#fase-") && hash !== "#phases-grid") return;
-      scheduleAdminScrollToHash(hash);
-    };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+    if (hash.startsWith("#fase-")) {
+      setActivePhaseKey(hash.slice("#fase-".length));
+    }
   }, []);
 
+  useEffect(() => {
+    function readHashFromUrl() {
+      const hash = window.location.hash;
+      if (hash.startsWith("#fase-")) {
+        setActivePhaseKey(hash.slice("#fase-".length));
+      } else if (hash === "#phases-grid" || !hash) {
+        setActivePhaseKey(null);
+      }
+    }
+    function onPhaseNavigate(event: Event) {
+      const detail = (event as CustomEvent<{ phaseKey?: string }>).detail;
+      if (detail?.phaseKey) setActivePhaseKey(detail.phaseKey);
+    }
+    window.addEventListener("popstate", readHashFromUrl);
+    window.addEventListener(ADMIN_PHASE_NAVIGATE_EVENT, onPhaseNavigate);
+    return () => {
+      window.removeEventListener("popstate", readHashFromUrl);
+      window.removeEventListener(ADMIN_PHASE_NAVIGATE_EVENT, onPhaseNavigate);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!activePhaseKey) return;
+    scrollAdminMainToTop("auto");
+  }, [activePhaseKey]);
+
   function goToPhasesGrid() {
-    const hash = "#phases-grid";
-    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash}`);
-    scheduleAdminScrollToHash(hash);
+    setActivePhaseKey(null);
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${window.location.search}#phases-grid`,
+    );
+    scrollAdminMainToTop("auto");
   }
 
   useEffect(() => {
@@ -365,6 +389,8 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         }));
         return true;
       }
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      console.error("[savePhaseCoverUrl]", res.status, body?.error ?? res.statusText);
       return false;
     },
     [project.id],
@@ -495,6 +521,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
     const ok = await saveCustomPhaseLayout(defs);
     setAddingPhase(false);
     if (ok) {
+      setActivePhaseKey(key);
       navigateAdminToPhaseHash(key);
     }
   }
@@ -587,7 +614,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
             {project.client.name}
             {project.client.company ? ` — ${project.client.company}` : ""}
             {" · "}{SERVICE_LABELS[project.service] ?? project.service}
-            {" · "}${project.value.toLocaleString("es-AR")} USD
+            {" · "}${project.value.toLocaleString("en-US")} USD
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -633,7 +660,8 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         </p>
       </div>
 
-      {/* ── Grilla de cards ── */}
+      {/* ── Grilla de cards (solo en vista listado) ── */}
+      {!activePhaseKey ? (
       <div id="phases-grid" className="rounded-lg border bg-white p-4 md:p-6 mb-8" style={{ borderColor: "rgba(19,25,69,0.1)" }}>
         <div className="mb-5">
           <h2 className="text-xl font-bold tracking-tight text-neutral-900">{project.title}</h2>
@@ -654,6 +682,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                 href={`#fase-${ph.key}`}
                 onClick={(e) => {
                   e.preventDefault();
+                  setActivePhaseKey(ph.key);
                   navigateAdminToPhaseHash(ph.key);
                 }}
                 className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
@@ -718,10 +747,14 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
           </button>
         </div>
       </div>
+      ) : null}
 
-      {/* ── Secciones de fases ── */}
+      {/* ── Detalle de etapa activa (reemplaza la grilla, sin scroll a anclas) ── */}
+      {activePhaseKey ? (
       <div className="space-y-6">
-        {phaseList.map((ph) => {
+        {phaseList
+          .filter((ph) => ph.key === activePhaseKey)
+          .map((ph) => {
           const pc = phases[ph.key] ?? emptyPhaseContent();
           const isSaving = savingPhase === ph.key;
           const isCustom = ph.genericClient === true;
@@ -816,7 +849,6 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                       return { ...prev, [ph.key]: previewUrl };
                     });
                   }}
-                  onChange={() => {}}
                   onSave={(coverUrl) => savePhaseCoverUrl(ph.key, coverUrl)}
                 />
                 {isCustom && (
@@ -851,7 +883,6 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                 )}
               </div>
 
-              <LazyPhaseMount phaseKey={ph.key}>
               {/* Herramientas por etapa (contrato, pre-brief, etc.) */}
               {!isCustom && (ph.key === "onboarding" || ph.key === "prebrief" || ph.key === "narrativa") && (
                 <div
@@ -1196,11 +1227,11 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                   </div>
                 </details>
               </div>
-              </LazyPhaseMount>
             </section>
           );
         })}
       </div>
+      ) : null}
     </div>
 
     <ProjectTrackingFab

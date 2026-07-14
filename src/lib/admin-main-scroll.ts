@@ -15,6 +15,12 @@ export function getAdminScrollContainer(): HTMLElement | null {
   return main instanceof HTMLElement ? main : null;
 }
 
+/** Vuelve al inicio del panel admin (p. ej. al cerrar detalle de etapa). */
+export function scrollAdminMainToTop(behavior: ScrollBehavior = "auto"): void {
+  const main = getAdminScrollContainer();
+  if (main) main.scrollTo({ top: 0, behavior });
+}
+
 /** Desplaza el scroll del panel admin (`main`) hasta un elemento. */
 export function scrollAdminMainToElement(
   target: HTMLElement,
@@ -44,6 +50,23 @@ export function scrollAdminMainToHash(
   return scrollAdminMainToElement(target, behavior);
 }
 
+/** Espera a que exista el ancla (p. ej. tras montar la etapa activa) y entonces hace scroll. */
+export function waitForAdminScrollToHash(
+  hash: string,
+  behavior: ScrollBehavior = "auto",
+  maxWaitMs = 2500,
+): void {
+  if (!hash.startsWith("#")) return;
+  const start = performance.now();
+  const attempt = () => {
+    if (scrollAdminMainToHash(hash, behavior)) return;
+    if (performance.now() - start < maxWaitMs) {
+      requestAnimationFrame(attempt);
+    }
+  };
+  attempt();
+}
+
 function syncPhaseHashInUrl(hash: string): void {
   if (typeof window === "undefined") return;
   const nextUrl = `${window.location.pathname}${window.location.search}${hash}`;
@@ -52,27 +75,15 @@ function syncPhaseHashInUrl(hash: string): void {
   }
 }
 
-/** Navega a una fase sin usar location.hash (evita scroll roto del navegador). */
+/** Navega a una fase: actualiza URL y avisa al workspace (el scroll lo hace el panel al montar). */
 export function navigateAdminToPhaseHash(phaseKey: string): void {
   if (typeof window === "undefined") return;
   const hash = `#fase-${phaseKey}`;
   syncPhaseHashInUrl(hash);
   dispatchAdminPhaseNavigate(phaseKey);
-
-  const run = () => scrollAdminMainToHash(hash, "smooth");
-  run();
-  window.requestAnimationFrame(run);
-  window.setTimeout(run, 120);
-  window.setTimeout(run, 400);
-  window.setTimeout(run, 900);
 }
 
 export function scheduleAdminScrollToHash(hash: string): void {
   if (!hash.startsWith("#")) return;
-  const run = () => scrollAdminMainToHash(hash, "auto");
-  run();
-  window.requestAnimationFrame(run);
-  window.setTimeout(run, 80);
-  window.setTimeout(run, 280);
-  window.setTimeout(run, 700);
+  waitForAdminScrollToHash(hash, "auto");
 }

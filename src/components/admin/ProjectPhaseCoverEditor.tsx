@@ -8,7 +8,7 @@ type ProjectPhaseCoverEditorProps = {
   label: string;
   coverUrl: string;
   onPreviewChange?: (previewUrl: string | null) => void;
-  onChange: (coverUrl: string) => void;
+  onChange?: (coverUrl: string) => void;
   onSave?: (coverUrl: string) => Promise<boolean>;
 };
 
@@ -96,7 +96,7 @@ export function ProjectPhaseCoverEditor({
       window.alert("No se pudo guardar la portada en el proyecto.");
       return false;
     }
-    onChange(url);
+    onChange?.(url);
     return true;
   }
 
@@ -143,7 +143,7 @@ export function ProjectPhaseCoverEditor({
       }
       setLocalPreview(null);
       onPreviewChange?.(null);
-      onChange("");
+      onChange?.("");
     } finally {
       setUploading(false);
       setUploadProgress(null);
