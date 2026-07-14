@@ -495,7 +495,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
     const ok = await saveCustomPhaseLayout(defs);
     setAddingPhase(false);
     if (ok) {
-      window.location.hash = `fase-${key}`;
+      navigateAdminToPhaseHash(key);
     }
   }
 
