@@ -141,7 +141,7 @@ export function ServicesSection({ services }: Props) {
                           </p>
                         )}
                         <Link
-                          href="/?etapa=Necesito%20evolucionar&formulario=contacto-evolucion#contacto"
+                          href={`/?servicio=${encodeURIComponent(item.title)}#contacto`}
                           className="px-3.5 pb-3.5 text-[0.72rem] font-bold uppercase tracking-[0.06em] text-white"
                         >
                           +INFO
@@ -233,7 +233,7 @@ export function ServicesSection({ services }: Props) {
                             </p>
                           )}
                           <Link
-                            href="/?etapa=Necesito%20evolucionar&formulario=contacto-evolucion#contacto"
+                            href={`/?servicio=${encodeURIComponent(item.title)}#contacto`}
                             className="mt-auto px-5 pb-5 pt-6 text-[0.95rem] font-bold uppercase tracking-[0.08em] text-white transition hover:text-white/80"
                           >
                             +INFO

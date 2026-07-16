@@ -14,25 +14,36 @@ export function clearLegacyMomentoStorage() {
   }
 }
 
+export type ContactMomentoQuery = {
+  etapa: string;
+  /** Legacy: ya no abre formulario largo; sirve para inferir etapa en URLs viejas */
+  formulario: string;
+  /** Servicio elegido desde la sección Servicios (+INFO) */
+  servicio: string;
+};
+
 /**
- * Resuelve etapa + formulario solo desde la URL y `initialQuery` (SSR).
- * Sin `formulario` válido en la URL → siempre formulario de contacto corto.
+ * Resuelve etapa / servicio desde la URL y `initialQuery` (SSR).
+ * El sitio público usa siempre el formulario de contacto corto.
  */
 export function resolveMomentoQuery(
   nextSearchParams: URLSearchParams,
-  initialQuery: { etapa?: string; formulario?: string } | undefined,
-): { etapa: string; formulario: string } {
+  initialQuery: { etapa?: string; formulario?: string; servicio?: string } | undefined,
+): ContactMomentoQuery {
   let etapa = nextSearchParams.get("etapa")?.trim() || "";
   let formulario = nextSearchParams.get("formulario")?.trim() || "";
+  let servicio = nextSearchParams.get("servicio")?.trim() || "";
 
   if (typeof window !== "undefined") {
     const w = new URLSearchParams(window.location.search);
     if (!etapa) etapa = w.get("etapa")?.trim() || "";
     if (!formulario) formulario = w.get("formulario")?.trim() || "";
+    if (!servicio) servicio = w.get("servicio")?.trim() || "";
   }
 
   if (!etapa) etapa = initialQuery?.etapa?.trim() || "";
   if (!formulario) formulario = initialQuery?.formulario?.trim() || "";
+  if (!servicio) servicio = initialQuery?.servicio?.trim() || "";
 
-  return { etapa, formulario };
+  return { etapa, formulario, servicio };
 }

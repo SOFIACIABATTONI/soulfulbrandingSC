@@ -107,8 +107,7 @@ function StageModal({ stage, onClose }: { stage: ModalStage; onClose: () => void
 
 function StageCard({ s, onOpenModal }: { s: StageItem; onOpenModal: (stage: ModalStage) => void }) {
   const style = s.style ?? "yellow";
-  const formId = s.formId ?? "aplicacion-inicio";
-  const infoHref = `/?etapa=${encodeURIComponent(s.title)}&formulario=${encodeURIComponent(formId)}#contacto`;
+  const infoHref = `/?etapa=${encodeURIComponent(s.title)}#contacto`;
   const showInfo = s.showInfo !== false;
   const hasSubtitle = !!s.subtitle?.trim();
 
