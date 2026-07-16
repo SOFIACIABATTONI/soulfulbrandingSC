@@ -5,7 +5,6 @@ import { Suspense, useId, useLayoutEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { clearLegacyMomentoStorage, resolveMomentoQuery } from "@/lib/contact-momento";
 import { STAGE_FORM_IDS, type SiteContentData, type StageFormId } from "@/lib/site-content";
-import { StageMomentForm } from "@/components/site/StageMomentForm";
 import { ContactSuccessNotice } from "@/components/site/ContactSuccessNotice";
 import { SectionShell } from "@/components/site/SectionShell";
 import { HERO_PAPER_TEXTURE_URL } from "@/components/site/HeroSection";
@@ -20,13 +19,13 @@ type Props = {
   contact: SiteContentData["contact"];
   /** Títulos de etapas para el desplegable “¿En qué momento estás?” */
   stageOptions?: string[];
-  /** Etapas con `formId` para abrir el formulario largo desde + INFO */
+  /** Etapas del CMS (para inferir etapa desde URLs legacy con `formulario`) */
   stages?: SiteContentData["stages"]["stages"];
   /**
-   * Query `?etapa=&formulario=` desde el servidor (page.tsx).
-   * Sin esto, `useSearchParams()` suele ir vacío en el primer render y siempre se ve el formulario corto.
+   * Query `?etapa=&servicio=` desde el servidor (page.tsx).
+   * Sin esto, `useSearchParams()` suele ir vacío en el primer render.
    */
-  initialQuery?: { etapa?: string; formulario?: string };
+  initialQuery?: { etapa?: string; formulario?: string; servicio?: string };
 };
 
 const DEFAULT_STAGES = [
@@ -154,14 +153,12 @@ function SocialRow({
 }
 
 function ContactFormCard({
-  defaultMessage,
   initialStage,
   stages,
   onSubmit,
   status,
   idPrefix = "",
 }: {
-  defaultMessage: string;
   initialStage: string;
   stages: string[];
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void | Promise<void>;
@@ -235,11 +232,9 @@ function ContactFormCard({
         </label>
         <textarea
           id={pid("contact-message")}
-          key={`${idPrefix}${defaultMessage || "empty"}`}
           name="message"
           required
           rows={3}
-          defaultValue={defaultMessage}
           placeholder="¿Qué te gustaría lograr? ¿Cuál es la misión de tu proyecto?"
           className={cn(inputClass, "min-h-[72px] resize-y")}
         />
@@ -260,35 +255,14 @@ function ContactFormCard({
 function ContactSectionContent({
   contact,
   stageOptions,
-  defaultMessage = "",
   initialStage = "",
-  stageFormId = null,
-  etapaFromQuery = "",
+  servicioFromQuery = "",
 }: Props & {
-  defaultMessage?: string;
   initialStage?: string;
-  stageFormId?: StageFormId | null;
-  etapaFromQuery?: string;
+  servicioFromQuery?: string;
 }) {
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "err">("idle");
   const stages = stageOptions?.length ? stageOptions : [...DEFAULT_STAGES];
-  const useStageForm = Boolean(stageFormId && STAGE_FORM_IDS.includes(stageFormId));
-
-  async function submitStageForm(payload: { name: string; email: string; message: string }) {
-    setStatus("loading");
-    const res = await fetch("/api/contact", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...payload,
-        formKey: stageFormId,
-        stageTitle: etapaFromQuery || "",
-      }),
-    });
-    const ok = res.ok;
-    setStatus(ok ? "ok" : "err");
-    return ok;
-  }
   const footerLines = contact.footerLines?.length ? contact.footerLines : [...DEFAULT_FOOTER_LINES];
   const headingMobile =
     contact.heading.trim().toUpperCase() === "CONTACTO" ? "Contacto" : contact.heading;
@@ -301,6 +275,9 @@ function ContactSectionContent({
     const email = String(fd.get("email") ?? "");
     const stage = String(fd.get("stage") ?? "").trim();
     let message = String(fd.get("message") ?? "");
+    if (servicioFromQuery) {
+      message = `Servicio de interés: ${servicioFromQuery}\n\n${message}`;
+    }
     if (stage) {
       message = `¿En qué momento estás?: ${stage}\n\n${message}`;
     }
@@ -313,7 +290,7 @@ function ContactSectionContent({
         email,
         message,
         formKey: "contacto-corto",
-        stageTitle: stage,
+        stageTitle: stage || servicioFromQuery || "",
       }),
     });
     setStatus(res.ok ? "ok" : "err");
@@ -350,25 +327,13 @@ function ContactSectionContent({
           </header>
 
           <div className="mx-auto w-full max-w-md px-1">
-            {useStageForm && stageFormId ? (
-              <StageMomentForm
-                key={`m-${stageFormId}-${etapaFromQuery}`}
-                idPrefix="m-"
-                formId={stageFormId}
-                etapaLabel={etapaFromQuery || "—"}
-                onSubmit={submitStageForm}
-                status={status}
-              />
-            ) : (
-              <ContactFormCard
-                idPrefix="m-"
-                defaultMessage={defaultMessage}
-                initialStage={initialStage}
-                stages={stages}
-                onSubmit={onSubmit}
-                status={status}
-              />
-            )}
+            <ContactFormCard
+              idPrefix="m-"
+              initialStage={initialStage}
+              stages={stages}
+              onSubmit={onSubmit}
+              status={status}
+            />
           </div>
 
           <div className="relative -mx-4 w-[calc(100%+2rem)] sm:mx-0 sm:w-full">
@@ -443,40 +408,15 @@ function ContactSectionContent({
                   <SocialRow contact={contact} className="mt-6" />
                 </div>
 
-                <div
-                  className={cn(
-                    "lg:col-span-7 lg:relative lg:min-h-0",
-                    "lg:flex lg:flex-col lg:items-end lg:justify-start",
-                    useStageForm && stageFormId ? "lg:pb-2" : "lg:pt-1 lg:pb-3",
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "mx-auto w-full lg:z-20 lg:mx-0",
-                      useStageForm && stageFormId
-                        ? "lg:w-full lg:max-w-[min(460px,100%)] xl:max-w-[500px]"
-                        : "max-w-[310px] sm:max-w-[320px] lg:w-full lg:max-w-[320px] lg:self-end",
-                    )}
-                  >
-                    {useStageForm && stageFormId ? (
-                      <StageMomentForm
-                        key={`d-${stageFormId}-${etapaFromQuery}`}
-                        idPrefix="d-"
-                        formId={stageFormId}
-                        etapaLabel={etapaFromQuery || "—"}
-                        onSubmit={submitStageForm}
-                        status={status}
-                      />
-                    ) : (
-                      <ContactFormCard
-                        idPrefix="d-"
-                        defaultMessage={defaultMessage}
-                        initialStage={initialStage}
-                        stages={stages}
-                        onSubmit={onSubmit}
-                        status={status}
-                      />
-                    )}
+                <div className="lg:col-span-7 lg:relative lg:min-h-0 lg:flex lg:flex-col lg:items-end lg:justify-start lg:pt-1 lg:pb-3">
+                  <div className="mx-auto w-full max-w-[310px] sm:max-w-[320px] lg:z-20 lg:mx-0 lg:w-full lg:max-w-[320px] lg:self-end">
+                    <ContactFormCard
+                      idPrefix="d-"
+                      initialStage={initialStage}
+                      stages={stages}
+                      onSubmit={onSubmit}
+                      status={status}
+                    />
                   </div>
                 </div>
               </div>
@@ -509,84 +449,67 @@ function ContactSectionContent({
   );
 }
 
+function inferEtapaFromLegacyForm(
+  etapa: string,
+  formularioRaw: string,
+  stages: SiteContentData["stages"]["stages"] | undefined,
+): string {
+  if (etapa) return etapa;
+  if (!formularioRaw || !STAGE_FORM_IDS.includes(formularioRaw as StageFormId)) return "";
+  return stages?.find((s) => s.formId === formularioRaw)?.title ?? "";
+}
+
+function buildContactFormState(
+  props: Props,
+  query: ReturnType<typeof resolveMomentoQuery>,
+) {
+  const stageTitles = props.stageOptions?.length ? props.stageOptions : [...DEFAULT_STAGES];
+  const etapa = inferEtapaFromLegacyForm(query.etapa, query.formulario, props.stages);
+  const initialStage = etapa && stageTitles.includes(etapa) ? etapa : "";
+  return {
+    initialStage,
+    servicioFromQuery: query.servicio,
+    remountKey: `${etapa}-${query.servicio}`,
+  };
+}
+
 function ContactSectionWithQuery(props: Props) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const [resolved, setResolved] = useState(() => ({
-    etapa: props.initialQuery?.etapa?.trim() || "",
-    formulario: props.initialQuery?.formulario?.trim() || "",
-  }));
+  const [resolved, setResolved] = useState(() => resolveMomentoQuery(new URLSearchParams(), props.initialQuery));
 
   useLayoutEffect(() => {
     const q = resolveMomentoQuery(searchParams, props.initialQuery);
     setResolved(q);
-    if (typeof window !== "undefined" && !q.formulario) {
-      clearLegacyMomentoStorage();
-    }
+    clearLegacyMomentoStorage();
   }, [
     pathname,
     searchParams.toString(),
     props.initialQuery?.etapa,
     props.initialQuery?.formulario,
+    props.initialQuery?.servicio,
   ]);
 
-  const etapa = resolved.etapa;
-  const formularioRaw = resolved.formulario;
-
-  const defaultMessage = etapa
-    ? `Hola, quería más información sobre la etapa «${etapa}».`
-    : "";
-  const stageTitles = props.stageOptions?.length ? props.stageOptions : [...DEFAULT_STAGES];
-  const initialStage = etapa && stageTitles.includes(etapa) ? etapa : "";
-
-  const stageFormId =
-    formularioRaw && STAGE_FORM_IDS.includes(formularioRaw as StageFormId)
-      ? (formularioRaw as StageFormId)
-      : null;
-
-  /** Si hay `formulario` válido pero falta etapa, intenta inferirla desde los metadatos */
-  const etapaResolved =
-    etapa ||
-    (stageFormId && props.stages?.find((s) => s.formId === stageFormId)?.title) ||
-    "";
+  const { initialStage, servicioFromQuery, remountKey } = buildContactFormState(props, resolved);
 
   return (
     <ContactSectionContent
-      key={`${etapa}-${formularioRaw}`}
+      key={remountKey}
       {...props}
-      defaultMessage={defaultMessage}
       initialStage={initialStage}
-      stageFormId={stageFormId}
-      etapaFromQuery={etapaResolved}
+      servicioFromQuery={servicioFromQuery}
     />
   );
 }
 
 function contactFallbackFromInitial(props: Props) {
-  const { etapa, formulario: formularioRaw } = resolveMomentoQuery(
-    new URLSearchParams(),
-    props.initialQuery,
-  );
-  const stageFormId =
-    formularioRaw && STAGE_FORM_IDS.includes(formularioRaw as StageFormId)
-      ? (formularioRaw as StageFormId)
-      : null;
-  const etapaResolved =
-    etapa ||
-    (stageFormId && props.stages?.find((s) => s.formId === stageFormId)?.title) ||
-    "";
-  const defaultMessage = etapa
-    ? `Hola, quería más información sobre la etapa «${etapa}».`
-    : "";
-  const stageTitles = props.stageOptions?.length ? props.stageOptions : [...DEFAULT_STAGES];
-  const initialStage = etapa && stageTitles.includes(etapa) ? etapa : "";
+  const query = resolveMomentoQuery(new URLSearchParams(), props.initialQuery);
+  const { initialStage, servicioFromQuery } = buildContactFormState(props, query);
   return (
     <ContactSectionContent
       {...props}
-      defaultMessage={defaultMessage}
       initialStage={initialStage}
-      stageFormId={stageFormId}
-      etapaFromQuery={etapaResolved}
+      servicioFromQuery={servicioFromQuery}
     />
   );
 }

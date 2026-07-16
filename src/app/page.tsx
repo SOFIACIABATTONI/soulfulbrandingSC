@@ -37,6 +37,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const initialQuery = {
     etapa: firstQueryParam(sp.etapa),
     formulario: firstQueryParam(sp.formulario),
+    servicio: firstQueryParam(sp.servicio),
   };
 
   return (
