@@ -149,6 +149,7 @@ export async function POST(req: Request, ctx: RouteParams) {
     projectTitle: record.project.title,
     typedName: acceptance.typedName,
     acceptedAt: acceptance.acceptedAt,
+    contentHash: acceptance.contentHash,
     pdfBytes,
     pdfFilename,
   });

@@ -52,6 +52,7 @@ export function soLogoEmailAttachments() {
         {
           filename: "sc-so-logo-fuchsia.png",
           content: bytes.toString("base64"),
+          contentType: "image/png",
           contentId: SO_LOGO_EMAIL_CID,
         },
       ]

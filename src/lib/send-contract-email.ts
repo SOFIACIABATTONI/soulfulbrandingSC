@@ -144,6 +144,7 @@ export async function sendContractAcceptedConfirmationToClient(payload: {
   projectTitle: string;
   typedName: string;
   acceptedAt: Date;
+  contentHash: string;
   pdfBytes: Uint8Array;
   pdfFilename: string;
 }): Promise<boolean> {
@@ -169,6 +170,10 @@ export async function sendContractAcceptedConfirmationToClient(payload: {
 
   const innerHtml = `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:${brandUi.textMuted};">Hola ${payload.toName.replace(/</g, "&lt;")}, registramos tu aceptación del contrato para <strong style="color:${brandUi.text};">${payload.projectTitle.replace(/</g, "&lt;")}</strong>.</p>
 <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:${brandUi.textMuted};"><strong style="color:${brandUi.text};">Nombre declarado:</strong> ${payload.typedName.replace(/</g, "&lt;")}<br /><strong style="color:${brandUi.text};">Fecha:</strong> ${acceptedLabel.replace(/</g, "&lt;")}</p>
+<div style="margin:0 0 16px;padding:14px 16px;border:1px solid rgba(240,49,114,0.35);background:#fff7fa;">
+<p style="margin:0 0 5px;font-size:12px;line-height:1.5;color:${brandUi.text};font-weight:700;">Huella digital SHA-256</p>
+<p style="margin:0;font-family:Consolas,Monaco,monospace;font-size:10px;line-height:1.55;color:${brandUi.textMuted};word-break:break-all;">${payload.contentHash.replace(/</g, "&lt;")}</p>
+</div>
 <p style="margin:0;font-size:14px;line-height:1.7;color:${brandUi.textMuted};">Adjuntamos un PDF con el registro de aceptación y el texto del contrato.</p>`;
 
   const text = [
@@ -177,6 +182,7 @@ export async function sendContractAcceptedConfirmationToClient(payload: {
     `Registramos tu aceptación del contrato para "${payload.projectTitle}".`,
     `Nombre declarado: ${payload.typedName}`,
     `Fecha: ${acceptedLabel}`,
+    `Huella SHA-256: ${payload.contentHash}`,
     "",
     "Adjuntamos el certificado en PDF.",
   ].join("\n");
@@ -201,6 +207,7 @@ export async function sendContractAcceptedConfirmationToClient(payload: {
       {
         filename: payload.pdfFilename,
         content: Buffer.from(payload.pdfBytes).toString("base64"),
+        contentType: "application/pdf",
       },
     ],
   });
