@@ -63,7 +63,7 @@ export async function sendNarrativaEmailToClient(
     subject: "Tu narrativa de marca — Soulful Branding®",
     text,
     html,
-    attachments: soLogoEmailAttachments(),
+    attachments: await soLogoEmailAttachments(),
   });
 
   if (error) {

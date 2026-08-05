@@ -69,7 +69,7 @@ export async function sendDeepDiveEmailToClient(
     subject: "Agendá tu sesión Deep Dive — Soulful Branding®",
     text,
     html,
-    attachments: soLogoEmailAttachments(),
+    attachments: await soLogoEmailAttachments(),
   });
 
   if (error) {

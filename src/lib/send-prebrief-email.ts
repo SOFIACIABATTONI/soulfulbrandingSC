@@ -64,7 +64,7 @@ export async function sendPrebriefEmailToClient(
     subject: "Tu Brand Soul — Soulful Branding®",
     text,
     html,
-    attachments: soLogoEmailAttachments(),
+    attachments: await soLogoEmailAttachments(),
   });
 
   if (error) {
@@ -117,7 +117,7 @@ export async function sendPrebriefSubmittedNotificationToAdmin(payload: {
     subject: `Brand Soul recibido — ${payload.clientName}`,
     text,
     html,
-    attachments: soLogoEmailAttachments(),
+    attachments: await soLogoEmailAttachments(),
   });
 
   if (error) {

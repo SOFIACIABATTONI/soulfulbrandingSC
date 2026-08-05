@@ -62,7 +62,7 @@ export async function sendContractEmailToClient(
     subject: "Tu contrato — Soulful Branding®",
     text,
     html,
-    attachments: soLogoEmailAttachments(),
+    attachments: await soLogoEmailAttachments(),
   });
 
   if (error) {
@@ -130,7 +130,7 @@ export async function sendContractAcceptedNotificationToAdmin(payload: {
     subject: `Contrato aceptado — ${payload.clientName}`,
     text,
     html,
-    attachments: soLogoEmailAttachments(),
+    attachments: await soLogoEmailAttachments(),
   });
 
   if (error) {
@@ -203,7 +203,7 @@ export async function sendContractAcceptedConfirmationToClient(payload: {
     text,
     html,
     attachments: [
-      ...soLogoEmailAttachments(),
+      ...(await soLogoEmailAttachments()),
       {
         filename: payload.pdfFilename,
         content: Buffer.from(payload.pdfBytes).toString("base64"),

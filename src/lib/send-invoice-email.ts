@@ -8,7 +8,7 @@ import {
 import { invoicePublicPdfUrl } from "@/lib/invoice-public-url";
 import { soLogoFuchsiaUrl } from "@/lib/brand-so-logo";
 import {
-  readSoLogoFuchsiaPngBytes,
+  resolveSoLogoFuchsiaPngBytes,
   SO_LOGO_EMAIL_CID,
 } from "@/lib/invoice-logo.server";
 import { wrapBrandEmailHtml } from "@/lib/quote-markdown-html";
@@ -91,7 +91,7 @@ export async function sendInvoiceEmailToClient(
 
   const pdfPublicUrl = invoicePublicPdfUrl(payload.publicToken);
   const innerHtml = buildInvoiceEmailInner(payload);
-  const logoBytes = readSoLogoFuchsiaPngBytes();
+  const logoBytes = await resolveSoLogoFuchsiaPngBytes();
   const logoImageCid = logoBytes ? SO_LOGO_EMAIL_CID : undefined;
   const html = wrapInvoiceEmailHtml(
     innerHtml,
@@ -134,6 +134,7 @@ export async function sendInvoiceEmailToClient(
             {
               filename: "sc-so-logo-fuchsia.png",
               content: logoBytes.toString("base64"),
+              contentType: "image/png",
               contentId: SO_LOGO_EMAIL_CID,
             },
           ]

@@ -80,7 +80,7 @@ export async function sendPhaseDocEmailToClient(
     subject: payload.config.emailSubject,
     text,
     html,
-    attachments: soLogoEmailAttachments(),
+    attachments: await soLogoEmailAttachments(),
   });
 
   if (error) {
@@ -138,7 +138,7 @@ export async function sendPhaseInternalNotesEmail(payload: {
     subject: `${payload.phaseTitle} — ${payload.projectTitle}`,
     text,
     html,
-    attachments: soLogoEmailAttachments(),
+    attachments: await soLogoEmailAttachments(),
   });
 
   if (error) {
@@ -191,7 +191,7 @@ export async function sendPhaseResponseNotificationToAdmin(payload: {
     subject: `${payload.subject} — ${payload.clientName}`,
     text,
     html,
-    attachments: soLogoEmailAttachments(),
+    attachments: await soLogoEmailAttachments(),
   });
 }
 

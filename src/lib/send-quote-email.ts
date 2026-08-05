@@ -89,7 +89,7 @@ export async function sendQuoteEmailToClient(payload: SendQuoteEmailPayload): Pr
     subject: `Tu propuesta ${proposal.label} — Soulful Branding®`,
     text,
     html,
-    attachments: soLogoEmailAttachments(),
+    attachments: await soLogoEmailAttachments(),
   });
 
   if (error) {
@@ -146,7 +146,7 @@ ${payload.comment ? `<p style="margin:0 0 10px;font-size:15px;line-height:1.65;c
     subject: `Presupuesto — ${payload.response} — ${payload.leadName}`,
     text,
     html,
-    attachments: soLogoEmailAttachments(),
+    attachments: await soLogoEmailAttachments(),
   });
 
   if (error) {

@@ -73,7 +73,7 @@ export async function sendContactEmailNotification(
     subject: `Contacto web — ${stageTitle}`,
     text,
     html,
-    attachments: soLogoEmailAttachments(),
+    attachments: await soLogoEmailAttachments(),
   });
 
   if (error) {
