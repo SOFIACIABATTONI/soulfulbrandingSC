@@ -83,7 +83,7 @@ export default async function AdminProyectosPage() {
                     {SERVICE_LABELS[p.service] ?? p.service}
                   </td>
                   <td className="px-4 py-3 font-medium">
-                    ${p.value.toLocaleString("es-AR")} USD
+                    €{p.value.toLocaleString("es-AR")} EUR
                   </td>
                   <td className="px-4 py-3">
                     <span className="inline-block rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"

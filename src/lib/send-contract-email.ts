@@ -3,8 +3,9 @@ import { accessPublicUrl } from "@/lib/access-url";
 import { resolveContractHtml } from "@/lib/contract-html-templates";
 import type { ContractContent } from "@/lib/contract-types";
 import { normalizeContractContent } from "@/lib/contract-types";
-import { wrapAdminNotificationEmailHtml, wrapQuoteEmailHtml } from "@/lib/quote-markdown-html";
+import { wrapContractEmailHtml } from "@/lib/quote-markdown-html";
 import { brandUi } from "@/lib/brand-ui";
+import { soLogoEmailAttachments } from "@/lib/invoice-logo.server";
 
 export type SendContractEmailPayload = {
   toEmail: string;
@@ -51,7 +52,7 @@ export async function sendContractEmailToClient(
     .filter(Boolean)
     .join("\n");
 
-  const html = wrapQuoteEmailHtml(innerHtml, "", link, "Ver contrato y aceptar →");
+  const html = wrapContractEmailHtml(innerHtml, link, "Ver contrato y aceptar →");
 
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
@@ -61,6 +62,7 @@ export async function sendContractEmailToClient(
     subject: "Tu contrato — Soulful Branding®",
     text,
     html,
+    attachments: soLogoEmailAttachments(),
   });
 
   if (error) {
@@ -114,9 +116,11 @@ export async function sendContractAcceptedNotificationToAdmin(payload: {
 <p style="margin:0 0 10px;font-size:13px;line-height:1.6;color:rgba(19,25,69,0.45);">Huella SHA-256: ${payload.contentHash.replace(/</g, "&lt;")}</p>
 <p style="margin:0;font-size:14px;line-height:1.6;color:rgba(19,25,69,0.45);">ID proyecto: ${payload.projectId.replace(/</g, "&lt;")}</p>`;
 
-  const html = wrapAdminNotificationEmailHtml(
-    `Contrato aceptado — ${payload.clientName}`,
+  const html = wrapContractEmailHtml(
     innerHtml,
+    "",
+    "",
+    `Contrato aceptado — ${payload.clientName}`,
   );
 
   const resend = new Resend(apiKey);
@@ -126,6 +130,7 @@ export async function sendContractAcceptedNotificationToAdmin(payload: {
     subject: `Contrato aceptado — ${payload.clientName}`,
     text,
     html,
+    attachments: soLogoEmailAttachments(),
   });
 
   if (error) {
@@ -176,9 +181,11 @@ export async function sendContractAcceptedConfirmationToClient(payload: {
     "Adjuntamos el certificado en PDF.",
   ].join("\n");
 
-  const html = wrapAdminNotificationEmailHtml(
-    "Contrato aceptado",
+  const html = wrapContractEmailHtml(
     innerHtml,
+    "",
+    "",
+    "Contrato aceptado",
   );
 
   const resend = new Resend(apiKey);
@@ -190,6 +197,7 @@ export async function sendContractAcceptedConfirmationToClient(payload: {
     text,
     html,
     attachments: [
+      ...soLogoEmailAttachments(),
       {
         filename: payload.pdfFilename,
         content: Buffer.from(payload.pdfBytes).toString("base64"),

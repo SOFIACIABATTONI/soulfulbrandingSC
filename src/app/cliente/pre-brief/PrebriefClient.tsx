@@ -44,7 +44,7 @@ function PrebriefSuccessView({
   return (
     <PortalShell
       eyebrow="Soulful Branding®"
-      title="Pre-brief enviado"
+      title="Brand Soul enviado"
       subtitle={`Gracias, ${firstName}. Sofía recibió tus respuestas.`}
     >
       <PortalCard className="max-w-lg mx-auto text-center py-6 sm:py-10">
@@ -52,7 +52,7 @@ function PrebriefSuccessView({
           ✓
         </p>
         <p className="font-serif text-2xl italic mb-3" style={{ color: brandUi.text }}>
-          Pre-brief recibido
+          Brand Soul recibido
         </p>
         <p className="text-sm leading-relaxed max-w-md mx-auto" style={{ color: brandUi.textMuted }}>
           Gracias por tomarte este espacio. Sofía revisará tus respuestas y te escribirá para
@@ -126,7 +126,7 @@ export function PrebriefClient({ token }: { token: string }) {
         setError(
           aborted
             ? "La carga tardó demasiado. Recargá la página. Si persiste, reiniciá npm run dev (solo un servidor en el puerto 3000)."
-            : "No se pudo cargar el pre-brief. Recargá la página o contactá a Sofía.",
+            : "No se pudo cargar Brand Soul. Recargá la página o contactá a Sofía.",
         );
       } finally {
         window.clearTimeout(timeout);
@@ -147,7 +147,7 @@ export function PrebriefClient({ token }: { token: string }) {
     setSubmitting(false);
     if (!res.ok) {
       const j = (await res.json().catch(() => ({}))) as { error?: string };
-      setError(j.error ?? "No se pudo enviar el pre-brief.");
+      setError(j.error ?? "No se pudo enviar Brand Soul.");
       return;
     }
     setDone(true);
@@ -157,7 +157,7 @@ export function PrebriefClient({ token }: { token: string }) {
     return (
       <PortalShell>
         <p className="text-center text-sm" style={{ color: brandUi.textMuted }}>
-          Cargando pre-brief…
+          Cargando Brand Soul…
         </p>
       </PortalShell>
     );
@@ -167,7 +167,7 @@ export function PrebriefClient({ token }: { token: string }) {
     return (
       <PortalShell title="Enlace no disponible">
         <p className="text-center text-sm text-brand-magenta">
-          {error ?? "No se pudo cargar el pre-brief."}
+          {error ?? "No se pudo cargar Brand Soul."}
         </p>
       </PortalShell>
     );
@@ -182,7 +182,7 @@ export function PrebriefClient({ token }: { token: string }) {
   return (
     <PortalShell
       eyebrow="Soulful Branding®"
-      title="Tu pre-brief"
+      title="Tu Brand Soul"
       subtitle={`${data.clientName} · ${data.projectTitle}`}
     >
       <PortalCard className="max-w-2xl mx-auto space-y-8">
@@ -261,7 +261,7 @@ export function PrebriefClient({ token }: { token: string }) {
             className="w-full rounded-lg py-3 text-sm font-medium text-white disabled:opacity-50"
             style={{ background: brandUi.accent }}
           >
-            {submitting ? "Enviando…" : "Enviar pre-brief →"}
+            {submitting ? "Enviando…" : "Enviar Brand Soul →"}
           </button>
         </div>
       </PortalCard>

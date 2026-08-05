@@ -341,7 +341,7 @@ export function ContractEditor({
               Documento para el cliente — contrato
             </p>
             <p className="text-xs mt-1 leading-relaxed" style={{ color: brandUi.textMuted }}>
-              Mismo editor que pre-brief y narrativa: negritas, listas, tablas y checkboxes. El
+              Mismo editor que Brand Soul y narrativa: negritas, listas, tablas y checkboxes. El
               cliente lo ve igual en el enlace de aceptación.
             </p>
           </div>

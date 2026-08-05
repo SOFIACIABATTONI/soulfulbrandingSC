@@ -201,7 +201,7 @@ export function ProjectTrackingFab({
                         {inv.number}
                       </span>
                       <span>
-                        ${inv.total.toLocaleString("es-AR")}{" "}
+                        €{inv.total.toLocaleString("es-AR")} EUR{" "}
                         <span style={{ color: inv.status === "pagado" ? "#1a6b1a" : "#b45000" }}>
                           {inv.status === "pagado" ? "pagada" : "pend."}
                         </span>
@@ -213,13 +213,13 @@ export function ProjectTrackingFab({
                     style={{ borderColor: brandUi.border }}
                   >
                     <span style={{ color: brandUi.textMuted }}>Facturado</span>
-                    <span className="font-medium">${totalFacturado.toLocaleString("es-AR")} USD</span>
+                    <span className="font-medium">€{totalFacturado.toLocaleString("es-AR")} EUR</span>
                   </div>
                   {porCobrar > 0 && (
                     <div className="flex justify-between text-xs">
                       <span style={{ color: "#b45000" }}>Por cobrar</span>
                       <span className="font-medium" style={{ color: "#b45000" }}>
-                        ${porCobrar.toLocaleString("es-AR")} USD
+                        €{porCobrar.toLocaleString("es-AR")} EUR
                       </span>
                     </div>
                   )}

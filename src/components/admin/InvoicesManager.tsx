@@ -2,6 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import {
+  INVOICE_TYPE_SHORT,
+  projectHasFinalInvoice,
+  projectHasSenaInvoice,
+  projectSenaIsPaid,
+  suggestedFinalTotal,
+  validateInvoiceCreate,
+} from "@/lib/invoice-utils";
 
 // ── tipos ──────────────────────────────────────────────────
 type InvoiceItem = {
@@ -12,6 +20,7 @@ type InvoiceItem = {
   status: string;
   issuedAt: string;
   paidAt: string | null;
+  emailSentAt: string | null;
   notes: string;
   client: { id: string; name: string; company: string };
   project: { id: string; title: string } | null;
@@ -29,20 +38,35 @@ type ProjectOption = {
 };
 
 // ── helpers ────────────────────────────────────────────────
-const TYPE_LABELS: Record<string, string> = {
-  sena: "Seña",
-  final: "Final",
-};
-
 const SERVICE_LABELS: Record<string, string> = {
   "identidad-de-marca": "Identidad de marca",
   "estrategia-visual": "Estrategia visual",
   "diseno-editorial": "Diseño editorial",
 };
 
-function suggestedTotal(projectValue: number, type: string): number {
-  if (type === "sena") return Math.round(projectValue * 0.5);
-  return projectValue;
+function defaultInvoiceType(
+  projectId: string,
+  invoices: InvoiceItem[],
+): "sena" | "final" {
+  if (!projectId) return "sena";
+  if (projectHasSenaInvoice(invoices, projectId) && projectSenaIsPaid(invoices, projectId)) {
+    if (!projectHasFinalInvoice(invoices, projectId)) return "final";
+  }
+  return "sena";
+}
+
+function defaultInvoiceTotal(
+  project: ProjectOption | undefined,
+  type: string,
+  projectId: string,
+  invoices: InvoiceItem[],
+): string {
+  if (!project) return "";
+  if (type === "final") {
+    const remaining = suggestedFinalTotal(project.value, invoices, projectId);
+    return remaining > 0 ? String(remaining) : "";
+  }
+  return "";
 }
 
 function formatDate(d: string | null) {
@@ -93,8 +117,12 @@ export function InvoicesManager({
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
+  const [emailStatusById, setEmailStatusById] = useState<
+    Record<string, "sending" | "sent" | "failed">
+  >({});
   const [linkingProject, setLinkingProject] = useState<string | null>(null);
   const autoOpenedRef = useRef(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({
     ...EMPTY_FORM,
     clientId: initialClientId ?? "",
@@ -110,18 +138,21 @@ export function InvoicesManager({
     return projects.filter((p) => p.clientId === clientId);
   }
 
-  function openNewInvoiceModal() {
+  function openNewInvoiceModal(preferredType?: "sena" | "final") {
     const clientId = initialClientId ?? "";
     const clientProjs = projectsForClient(clientId);
     const projectId =
       initialProjectId ??
       (clientProjs.length === 1 ? clientProjs[0].id : "");
     const project = clientProjs.find((p) => p.id === projectId);
+    const type = preferredType ?? defaultInvoiceType(projectId, items);
+    setFormError(null);
     setForm({
       ...EMPTY_FORM,
       clientId,
       projectId,
-      total: project ? String(suggestedTotal(project.value, "sena")) : "",
+      type,
+      total: defaultInvoiceTotal(project, type, projectId, items),
     });
     setModalOpen(true);
   }
@@ -130,31 +161,50 @@ export function InvoicesManager({
     const clientProjs = projectsForClient(clientId);
     const projectId = clientProjs.length === 1 ? clientProjs[0].id : "";
     const project = clientProjs.find((p) => p.id === projectId);
+    const type = defaultInvoiceType(projectId, items);
+    setFormError(null);
     setForm((f) => ({
       ...f,
       clientId,
       projectId,
-      total: project ? String(suggestedTotal(project.value, f.type)) : f.total,
+      type,
+      total: defaultInvoiceTotal(project, type, projectId, items),
     }));
   }
 
   function setProjectId(projectId: string) {
     const project = clientProjects.find((p) => p.id === projectId);
+    const type = defaultInvoiceType(projectId, items);
+    setFormError(null);
     setForm((f) => ({
       ...f,
       projectId,
-      total: project ? String(suggestedTotal(project.value, f.type)) : f.total,
+      type,
+      total: defaultInvoiceTotal(project, type, projectId, items),
     }));
   }
 
-  function setInvoiceType(type: string) {
+  function setInvoiceType(type: "sena" | "final") {
     const project = clientProjects.find((p) => p.id === form.projectId);
+    setFormError(null);
     setForm((f) => ({
       ...f,
       type,
-      total: project ? String(suggestedTotal(project.value, type)) : f.total,
+      total: defaultInvoiceTotal(project, type, f.projectId, items),
     }));
   }
+
+  const formValidation = useMemo(() => {
+    if (!form.projectId) return { ok: true as const };
+    const project = clientProjects.find((p) => p.id === form.projectId);
+    const projectInvoices = items.filter((i) => i.project?.id === form.projectId);
+    return validateInvoiceCreate(
+      form.type as "sena" | "final",
+      form.projectId,
+      project?.value,
+      projectInvoices,
+    );
+  }, [form.projectId, form.type, clientProjects, items]);
 
   async function load() {
     const [invRes, cliRes, projRes] = await Promise.all([
@@ -200,7 +250,12 @@ export function InvoicesManager({
 
   async function createInvoice(e: React.FormEvent) {
     e.preventDefault();
+    if (!formValidation.ok) {
+      setFormError(formValidation.error);
+      return;
+    }
     setSaving(true);
+    setFormError(null);
     const res = await fetch("/api/admin/invoices", {
       method: "POST",
       credentials: "include",
@@ -220,6 +275,9 @@ export function InvoicesManager({
         projectId: initialProjectId ?? "",
       });
       await load();
+    } else {
+      const j = (await res.json().catch(() => null)) as { error?: string } | null;
+      setFormError(j?.error ?? "No se pudo crear el documento.");
     }
   }
 
@@ -247,15 +305,97 @@ export function InvoicesManager({
     await load();
   }
 
+  async function sendByEmail(id: string) {
+    setEmailStatusById((prev) => ({ ...prev, [id]: "sending" }));
+    const res = await fetch(`/api/admin/invoices/${id}/send`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (res.ok) {
+      const j = (await res.json()) as {
+        emailed?: boolean;
+        emailSentAt?: string | null;
+        error?: string;
+      };
+      if (j.emailed) {
+        setItems((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? { ...item, emailSentAt: j.emailSentAt ?? new Date().toISOString() }
+              : item,
+          ),
+        );
+        setEmailStatusById((prev) => ({ ...prev, [id]: "sent" }));
+      } else {
+        setEmailStatusById((prev) => ({ ...prev, [id]: "failed" }));
+      }
+    } else {
+      const j = (await res.json().catch(() => null)) as { error?: string } | null;
+      setEmailStatusById((prev) => ({ ...prev, [id]: "failed" }));
+      if (j?.error) console.warn("[invoice send]", j.error);
+    }
+  }
+
+  function renderEmailAction(row: InvoiceItem) {
+    const status = emailStatusById[row.id];
+    if (status === "sending") {
+      return (
+        <span className="text-xs font-medium" style={{ color: "rgba(19,25,69,0.45)" }}>
+          Enviando…
+        </span>
+      );
+    }
+    if (status === "sent" || row.emailSentAt) {
+      return (
+        <span
+          className="text-xs font-medium"
+          style={{ color: "#1a6b1a" }}
+          title={row.emailSentAt ? `Enviado ${formatDate(row.emailSentAt)}` : undefined}
+        >
+          Enviado ✓
+        </span>
+      );
+    }
+    if (status === "failed") {
+      return (
+        <button
+          type="button"
+          onClick={() => void sendByEmail(row.id)}
+          className="text-xs font-medium hover:underline text-left"
+          style={{ color: "#b45000" }}
+          title="Tocá para reintentar"
+        >
+          No se pudo enviar
+        </button>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => void sendByEmail(row.id)}
+        className="text-xs font-medium hover:underline"
+        style={{ color: "#F03172" }}
+      >
+        Enviar mail
+      </button>
+    );
+  }
+
   const totalPendiente = filtered
     .filter((i) => i.status === "pendiente")
     .reduce((acc, i) => acc + i.total, 0);
 
   if (loading)
-    return <p className="py-12 text-center text-sm text-neutral-500">Cargando facturas…</p>;
+    return <p className="py-12 text-center text-sm text-neutral-500">Cargando documentos…</p>;
+
+  const selectedProject = clientProjects.find((p) => p.id === form.projectId);
+  const modalTitle =
+    form.type === "sena" ? "Nuevo recibo de seña" : "Nueva factura final";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0 max-w-full">
       {/* ── Resumen ── */}
       {filtered.length > 0 && (
         <div className="flex gap-3 flex-wrap">
@@ -263,7 +403,7 @@ export function InvoicesManager({
             className="rounded border px-4 py-2.5 text-sm"
             style={{ borderColor: "rgba(19,25,69,0.1)", background: "#fff" }}
           >
-            <span style={{ color: "rgba(19,25,69,0.42)" }}>Total facturas: </span>
+            <span style={{ color: "rgba(19,25,69,0.42)" }}>Documentos: </span>
             <span className="font-medium">{filtered.length}</span>
           </div>
           {totalPendiente > 0 && (
@@ -273,7 +413,7 @@ export function InvoicesManager({
             >
               <span style={{ color: "#b45000" }}>Por cobrar: </span>
               <span className="font-medium" style={{ color: "#b45000" }}>
-                ${totalPendiente.toLocaleString("es-AR")} USD
+                €{totalPendiente.toLocaleString("es-AR")} EUR
               </span>
             </div>
           )}
@@ -297,22 +437,31 @@ export function InvoicesManager({
           onChange={(e) => setFilterType(e.target.value)}
         >
           <option value="todos">Todos los tipos</option>
-          <option value="sena">Seña</option>
-          <option value="final">Final</option>
+          <option value="sena">Recibo de seña</option>
+          <option value="final">Factura final</option>
         </select>
         <span className="text-sm text-neutral-400">{filtered.length} de {items.length}</span>
-        <button
-          onClick={openNewInvoiceModal}
-          className="ml-auto rounded px-4 py-2 text-sm font-medium text-white"
-          style={{ background: "#F03172" }}
-        >
-          + Nueva factura
-        </button>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <button
+            onClick={() => openNewInvoiceModal("sena")}
+            className="rounded px-4 py-2 text-sm font-medium text-white"
+            style={{ background: "#131945" }}
+          >
+            + Recibo de seña
+          </button>
+          <button
+            onClick={() => openNewInvoiceModal("final")}
+            className="rounded px-4 py-2 text-sm font-medium text-white"
+            style={{ background: "#F03172" }}
+          >
+            + Factura final
+          </button>
+        </div>
       </div>
 
       {/* ── Tabla ── */}
-      <div className="overflow-x-auto rounded border border-neutral-200 bg-white">
-        <table className="min-w-full text-sm">
+      <div className="max-w-full min-w-0 overflow-x-auto rounded border border-neutral-200 bg-white">
+        <table className="w-full text-sm">
           <thead
             className="border-b border-neutral-200 text-left text-[11px] font-medium uppercase tracking-widest"
             style={{ background: "#FFFFFF", color: "rgba(19,25,69,0.42)" }}
@@ -320,7 +469,7 @@ export function InvoicesManager({
             <tr>
               <th className="px-4 py-3">Número</th>
               {!initialClientId && <th className="px-4 py-3">Cliente</th>}
-              <th className="px-4 py-3 min-w-[280px]">Proyecto</th>
+              <th className="px-4 py-3 min-w-0">Proyecto</th>
               <th className="px-4 py-3">Tipo</th>
               <th className="px-4 py-3">Total</th>
               <th className="px-4 py-3">Estado</th>
@@ -350,12 +499,12 @@ export function InvoicesManager({
                     )}
                   </td>
                 )}
-                <td className="px-4 py-3 text-xs min-w-[280px]">
-                  <div className="space-y-1.5">
+                <td className="px-4 py-3 text-xs min-w-0 max-w-[220px]">
+                  <div className="space-y-1.5 min-w-0">
                     {row.project ? (
                       <Link
                         href={`/admin/proyectos/${row.project.id}`}
-                        className="block font-medium leading-snug hover:underline"
+                        className="block font-medium leading-snug hover:underline truncate"
                         style={{ color: "#131945" }}
                         title={row.project.title}
                       >
@@ -364,9 +513,9 @@ export function InvoicesManager({
                     ) : (
                       <span className="block text-neutral-400 italic">Sin proyecto</span>
                     )}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       <select
-                        className="rounded border border-neutral-200 bg-white px-2 py-1 text-[11px] w-full min-w-[200px]"
+                        className="rounded border border-neutral-200 bg-white px-2 py-1 text-[11px] w-full min-w-0 max-w-full"
                         value={row.project?.id ?? ""}
                         disabled={linkingProject === row.id}
                         aria-label={`Proyecto de factura ${row.number}`}
@@ -392,11 +541,11 @@ export function InvoicesManager({
                     className="inline-block rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
                     style={{ background: "rgba(19,25,69,0.08)", color: "#131945" }}
                   >
-                    {TYPE_LABELS[row.type] ?? row.type}
+                    {INVOICE_TYPE_SHORT[row.type] ?? row.type}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-medium">
-                  ${row.total.toLocaleString("es-AR")} USD
+                  €{row.total.toLocaleString("es-AR")} EUR
                 </td>
                 <td className="px-4 py-3">
                   <StatusPill status={row.status} />
@@ -408,16 +557,28 @@ export function InvoicesManager({
                   {formatDate(row.paidAt)}
                 </td>
                 <td className="px-4 py-3">
-                  {row.status === "pendiente" && (
-                    <button
-                      onClick={() => void markPaid(row.id)}
-                      disabled={markingPaid === row.id}
-                      className="text-xs font-medium hover:underline disabled:opacity-50"
-                      style={{ color: "#1a6b1a" }}
+                  <div className="flex flex-col gap-1 items-start">
+                    <a
+                      href={`/api/admin/invoices/${row.id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-medium hover:underline"
+                      style={{ color: "#323FF6" }}
                     >
-                      {markingPaid === row.id ? "…" : "Marcar pagada"}
-                    </button>
-                  )}
+                      PDF
+                    </a>
+                    {renderEmailAction(row)}
+                    {row.status === "pendiente" && (
+                      <button
+                        onClick={() => void markPaid(row.id)}
+                        disabled={markingPaid === row.id}
+                        className="text-xs font-medium hover:underline disabled:opacity-50"
+                        style={{ color: "#1a6b1a" }}
+                      >
+                        {markingPaid === row.id ? "…" : "Marcar pagada"}
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -426,8 +587,8 @@ export function InvoicesManager({
         {filtered.length === 0 && (
           <p className="py-10 text-center text-sm text-neutral-400">
             {items.length === 0
-              ? "Todavía no hay facturas."
-              : "No hay facturas con estos filtros."}
+              ? "Todavía no hay recibos ni facturas."
+              : "No hay documentos con estos filtros."}
           </p>
         )}
       </div>
@@ -441,7 +602,7 @@ export function InvoicesManager({
         >
           <div className="w-full max-w-lg rounded bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4 sticky top-0 bg-white z-10">
-              <h2 className="font-serif text-lg italic">Nueva factura</h2>
+              <h2 className="font-serif text-lg italic">{modalTitle}</h2>
               <button
                 onClick={() => setModalOpen(false)}
                 className="text-xl text-neutral-400 hover:text-neutral-700 leading-none px-1"
@@ -495,7 +656,7 @@ export function InvoicesManager({
                           {SERVICE_LABELS[p.service]
                             ? ` — ${SERVICE_LABELS[p.service]}`
                             : ""}
-                          {" "}(${p.value.toLocaleString("es-AR")} USD)
+                          {" "}(€{p.value.toLocaleString("es-AR")} EUR)
                         </option>
                       ))}
                     </select>
@@ -510,24 +671,54 @@ export function InvoicesManager({
                   <select
                     className="fv"
                     value={form.type}
-                    onChange={(e) => setInvoiceType(e.target.value)}
+                    onChange={(e) => setInvoiceType(e.target.value as "sena" | "final")}
                   >
-                    <option value="sena">Seña (50%)</option>
-                    <option value="final">Factura final</option>
+                    <option value="sena">Recibo de seña</option>
+                    <option value="final">Factura final (saldo)</option>
                   </select>
                 </Field>
-                <Field label="Total (USD)" required>
+                <Field label="Total (EUR)" required>
                   <input
                     required
                     type="number"
                     min="0"
                     step="0.01"
                     className="fv"
-                    placeholder="Valor en USD"
+                    placeholder={
+                      form.type === "sena"
+                        ? "Monto acordado con el cliente"
+                        : "Saldo pendiente del proyecto"
+                    }
                     value={form.total}
                     onChange={(e) => setForm({ ...form, total: e.target.value })}
                   />
                 </Field>
+                {selectedProject && (
+                  <p className="col-span-2 text-[10px]" style={{ color: "rgba(19,25,69,0.42)" }}>
+                    {form.type === "sena" ? (
+                      <>
+                        Valor del proyecto: €{selectedProject.value.toLocaleString("es-AR")} EUR —
+                        ingresá la seña acordada (no tiene que ser un porcentaje fijo).
+                      </>
+                    ) : (
+                      <>
+                        Saldo sugerido: €{" "}
+                        {suggestedFinalTotal(
+                          selectedProject.value,
+                          items.filter((i) => i.project?.id === form.projectId),
+                          form.projectId,
+                        ).toLocaleString("es-AR")}{" "}
+                        EUR (valor del proyecto menos lo ya cobrado).
+                      </>
+                    )}
+                  </p>
+                )}
+                {!formValidation.ok && (
+                  <p className="col-span-2 text-xs text-red-600">{formValidation.error}</p>
+                )}
+                {formError && (
+                  <p className="col-span-2 text-xs text-red-600">{formError}</p>
+                )}
                 <Field label="Estado">
                   <select
                     className="fv"
@@ -551,7 +742,7 @@ export function InvoicesManager({
                     <textarea
                       className="fv w-full resize-y"
                       rows={2}
-                      placeholder="Notas internas sobre esta factura…"
+                      placeholder="Notas internas sobre este documento…"
                       value={form.notes}
                       onChange={(e) => setForm({ ...form, notes: e.target.value })}
                     />
@@ -568,11 +759,15 @@ export function InvoicesManager({
                 </button>
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={saving || !formValidation.ok}
                   className="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                   style={{ background: "#F03172" }}
                 >
-                  {saving ? "Generando…" : "Generar factura"}
+                  {saving
+                    ? "Generando…"
+                    : form.type === "sena"
+                      ? "Generar recibo"
+                      : "Generar factura final"}
                 </button>
               </div>
             </form>

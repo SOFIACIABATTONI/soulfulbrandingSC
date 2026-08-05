@@ -10,7 +10,7 @@ export default async function AdminClientesPage() {
   }
 
   return (
-    <div className="px-6 py-8 max-w-7xl mx-auto">
+    <div className="px-6 py-8 max-w-7xl mx-auto w-full min-w-0">
       <div className="mb-6">
         <p className="text-[9px] font-medium uppercase tracking-widest mb-1"
           style={{ color: "rgba(19,25,69,0.42)" }}>

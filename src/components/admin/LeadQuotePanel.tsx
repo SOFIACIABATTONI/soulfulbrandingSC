@@ -12,11 +12,16 @@ import {
 } from "@/lib/quote-types";
 import type { Lead } from "@prisma/client";
 import {
-  buildBornAndBeDeckContent,
-  buildMarkdownQuoteContent,
-} from "@/lib/quote-default-content";
+  QUOTE_PROPOSAL_TEMPLATES,
+  buildQuoteContentForProposal,
+  defaultProposalIdForLead,
+  getQuoteProposalTemplate,
+  resolveProposalIdFromContent,
+  type QuoteProposalTemplate,
+} from "@/lib/quote-proposal-templates";
+import type { QuoteProposalId } from "@/lib/quote-types";
 import { isBbbDeckFormat } from "@/lib/quote-bbb-deck";
-import { buildPresupuestoMarkdown } from "@/lib/quote-templates";
+import { isQuotePdfFormat } from "@/lib/quote-proposal-pdfs";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 
 type PendingConfirm = "send" | "delete" | null;
@@ -47,7 +52,8 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [body, setBody] = useState("");
-  const [format, setFormat] = useState<QuoteContentFormat>("bbb-deck-2026");
+  const [format, setFormat] = useState<QuoteContentFormat>("pdf");
+  const [pdfUrl, setPdfUrl] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [total, setTotal] = useState("");
   const [showPreview, setShowPreview] = useState(true);
@@ -58,6 +64,9 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
   const [lastLink, setLastLink] = useState<string | null>(null);
   const [resolvedClientId, setResolvedClientId] = useState<string | null>(clientId ?? null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
+  const [selectedProposalId, setSelectedProposalId] = useState<QuoteProposalId>(() =>
+    defaultProposalIdForLead(lead),
+  );
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/admin/leads/${leadId}/quotes`, {
@@ -102,11 +111,22 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
   function applyContent(c: QuoteContent) {
     setBody(c.body ?? "");
     setFormat(c.format ?? "markdown");
+    setPdfUrl(c.pdfUrl ?? "");
     setVideoUrl(c.videoUrl ?? "");
     setTotal(c.total != null ? String(c.total) : "");
+    setSelectedProposalId(resolveProposalIdFromContent(c));
+  }
+
+  function applyProposalTemplate(template: QuoteProposalTemplate) {
+    setSelectedProposalId(template.id);
+    applyContent(template.buildContent(lead));
+    setEditorOpen(true);
+    setMessage(null);
+    setLastLink(null);
   }
 
   const isDeck = isBbbDeckFormat(format);
+  const isPdf = isQuotePdfFormat(format);
 
   function selectQuote(q: QuoteRow) {
     setActiveId(q.id);
@@ -116,23 +136,14 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
   }
 
   function buildContentPayload(): QuoteContent {
-    const deck = isBbbDeckFormat(format);
+    const base = buildQuoteContentForProposal(selectedProposalId, lead);
     const totalNum = total.trim() ? Number(total) : undefined;
-    if (deck) {
-      const base = buildBornAndBeDeckContent(lead);
-      return {
-        format: "bbb-deck-2026",
-        body: base.body,
-        videoUrl: videoUrl.trim() || undefined,
-        total: totalNum ?? base.total,
-        currency: "USD",
-      };
-    }
     return {
-      format: "markdown",
-      body: body.trim(),
-      videoUrl: videoUrl.trim() || undefined,
-      ...(totalNum != null ? { total: totalNum, currency: "USD" } : {}),
+      ...base,
+      body: body.trim() || base.body,
+      ...(pdfUrl.trim() && isQuotePdfFormat(base.format) ? { pdfUrl: pdfUrl.trim() } : {}),
+      ...(videoUrl.trim() ? { videoUrl: videoUrl.trim() } : {}),
+      ...(totalNum != null ? { total: totalNum, currency: "EUR" } : {}),
     };
   }
 
@@ -143,7 +154,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ proposalId: selectedProposalId }),
     });
     setSaving(false);
     if (res.ok) {
@@ -235,9 +246,11 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
     if (res.ok) {
       setActiveId(null);
       setBody("");
-      setFormat("bbb-deck-2026");
+      setFormat("pdf");
+      setPdfUrl("");
       setVideoUrl("");
       setTotal("");
+      setSelectedProposalId(defaultProposalIdForLead(lead));
       await load();
       setMessage("Borrador eliminado.");
     }
@@ -254,6 +267,10 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
       await deleteDraft();
     }
   }
+
+  const activeProposal = getQuoteProposalTemplate(
+    active ? resolveProposalIdFromContent(normalizeQuoteContent(active.content)) : selectedProposalId,
+  );
 
   if (loading) {
     return (
@@ -286,9 +303,60 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
         </button>
       </div>
 
+      <div className="mb-5">
+        <p className="text-[9px] font-medium uppercase tracking-widest mb-2" style={{ color: "rgba(13,13,13,0.42)" }}>
+          Elegí la propuesta a enviar
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {QUOTE_PROPOSAL_TEMPLATES.map((template) => {
+            const selected = selectedProposalId === template.id;
+            return (
+              <button
+                key={template.id}
+                type="button"
+                onClick={() => {
+                  setSelectedProposalId(template.id);
+                  if (active?.status === "borrador") {
+                    applyProposalTemplate(template);
+                  }
+                }}
+                className="rounded-lg border px-3 py-3 text-left transition hover:border-[#F03172]/40"
+                style={{
+                  borderColor: selected ? "#F03172" : "rgba(13,13,13,0.12)",
+                  background: selected ? "rgba(240,49,114,0.06)" : "#fff",
+                }}
+              >
+                <p className="text-sm font-medium" style={{ color: "#131945" }}>
+                  {template.label}
+                </p>
+                <p className="mt-1 text-[11px] leading-relaxed" style={{ color: "rgba(19,25,69,0.55)" }}>
+                  {template.description}
+                </p>
+                {template.id === "born-and-be" && (
+                  <p className="mt-2 text-[10px] leading-relaxed" style={{ color: "rgba(19,25,69,0.55)" }}>
+                    12 diapositivas JPG — no hace falta PDF.
+                  </p>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        {(!active || active.status === "borrador") && (
+          <button
+            type="button"
+            onClick={() => applyProposalTemplate(getQuoteProposalTemplate(selectedProposalId))}
+            className="mt-2 text-xs hover:underline"
+            style={{ color: "#323FF6" }}
+          >
+            Cargar plantilla «{getQuoteProposalTemplate(selectedProposalId).label}»
+            {active?.status === "borrador" ? " en este borrador" : ""}
+          </button>
+        )}
+      </div>
+
       {quotes.length === 0 ? (
         <p className="text-sm" style={{ color: "rgba(13,13,13,0.5)" }}>
-          Sin presupuestos. Creá un borrador para armar la propuesta y enviarla al cliente.
+          Sin presupuestos. Elegí una propuesta arriba y tocá «+ Nuevo borrador» para armarla y enviarla al cliente.
         </p>
       ) : (
         <>
@@ -307,6 +375,8 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
               >
                 {QUOTE_STATUS_LABELS[q.status] ?? q.status}
                 {" · "}
+                {getQuoteProposalTemplate(resolveProposalIdFromContent(normalizeQuoteContent(q.content))).label}
+                {" · "}
                 {new Date(q.createdAt).toLocaleDateString("es-AR")}
               </button>
             ))}
@@ -323,6 +393,12 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                   }}
                 >
                   {QUOTE_STATUS_LABELS[active.status] ?? active.status}
+                </span>
+                <span
+                  className="rounded px-2 py-0.5 font-medium"
+                  style={{ background: "rgba(240,49,114,0.08)", color: "#F03172" }}
+                >
+                  {activeProposal.label}
                 </span>
                 {active.clientResponse && (
                   <span style={{ color: "#131945" }}>
@@ -368,102 +444,39 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
               {editorOpen && (active.status === "borrador" ? (
                 <>
                   <p className="text-xs leading-relaxed" style={{ color: "rgba(13,13,13,0.5)" }}>
-                    {isDeck
-                      ? "Plantilla Born & Be (12 diapositivas JPG). El cliente ve el deck en el link; el correo incluye el botón a la propuesta completa."
-                      : "Carta en Markdown editable. El cliente recibe el mismo diseño en negro por mail y en el link."}
+                    {isPdf
+                      ? `El cliente verá el PDF «${activeProposal.label}» en el link del mail. Ingresá el total acordado abajo antes de enviar.`
+                      : isDeck
+                        ? `Deck JPG «${activeProposal.label}» (12 diapositivas). Ingresá el total acordado abajo antes de enviar.`
+                        : `Propuesta «${activeProposal.label}». Ingresá el total acordado abajo.`}
                   </p>
-                  <div className={isDeck ? "space-y-4" : "grid grid-cols-1 xl:grid-cols-2 gap-4"}>
-                    {!isDeck && (
-                      <div className="space-y-3">
-                        <textarea
-                          className="w-full rounded border px-3 py-2 text-sm font-mono leading-relaxed resize-y"
-                          style={{
-                            borderColor: "rgba(50,63,246,0.4)",
-                            minHeight: 280,
-                            color: "#0D0D0D",
-                          }}
-                          value={body}
-                          onChange={(e) => setBody(e.target.value)}
-                          spellCheck
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setBody(buildPresupuestoMarkdown(lead))}
-                          className="text-xs hover:underline"
-                          style={{ color: "#323FF6" }}
-                        >
-                          Restaurar plantilla Markdown
-                        </button>
-                      </div>
-                    )}
-                    {isDeck && (
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const c = buildBornAndBeDeckContent(lead);
-                            applyContent(c);
-                          }}
-                          className="hover:underline"
-                          style={{ color: "#323FF6" }}
-                        >
-                          Restaurar deck Born & Be
-                        </button>
-                        <span style={{ color: "rgba(13,13,13,0.25)" }}>|</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const c = buildMarkdownQuoteContent(lead);
-                            applyContent(c);
-                          }}
-                          className="hover:underline"
-                          style={{ color: "#323FF6" }}
-                        >
-                          Cambiar a carta Markdown
-                        </button>
-                      </div>
-                    )}
-                    <div className="space-y-3">
-                      {!isDeck && (
-                        <label className="block text-[9px] uppercase tracking-widest">
-                          <span style={{ color: "rgba(13,13,13,0.42)" }}>
-                            Video (YouTube o Vimeo) — opcional
-                          </span>
-                          <input
-                            type="url"
-                            className="w-full mt-1 rounded border px-3 py-2 text-sm font-sans"
-                            placeholder="https://www.youtube.com/watch?v=..."
-                            value={videoUrl}
-                            onChange={(e) => setVideoUrl(e.target.value)}
-                          />
-                        </label>
-                      )}
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-4 items-end">
                       <label className="block text-[9px] uppercase tracking-widest max-w-[200px]">
-                        <span style={{ color: "rgba(13,13,13,0.42)" }}>
-                          Total USD {isDeck ? "(referencia; slide 10 fija)" : "(opcional)"}
-                        </span>
+                        <span style={{ color: "rgba(13,13,13,0.42)" }}>Total EUR</span>
                         <input
                           type="number"
+                          min="0"
+                          step="0.01"
                           className="w-full mt-1 rounded border px-3 py-2 text-sm"
+                          placeholder="Monto acordado con el cliente"
                           value={total}
                           onChange={(e) => setTotal(e.target.value)}
                         />
                       </label>
-                      {!isDeck && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const c = buildBornAndBeDeckContent(lead);
-                            applyContent(c);
-                          }}
-                          className="text-xs hover:underline"
+                      {isPdf && pdfUrl ? (
+                        <a
+                          href={pdfUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-medium hover:underline"
                           style={{ color: "#323FF6" }}
                         >
-                          Usar deck Born & Be
-                        </button>
-                      )}
+                          Ver PDF fuente →
+                        </a>
+                      ) : null}
                     </div>
-                    <div className={isDeck ? "" : ""}>
+                    <div>
                       <div className="flex items-center justify-between mb-2">
                         <span
                           className="text-[9px] font-medium uppercase tracking-widest"
@@ -483,26 +496,24 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                       {showPreview && (
                         <div
                           className={
-                            isDeck
-                              ? "rounded-lg border overflow-y-auto max-h-[85vh]"
-                              : "rounded-lg border max-h-[560px] overflow-y-auto"
+                            isDeck || isPdf
+                              ? "rounded-lg border overflow-hidden"
+                              : "rounded-lg border max-h-[560px] overflow-y-auto px-5 py-6"
                           }
                           style={{
-                            background: isDeck ? "#FFFFFF" : "#0D0D0D",
+                            background: isDeck || isPdf ? "#FFFFFF" : "#0D0D0D",
                             borderColor: "rgba(13,13,13,0.2)",
-                            padding: isDeck ? 0 : undefined,
                           }}
                         >
-                          <div className={isDeck ? "" : "px-5 py-6"}>
-                            <QuoteFormattedBody
-                              body={body || "…"}
-                              format={format}
-                              videoUrl={videoUrl || undefined}
-                              total={total.trim() ? Number(total) : undefined}
-                              currency="USD"
-                              deckVariant="preview"
-                            />
-                          </div>
+                          <QuoteFormattedBody
+                            body={body || "…"}
+                            format={format}
+                            pdfUrl={pdfUrl || undefined}
+                            videoUrl={videoUrl || undefined}
+                            total={total.trim() ? Number(total) : undefined}
+                            currency="EUR"
+                            deckVariant="preview"
+                          />
                         </div>
                       )}
                     </div>
@@ -520,7 +531,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                     <button
                       type="button"
                       onClick={() => setPendingConfirm("send")}
-                      disabled={sending || (!isDeck && !body.trim())}
+                      disabled={sending || (!isDeck && !isPdf && !body.trim())}
                       className="rounded px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
                       style={{ background: "#F03172" }}
                     >
@@ -539,20 +550,24 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
               ) : (
                 <div
                   className={
-                    isBbbDeckFormat(normalizeQuoteContent(active.content).format)
+                    isBbbDeckFormat(normalizeQuoteContent(active.content).format) ||
+                    isQuotePdfFormat(normalizeQuoteContent(active.content).format)
                       ? "rounded-lg border overflow-hidden"
                       : "rounded-lg border px-5 py-6"
                   }
                   style={{
-                    background: isBbbDeckFormat(normalizeQuoteContent(active.content).format)
-                      ? "#FFFFFF"
-                      : "#0D0D0D",
+                    background:
+                      isBbbDeckFormat(normalizeQuoteContent(active.content).format) ||
+                      isQuotePdfFormat(normalizeQuoteContent(active.content).format)
+                        ? "#FFFFFF"
+                        : "#0D0D0D",
                     borderColor: "rgba(13,13,13,0.15)",
                   }}
                 >
                   <QuoteFormattedBody
                     body={normalizeQuoteContent(active.content).body}
                     format={normalizeQuoteContent(active.content).format}
+                    pdfUrl={normalizeQuoteContent(active.content).pdfUrl}
                     videoUrl={normalizeQuoteContent(active.content).videoUrl}
                     total={normalizeQuoteContent(active.content).total}
                     currency={normalizeQuoteContent(active.content).currency}
@@ -610,8 +625,9 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
         description={
           <>
             Se enviará por correo a{" "}
-            <strong style={{ color: "#131945" }}>{lead.email}</strong> y se generará un enlace
-            nuevo para que el cliente vea la propuesta.
+            <strong style={{ color: "#131945" }}>{lead.email}</strong> la propuesta{" "}
+            <strong style={{ color: "#131945" }}>{activeProposal.label}</strong> y se generará un
+            enlace nuevo para que el cliente la vea.
           </>
         }
         confirmLabel="Enviar presupuesto"

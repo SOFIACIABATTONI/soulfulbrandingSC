@@ -14,9 +14,6 @@ export const BBB_DECK_SLIDES = [
   { src: "/quotes/bbb-2026/pagina_12.jpg", alt: "It's time to bloom — Born and Be" },
 ] as const;
 
-/** Inversión total referencia PDF (Etapa 1 + Etapa 2). */
-export const BBB_DEFAULT_TOTAL_USD = 2411;
-
 export function isBbbDeckFormat(format: string | undefined): boolean {
   return format === "bbb-deck-2026";
 }

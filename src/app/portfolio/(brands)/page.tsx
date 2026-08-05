@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getSiteContent } from "@/lib/content";
 import { buildPageMetadata } from "@/lib/site-metadata";
-import { PORTFOLIO_SHOWCASE } from "@/lib/portfolio-showcase";
+import { getPortfolioShowcaseItems } from "@/lib/portfolio-items";
 import { getTestimonials } from "@/lib/testimonials";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { PortfolioShowcase } from "@/components/site/PortfolioShowcase";
@@ -20,6 +20,7 @@ export const metadata = buildPageMetadata({
 export default async function PortfolioPage() {
   const c = await getSiteContent();
   const testimonials = await getTestimonials();
+  const showcaseItems = await getPortfolioShowcaseItems();
 
   return (
     <>
@@ -33,7 +34,7 @@ export default async function PortfolioPage() {
             ← Volver
           </Link>
           <h1 className="font-serif text-4xl font-medium leading-tight text-brand-navy md:text-4xl lg:text-5xl">Brand&apos;s</h1>
-          <PortfolioShowcase items={PORTFOLIO_SHOWCASE} />
+          <PortfolioShowcase items={showcaseItems} />
           <div className="mt-8 hidden border-t border-brand-navy/10 pt-8 md:block">
             <PortfolioTestimonialsCarousel items={testimonials} />
           </div>

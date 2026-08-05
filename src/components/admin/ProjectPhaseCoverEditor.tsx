@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AdminUploadProgress } from "@/components/admin/AdminUploadProgress";
 import { uploadPhaseCoverImageFile, type UploadProgressEvent } from "@/lib/admin-client-upload";
 import { brandUi } from "@/lib/brand-ui";
 
@@ -11,60 +12,6 @@ type ProjectPhaseCoverEditorProps = {
   onChange?: (coverUrl: string) => void;
   onSave?: (coverUrl: string) => Promise<boolean>;
 };
-
-function formatFileSize(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
-
-function CoverUploadProgress({
-  fileName,
-  fileSize,
-  progress,
-}: {
-  fileName: string;
-  fileSize: number;
-  progress: UploadProgressEvent;
-}) {
-  const pct = Math.max(0, Math.min(100, progress.percentage));
-  const isSaving = progress.phase === "save" || pct >= 90;
-
-  return (
-    <div
-      className="mt-3 rounded-xl border px-3 py-3 space-y-2 w-full"
-      style={{ borderColor: brandUi.blue, background: "rgba(50,63,246,0.05)" }}
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[11px] font-medium" style={{ color: brandUi.text }}>
-            {isSaving ? "Guardando portada en el proyecto…" : "Preparando y subiendo imagen…"}
-          </p>
-          <p className="text-[10px] mt-0.5 truncate" style={{ color: brandUi.textMuted }}>
-            {fileName} · {formatFileSize(fileSize)}
-          </p>
-        </div>
-        <span className="text-[11px] font-semibold tabular-nums shrink-0" style={{ color: brandUi.blue }}>
-          {pct}%
-        </span>
-      </div>
-      <div
-        className="h-2 w-full overflow-hidden rounded-full"
-        style={{ background: "rgba(19,25,69,0.08)" }}
-      >
-        <div
-          className="h-full rounded-full transition-[width] duration-300 ease-out"
-          style={{
-            width: `${pct}%`,
-            background: `linear-gradient(90deg, ${brandUi.blue}, #F03172)`,
-          }}
-        />
-      </div>
-    </div>
-  );
-}
 
 export function ProjectPhaseCoverEditor({
   label,
@@ -181,10 +128,11 @@ export function ProjectPhaseCoverEditor({
               : "Sin imagen — la card y el encabezado quedan en blanco hasta que subas una."}
         </p>
         {uploadProgress && (
-          <CoverUploadProgress
+          <AdminUploadProgress
             fileName={uploadingFileName}
             fileSize={uploadingFileSize}
             progress={uploadProgress}
+            savingLabel="Guardando portada en el proyecto…"
           />
         )}
       </div>

@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
 import { generateQuoteToken, hashQuoteToken } from "@/lib/quote-token";
-import { buildDefaultQuoteContent } from "@/lib/quote-default-content";
+import { buildQuoteContentForProposalOnServer } from "@/lib/quote-proposal-templates.server";
+import { defaultProposalIdForLead } from "@/lib/quote-proposal-templates";
+import type { QuoteProposalId } from "@/lib/quote-types";
 import { quoteContentSchema } from "@/lib/quote-types";
 import { quoteExpiryFromNow } from "@/lib/quote-service";
 import { z } from "zod";
@@ -11,6 +13,7 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 const createSchema = z.object({
   content: quoteContentSchema.optional(),
+  proposalId: z.enum(["born-and-be", "estrategia-visual", "diseno-editorial"]).optional(),
 });
 
 export async function GET(_req: Request, ctx: RouteParams) {
@@ -59,7 +62,8 @@ export async function POST(req: Request, ctx: RouteParams) {
     return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
   }
 
-  const content = parsed.data.content ?? buildDefaultQuoteContent(lead);
+  const proposalId = (parsed.data.proposalId ?? defaultProposalIdForLead(lead)) as QuoteProposalId;
+  const content = parsed.data.content ?? buildQuoteContentForProposalOnServer(proposalId, lead);
   const plain = generateQuoteToken();
 
   const item = await prisma.quote.create({

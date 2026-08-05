@@ -4,7 +4,9 @@ import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { QuoteBBBDeck } from "@/components/quote/QuoteBBBDeck";
+import { QuotePdfViewer } from "@/components/quote/QuotePdfViewer";
 import { isBbbDeckFormat } from "@/lib/quote-bbb-deck";
+import { isQuotePdfFormat } from "@/lib/quote-proposal-pdfs";
 import type { QuoteContentFormat } from "@/lib/quote-types";
 import { parseVideoUrl } from "@/lib/quote-video";
 import { brandUi } from "@/lib/brand-ui";
@@ -118,6 +120,7 @@ function markdownComponents(theme: "light" | "dark"): Components {
 type Props = {
   body: string;
   format?: QuoteContentFormat;
+  pdfUrl?: string | null;
   videoUrl?: string | null;
   total?: number;
   currency?: string;
@@ -164,12 +167,22 @@ export function QuoteVideoEmbed({
 export function QuoteFormattedBody({
   body,
   format,
+  pdfUrl,
   videoUrl,
   total,
   currency,
   theme = "light",
   deckVariant = "portal",
 }: Props) {
+  if (isQuotePdfFormat(format) && pdfUrl?.trim()) {
+    return (
+      <div>
+        <QuoteVideoEmbed videoUrl={videoUrl} theme={theme} />
+        <QuotePdfViewer pdfUrl={pdfUrl.trim()} title={body || "Propuesta Soulful Branding®"} variant={deckVariant} />
+      </div>
+    );
+  }
+
   if (isBbbDeckFormat(format)) {
     return (
       <div>
@@ -197,7 +210,7 @@ export function QuoteFormattedBody({
             color: isLight ? brandUi.text : "#F9F3DB",
           }}
         >
-          Inversión: ${total.toLocaleString("es-AR")} {currency ?? "USD"}
+          Inversión: €{total.toLocaleString("es-AR")} {currency ?? "EUR"}
         </p>
       )}
     </div>

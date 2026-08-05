@@ -38,7 +38,7 @@ export default async function AdminHomePage() {
         <MetricCard label="Proyectos en curso" value={projectsCount} href="/admin/proyectos" />
         <MetricCard
           label="Por cobrar"
-          value={`$${porCobrar.toLocaleString("es-AR")}`}
+          value={`€${porCobrar.toLocaleString("es-AR")} EUR`}
           href="/admin/facturas"
           warn={porCobrar > 0}
         />

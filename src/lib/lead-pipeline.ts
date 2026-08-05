@@ -49,15 +49,19 @@ export function derivePipelineStep(signals: LeadPipelineSignals): PipelineStep {
   if (signals.projects.some((p) => p.contractStatus === "aceptado")) {
     step = maxPipelineStep(step, "sena");
   }
-  if (signals.invoices.some((i) => i.type === "sena" && i.status === "pagado")) {
+  if (
+    signals.invoices.some(
+      (i) => (i.type === "sena" || i.type === "final") && i.status === "pagado",
+    )
+  ) {
     step = maxPipelineStep(step, "onboarding");
   }
 
   return step;
 }
 
-/** Persiste avance cuando se registra el pago de una seña. */
-export async function syncLeadPipelineOnSenaPaid(clientId: string): Promise<void> {
+/** Persiste avance cuando se registra el pago de seña o factura final. */
+export async function syncLeadPipelineOnPaymentPaid(clientId: string): Promise<void> {
   const { prisma } = await import("@/lib/prisma");
   const client = await prisma.client.findUnique({
     where: { id: clientId },
@@ -77,4 +81,9 @@ export async function syncLeadPipelineOnSenaPaid(clientId: string): Promise<void
       data: { pipelineStep: "onboarding", status: "ganado" },
     });
   }
+}
+
+/** @deprecated Usar syncLeadPipelineOnPaymentPaid */
+export async function syncLeadPipelineOnSenaPaid(clientId: string): Promise<void> {
+  return syncLeadPipelineOnPaymentPaid(clientId);
 }

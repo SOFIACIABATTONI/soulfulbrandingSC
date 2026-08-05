@@ -224,7 +224,7 @@ export function LeadsManager() {
                   </span>
                 </td>
                 <td className="px-4 py-3 font-medium text-[#131945]">
-                  {row.estimatedValue ? `$${row.estimatedValue.toLocaleString("es-AR")}` : "—"}
+                  {row.estimatedValue ? `€${row.estimatedValue.toLocaleString("es-AR")} EUR` : "—"}
                 </td>
                 <td className="px-4 py-3 text-xs text-neutral-500">
                   {SOURCE_LABELS[row.source] ?? row.source}
@@ -328,11 +328,11 @@ export function LeadsManager() {
                     <option value="diseno-editorial">Diseño editorial</option>
                   </select>
                 </Field>
-                <Field label="Valor estimado (USD)">
+                <Field label="Valor estimado (EUR)">
                   <input
                     type="number"
                     className="fv"
-                    placeholder="Valor en USD"
+                    placeholder="Valor en EUR"
                     value={form.estimatedValue}
                     onChange={(e) => setForm({ ...form, estimatedValue: e.target.value })}
                   />

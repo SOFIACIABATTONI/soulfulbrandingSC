@@ -152,7 +152,7 @@ export const STAGE_FORMS: Record<StageFormId, StageFormDefinition> = {
           {
             name: "rango_inversion",
             label:
-              "¿En qué rango de inversión te sientes cómodo/a para este proceso? (ej. low ticket 800–1200 USD, mid 1500–1900 USD, high 2700+ USD)",
+              "¿En qué rango de inversión te sientes cómodo/a para este proceso? (ej. low ticket 800–1200 EUR, mid 1500–1900 EUR, high 2700+ EUR)",
             multiline: true,
             rows: 2,
             required: true,

@@ -49,7 +49,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   if (!showSidebar) {
     return (
-      <div className="relative min-h-screen font-sans text-brand-navy md:flex">
+      <div className="erp-admin relative min-h-screen font-sans text-brand-navy md:flex">
         <div className="absolute inset-0 md:hidden" aria-hidden>
           <Image
             src={adminLoginBg}
@@ -87,7 +87,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-brand-page font-sans text-brand-navy">
+    <div className="erp-admin relative flex h-screen overflow-hidden bg-brand-page font-sans text-brand-navy">
       <div
         className="flex-shrink-0 h-full overflow-hidden transition-[width] duration-200 ease-out"
         style={{ width: menuOpen ? 216 : 0 }}
@@ -113,7 +113,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </button>
         )}
 
-        <main className={`flex-1 overflow-y-auto ${menuOpen ? "" : "pt-12"}`}>{children}</main>
+        <main className={`min-w-0 flex-1 overflow-x-hidden overflow-y-auto ${menuOpen ? "" : "pt-12"}`}>{children}</main>
       </div>
     </div>
   );

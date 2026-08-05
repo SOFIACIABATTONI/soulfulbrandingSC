@@ -3,7 +3,7 @@ export const PROJECT_FLOW_STEPS = [
   { key: "contrato", label: "Contrato" },
   { key: "sena", label: "Seña" },
   { key: "onboarding", label: "Onboarding" },
-  { key: "prebrief", label: "Pre-brief" },
+  { key: "prebrief", label: "Brand Soul" },
   { key: "narrativa", label: "Narrativa" },
   { key: "identidad", label: "Identidad" },
   { key: "manual", label: "Manual" },
@@ -40,7 +40,7 @@ export function isProjectStepDone(
     case "contrato":
       return signals.contractStatus === "aceptado";
     case "sena":
-      return signals.hasSenaPaid;
+      return signals.hasSenaPaid || Boolean(signals.hasFinalPaid);
     case "onboarding":
       return onboardingPaymentDone(signals) || phaseDone(signals.phases, "onboarding");
     case "prebrief":

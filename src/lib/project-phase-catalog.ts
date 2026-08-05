@@ -22,8 +22,8 @@ export const DEFAULT_PROJECT_PHASES: ProjectPhaseDefinition[] = [
   },
   {
     key: "prebrief",
-    title: "2) Pre-brief",
-    desc: "Base estratégica previa al brief formal con información esencial del negocio.",
+    title: "2) Brand Soul",
+    desc: "Exploración estratégica y esencial del alma de la marca.",
     cover: "/admin/project-phases/pre-brief.jpg",
     fallback:
       "https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=800&auto=format&fit=crop",

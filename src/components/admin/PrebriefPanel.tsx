@@ -76,7 +76,7 @@ export function PrebriefPanel({
       setLastLink(j.publicUrl ?? null);
       setMessage(
         j.emailed
-          ? `Pre-brief enviado a ${clientEmail}.`
+          ? `Brand Soul enviado a ${clientEmail}.`
           : `Link generado. ${j.publicUrl ? "Configurá Resend para enviar el mail." : ""}`,
       );
       void load();
@@ -91,7 +91,7 @@ export function PrebriefPanel({
   if (loading) {
     return (
       <p className={`text-sm ${embedded ? "py-4" : "mb-6"}`} style={{ color: brandUi.textMuted }}>
-        Cargando pre-brief…
+        Cargando Brand Soul…
       </p>
     );
   }
@@ -99,7 +99,7 @@ export function PrebriefPanel({
   return (
     <Card className={cardClass} frameVariant={embedded ? "client" : "default"}>
       <Topbar
-        title="Pre-brief (cliente)"
+        title="Brand Soul (cliente)"
         subtitle={
           submitted
             ? `Recibido · ${new Date(data!.submittedAt!).toLocaleDateString("es-AR")}`
@@ -187,7 +187,7 @@ export function PrebriefPanel({
               </label>
               <div className="flex flex-wrap gap-2">
                 <Button variant="primary" disabled={sending} onClick={() => void sendPrebrief()}>
-                  {sending ? "Enviando…" : "Enviar pre-brief por correo →"}
+                  {sending ? "Enviando…" : "Enviar Brand Soul por correo →"}
                 </Button>
               </div>
             </>

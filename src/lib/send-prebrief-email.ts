@@ -3,6 +3,7 @@ import { accessPublicUrl } from "@/lib/access-url";
 import { prebriefHtmlForEmail } from "@/lib/prebrief-html-templates";
 import { wrapAdminNotificationEmailHtml, wrapQuoteEmailHtml } from "@/lib/quote-markdown-html";
 import { brandUi } from "@/lib/brand-ui";
+import { soLogoEmailAttachments } from "@/lib/invoice-logo.server";
 
 export type SendPrebriefEmailPayload = {
   toEmail: string;
@@ -45,7 +46,7 @@ export async function sendPrebriefEmailToClient(
     "",
     payload.personalNote?.trim() ?? "",
     "",
-    `Tu pre-brief para el proyecto "${payload.projectTitle}" está listo.`,
+    `Tu Brand Soul para el proyecto "${payload.projectTitle}" está listo.`,
     "",
     "Completá y enviá tus respuestas en:",
     link,
@@ -53,16 +54,17 @@ export async function sendPrebriefEmailToClient(
     .filter(Boolean)
     .join("\n");
 
-  const html = wrapQuoteEmailHtml(innerHtml, "", link, "Completar pre-brief →");
+  const html = wrapQuoteEmailHtml(innerHtml, "", link, "Completar Brand Soul →");
 
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
     from,
     to: [payload.toEmail],
     replyTo: process.env.CONTACT_TO_EMAIL?.trim() || undefined,
-    subject: "Tu pre-brief — Soulful Branding®",
+    subject: "Tu Brand Soul — Soulful Branding®",
     text,
     html,
+    attachments: soLogoEmailAttachments(),
   });
 
   if (error) {
@@ -88,7 +90,7 @@ export async function sendPrebriefSubmittedNotificationToAdmin(payload: {
   const base = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000";
 
   const text = [
-    "Pre-brief recibido (ERP)",
+    "Brand Soul recibido (ERP)",
     "",
     `Cliente: ${payload.clientName}`,
     `Email: ${payload.clientEmail}`,
@@ -104,7 +106,7 @@ export async function sendPrebriefSubmittedNotificationToAdmin(payload: {
 <p style="margin:0;font-size:14px;line-height:1.6;"><a href="${adminLink.replace(/"/g, "")}" style="color:#323FF6;text-decoration:underline;">Ver respuestas en el ERP →</a></p>`;
 
   const html = wrapAdminNotificationEmailHtml(
-    `Pre-brief recibido — ${payload.clientName}`,
+    `Brand Soul recibido — ${payload.clientName}`,
     innerHtml,
   );
 
@@ -112,9 +114,10 @@ export async function sendPrebriefSubmittedNotificationToAdmin(payload: {
   const { error } = await resend.emails.send({
     from,
     to: [to],
-    subject: `Pre-brief recibido — ${payload.clientName}`,
+    subject: `Brand Soul recibido — ${payload.clientName}`,
     text,
     html,
+    attachments: soLogoEmailAttachments(),
   });
 
   if (error) {

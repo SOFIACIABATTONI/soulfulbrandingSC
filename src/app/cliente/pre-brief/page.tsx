@@ -3,7 +3,7 @@ import { brandUi } from "@/lib/brand-ui";
 import { PrebriefClient } from "./PrebriefClient";
 
 export const metadata = buildPageMetadata({
-  title: "Pre-brief — Soulful Branding®",
+  title: "Brand Soul — Soulful Branding®",
   description: "Exploración de la esencia de tu marca — Soulful Branding®.",
   path: "/cliente/pre-brief",
   noIndex: true,

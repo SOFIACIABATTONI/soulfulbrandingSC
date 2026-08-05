@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CLIENT_RESPONSE_LABELS } from "@/lib/quote-types";
+import { getQuoteProposalTemplate, resolveProposalIdFromContent } from "@/lib/quote-proposal-templates";
 import { QuoteFormattedBody } from "@/components/quote/QuoteFormattedBody";
 import { PortalCard, PortalShell } from "@/components/portal/PortalShell";
 import { brandUi } from "@/lib/brand-ui";
@@ -10,7 +11,9 @@ type PublicQuote = {
   status: string;
   content: {
     body: string;
-    format?: "markdown" | "plain" | "bbb-deck-2026";
+    format?: "markdown" | "plain" | "bbb-deck-2026" | "pdf";
+    proposalId?: string;
+    pdfUrl?: string;
     videoUrl?: string;
     total?: number;
     currency?: string;
@@ -96,10 +99,18 @@ export function QuoteRespondClient({ token }: { token: string }) {
   if (!data) return null;
 
   const isDeck = data.content.format === "bbb-deck-2026";
+  const isPdf = data.content.format === "pdf";
+  const proposalLabel = getQuoteProposalTemplate(
+    resolveProposalIdFromContent({
+      body: data.content.body,
+      format: data.content.format ?? "markdown",
+      proposalId: data.content.proposalId as "born-and-be" | "estrategia-visual" | "diseno-editorial" | undefined,
+    }),
+  ).label;
 
   return (
     <PortalShell
-      layout={isDeck ? "wide" : "default"}
+      layout={isDeck || isPdf ? "wide" : "default"}
       eyebrow="Soulful Branding®"
       subtitle={`Hola, ${data.clientName}`}
       footer={
@@ -109,20 +120,19 @@ export function QuoteRespondClient({ token }: { token: string }) {
         </p>
       }
     >
-      <div className={isDeck ? "w-full" : undefined}>
-        {isDeck && (
-          <p
-            className="text-[10px] uppercase tracking-[0.2em] text-center mb-4 px-4 sm:px-0"
-            style={{ color: brandUi.textFaint }}
-          >
-            Born & Be · Brand ID
-          </p>
-        )}
+      <div className={isDeck || isPdf ? "w-full" : undefined}>
+        <p
+          className="text-[10px] uppercase tracking-[0.2em] text-center mb-4 px-4 sm:px-0"
+          style={{ color: brandUi.textFaint }}
+        >
+          {proposalLabel}
+        </p>
 
-        <PortalCard className={isDeck ? "border-0 shadow-none p-0 bg-transparent rounded-none" : "mb-8"}>
+        <PortalCard className={isDeck || isPdf ? "border-0 shadow-none p-0 bg-transparent rounded-none" : "mb-8"}>
           <QuoteFormattedBody
             body={data.content.body}
             format={data.content.format}
+            pdfUrl={data.content.pdfUrl}
             videoUrl={data.content.videoUrl}
             total={data.content.total}
             currency={data.content.currency}

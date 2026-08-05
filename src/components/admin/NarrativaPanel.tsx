@@ -15,6 +15,7 @@ import {
   type NarrativaStatus,
 } from "@/lib/narrativa-types";
 import { brandUi } from "@/lib/brand-ui";
+import type { DeepDiveStatus } from "@/lib/deep-dive-types";
 import "@/components/admin/rich-text-editor.css";
 
 type NarrativaPanelProps = {
@@ -30,6 +31,11 @@ type NarrativaData = {
   statusLabel: string;
   narrativaSentAt: string | null;
   narrativaAcknowledgedAt: string | null;
+  deepDiveStatus: DeepDiveStatus;
+  deepDiveStatusLabel: string;
+  deepDiveSentAt: string | null;
+  deepDiveDoneAt: string | null;
+  deepDiveCalendarUrl: string;
   client: { name: string; email: string };
   project: { id: string; title: string };
 };
@@ -48,6 +54,10 @@ export function NarrativaPanel({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendingDeepDive, setSendingDeepDive] = useState(false);
+  const [markingDeepDive, setMarkingDeepDive] = useState(false);
+  const [deepDiveNote, setDeepDiveNote] = useState("");
+  const [deepDiveMessage, setDeepDiveMessage] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [lastLink, setLastLink] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -164,6 +174,56 @@ export function NarrativaPanel({
     }
   }
 
+  async function sendDeepDiveCalendar() {
+    setSendingDeepDive(true);
+    setDeepDiveMessage(null);
+    const res = await fetch(
+      `/api/admin/projects-erp/${projectId}/narrativa/deep-dive/send`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personalNote: deepDiveNote.trim() || undefined,
+        }),
+      },
+    );
+    setSendingDeepDive(false);
+    if (res.ok) {
+      const j = (await res.json()) as { emailed?: boolean };
+      setDeepDiveMessage(
+        j.emailed
+          ? `Agenda Deep Dive enviada a ${clientEmail}.`
+          : "Agenda registrada. Revisá la configuración de Resend para el envío automático.",
+      );
+      void load();
+    } else {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      setDeepDiveMessage(j.error ?? "No se pudo enviar la agenda.");
+    }
+  }
+
+  async function markDeepDiveDone() {
+    if (!window.confirm("¿Marcar la sesión Deep Dive como realizada?")) return;
+    setMarkingDeepDive(true);
+    setDeepDiveMessage(null);
+    const res = await fetch(
+      `/api/admin/projects-erp/${projectId}/narrativa/deep-dive/mark-done`,
+      {
+        method: "POST",
+        credentials: "include",
+      },
+    );
+    setMarkingDeepDive(false);
+    if (res.ok) {
+      setDeepDiveMessage("Sesión Deep Dive marcada como realizada.");
+      void load();
+    } else {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      setDeepDiveMessage(j.error ?? "No se pudo actualizar la sesión.");
+    }
+  }
+
   function restoreTemplate() {
     if (!projectInput || isLocked) return;
     if (
@@ -246,7 +306,7 @@ export function NarrativaPanel({
             </p>
           ) : (
             <p style={{ color: brandUi.textFaint }}>
-              Editá con el mismo editor visual que contrato y pre-brief. Reemplazá cada{" "}
+              Editá con el mismo editor visual que contrato y Brand Soul. Reemplazá cada{" "}
               <strong style={{ color: brandUi.textMuted }}>[Completar]</strong> y enviá al cliente
               cuando esté listo.
             </p>
@@ -263,6 +323,102 @@ export function NarrativaPanel({
         </button>
       </div>
 
+      <details
+        className="mt-4 rounded-xl border"
+        style={{ borderColor: brandUi.border, background: "rgba(249,243,219,0.3)" }}
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+          <span>
+            <span className="block text-sm font-medium" style={{ color: brandUi.text }}>
+              Sesión Deep Dive
+            </span>
+            <span className="block text-[10px] mt-0.5" style={{ color: brandUi.textFaint }}>
+              Agenda entre Narrativa e Identidad Visual
+            </span>
+          </span>
+          <span
+            className="shrink-0 rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+            style={{
+              background:
+                data?.deepDiveStatus === "realizado"
+                  ? "#e3f2e3"
+                  : data?.deepDiveStatus === "enviado"
+                    ? brandUi.accentSoft
+                    : brandUi.navySoft,
+              color:
+                data?.deepDiveStatus === "realizado"
+                  ? "#1a6b1a"
+                  : data?.deepDiveStatus === "enviado"
+                    ? brandUi.accent
+                    : brandUi.textMuted,
+            }}
+          >
+            {data?.deepDiveStatusLabel ?? "Pendiente"}
+          </span>
+        </summary>
+        <div className="space-y-3 border-t px-4 py-4" style={{ borderColor: brandUi.border }}>
+          <p className="text-xs leading-relaxed" style={{ color: brandUi.textMuted }}>
+            Enviá el calendario cuando quieras coordinar la llamada. Este hito es informativo y no
+            bloquea Identidad Visual.
+          </p>
+          {data?.deepDiveSentAt && (
+            <p className="text-[10px]" style={{ color: brandUi.textFaint }}>
+              Agenda enviada:{" "}
+              {new Date(data.deepDiveSentAt).toLocaleString("es-AR", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+              {data.deepDiveDoneAt
+                ? ` · Realizada: ${new Date(data.deepDiveDoneAt).toLocaleDateString("es-AR")}`
+                : ""}
+            </p>
+          )}
+          <textarea
+            className="w-full rounded border p-2 text-sm min-h-[64px]"
+            style={{ borderColor: brandUi.borderStrong, background: brandUi.surface }}
+            placeholder="Nota opcional para el mail…"
+            value={deepDiveNote}
+            onChange={(e) => setDeepDiveNote(e.target.value)}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="primary"
+              disabled={sendingDeepDive}
+              onClick={() => void sendDeepDiveCalendar()}
+            >
+              {sendingDeepDive
+                ? "Enviando…"
+                : data?.deepDiveSentAt
+                  ? "Reenviar agenda"
+                  : "Enviar agenda"}
+            </Button>
+            <a
+              href={data?.deepDiveCalendarUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border px-3 py-2 text-xs font-medium hover:bg-white"
+              style={{ borderColor: brandUi.border, color: brandUi.blue }}
+            >
+              Abrir calendario
+            </a>
+            {data?.deepDiveStatus !== "realizado" && (
+              <Button
+                variant="secondary"
+                disabled={markingDeepDive}
+                onClick={() => void markDeepDiveDone()}
+              >
+                {markingDeepDive ? "Guardando…" : "Marcar realizada"}
+              </Button>
+            )}
+          </div>
+          {deepDiveMessage && (
+            <p className="text-xs" style={{ color: brandUi.textMuted }}>
+              {deepDiveMessage}
+            </p>
+          )}
+        </div>
+      </details>
+
       {editorOpen && (
         <div className="mt-4 pt-4 border-t space-y-4" style={{ borderColor: brandUi.border }}>
           <div
@@ -273,7 +429,7 @@ export function NarrativaPanel({
               Documento para el cliente — narrativa
             </p>
             <p className="text-xs mt-1 leading-relaxed" style={{ color: brandUi.textMuted }}>
-              Mismo editor que contrato y pre-brief: negritas, listas, tablas y checkboxes. El
+              Mismo editor que contrato y Brand Soul: negritas, listas, tablas y checkboxes. El
               cliente lo ve igual en el enlace del mail.
             </p>
           </div>

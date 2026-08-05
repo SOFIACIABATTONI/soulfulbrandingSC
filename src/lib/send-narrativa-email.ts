@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { accessPublicUrl } from "@/lib/access-url";
 import { markdownToQuoteHtml, wrapQuoteEmailHtml } from "@/lib/quote-markdown-html";
 import { brandUi } from "@/lib/brand-ui";
+import { soLogoEmailAttachments } from "@/lib/invoice-logo.server";
 
 export type SendNarrativaEmailPayload = {
   toEmail: string;
@@ -62,6 +63,7 @@ export async function sendNarrativaEmailToClient(
     subject: "Tu narrativa de marca — Soulful Branding®",
     text,
     html,
+    attachments: soLogoEmailAttachments(),
   });
 
   if (error) {

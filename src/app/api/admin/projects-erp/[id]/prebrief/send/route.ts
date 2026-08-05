@@ -37,7 +37,7 @@ export async function POST(req: Request, ctx: RouteParams) {
 
   if (project.prebriefSubmittedAt) {
     return NextResponse.json(
-      { error: "El cliente ya envió el pre-brief. Podés ver las respuestas abajo." },
+      { error: "El cliente ya envió Brand Soul. Podés ver las respuestas abajo." },
       { status: 409 },
     );
   }

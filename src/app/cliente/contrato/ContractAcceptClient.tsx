@@ -109,7 +109,7 @@ export function ContractAcceptClient({ token }: { token: string }) {
     <PortalShell
       eyebrow="Soulful Branding®"
       title="Contrato de servicios"
-      subtitle={`${data.projectTitle} · USD ${data.value.toLocaleString("en-US")}`}
+      subtitle={`${data.projectTitle} · EUR ${data.value.toLocaleString("en-US")}`}
     >
       <PortalCard className="mb-8">
         <div

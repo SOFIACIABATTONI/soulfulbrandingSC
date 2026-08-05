@@ -159,9 +159,9 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
 
   return (
     <>
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-4 w-full min-w-0">
       {/* ── Panel principal ── */}
-      <div className="space-y-4">
+      <div className="space-y-4 min-w-0">
         {/* Cabecera */}
         <div
           className="rounded border bg-white p-6"
@@ -189,7 +189,7 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
                   Convertida desde lead ·{" "}
                   {SERVICE_LABELS[client.lead.service] ?? client.lead.service}
                   {client.lead.estimatedValue
-                    ? ` · $${client.lead.estimatedValue.toLocaleString("es-AR")} USD`
+                    ? ` · €${client.lead.estimatedValue.toLocaleString("es-AR")} EUR`
                     : ""}
                 </p>
               )}
@@ -317,7 +317,7 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
 
         {/* Facturas */}
         <div
-          className="rounded border bg-white p-5"
+          className="rounded border bg-white p-5 min-w-0 overflow-hidden"
           style={{ borderColor: "rgba(19,25,69,0.1)" }}
         >
           <h3
@@ -406,10 +406,10 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
             <div className="flex justify-between pt-1 border-t" style={{ borderColor: "rgba(19,25,69,0.1)" }}>
               <span style={{ color: "rgba(19,25,69,0.42)" }}>Total facturado</span>
               <span className="font-medium">
-                ${client.invoices
+                €{client.invoices
                   .reduce((acc, inv) => acc + inv.total, 0)
                   .toLocaleString("es-AR")}{" "}
-                USD
+                EUR
               </span>
             </div>
           )}
@@ -529,7 +529,7 @@ function ProjectsSection({
   }
 
   return (
-    <div className="rounded border bg-white p-5" style={{ borderColor: "rgba(19,25,69,0.1)" }}>
+    <div className="rounded border bg-white p-5 min-w-0" style={{ borderColor: "rgba(19,25,69,0.1)" }}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-[9px] font-medium uppercase tracking-widest"
           style={{ color: "rgba(19,25,69,0.42)" }}>
@@ -561,17 +561,17 @@ function ProjectsSection({
             return (
               <div
                 key={p.id}
-                className="rounded px-4 py-3 border space-y-2"
+                className="rounded px-4 py-3 border space-y-2 min-w-0"
                 style={{ borderColor: "rgba(19,25,69,0.08)" }}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: "#131945" }}>
+                <div className="flex items-center justify-between gap-3 min-w-0">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: "#131945" }}>
                       {p.title}
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "rgba(19,25,69,0.42)" }}>
                       {SERVICE_LABELS[p.service] ?? p.service}
-                      {" · "}${p.value.toLocaleString("es-AR")} USD
+                      {" · "}€{p.value.toLocaleString("es-AR")} EUR
                     </p>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">

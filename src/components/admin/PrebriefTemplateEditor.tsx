@@ -150,7 +150,7 @@ export function PrebriefTemplateEditor({
   async function restoreDefault() {
     if (
       !window.confirm(
-        "¿Restaurar la plantilla original del pre-brief?\n\nSe perderán las ediciones de este proyecto.",
+        "¿Restaurar la plantilla original de Brand Soul?\n\nSe perderán las ediciones de este proyecto.",
       )
     ) {
       return;
@@ -176,7 +176,7 @@ export function PrebriefTemplateEditor({
         style={{ borderColor: clientFrame.border, background: clientFrame.headerBackground }}
       >
         <p className="text-sm font-medium" style={{ color: clientFrame.border }}>
-          Documento para el cliente — cuestionario pre-brief
+          Documento para el cliente — cuestionario Brand Soul
         </p>
         <p className="text-xs mt-1 leading-relaxed" style={{ color: brandUi.textMuted }}>
           Usá el editor visual (negritas, títulos, listas). La <strong>bienvenida</strong> va solo en

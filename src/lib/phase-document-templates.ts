@@ -22,7 +22,7 @@ export const PHASE_DOCUMENT_HINTS: Record<PhaseDocumentKey, string> = {
 
 export const PHASE_DOCUMENT_TITLES: Record<PhaseDocumentKey, string> = {
   onboarding: "Guía de onboarding",
-  prebrief: "Notas del pre-brief",
+  prebrief: "Notas de Brand Soul",
   narrativa: "Notas de la narrativa",
   identidad: "Mensaje al cliente — identidad visual",
   manual: "Manual de marca",
@@ -58,13 +58,13 @@ _[Completar — tono, expectativas, sensibilidades, referencias que mencionó]_
 | Ficha del cliente | [Completar] |
 | Calendario / grabaciones | [Completar] |`,
 
-  prebrief: `# Pre-brief — notas internas
+  prebrief: `# Brand Soul — notas internas
 
 ## Antes de enviar el cuestionario
 
 - [ ] Revisar presupuesto aprobado y contexto del lead
 - [ ] Personalizar la nota del mail si hace falta
-- [ ] Enviar pre-brief al cliente (panel de arriba)
+- [ ] Enviar Brand Soul al cliente (panel de arriba)
 
 ## Después de recibir respuestas
 

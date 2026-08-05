@@ -25,7 +25,7 @@ export function ProjectFlowBar({
 
   return (
     <div
-      className={`flex overflow-x-auto rounded border ${className}`}
+      className={`flex w-full min-w-0 max-w-full overflow-x-auto rounded border ${className}`}
       style={{ borderColor: "rgba(19,25,69,0.12)" }}
       role="list"
       aria-label="Progreso del proyecto"

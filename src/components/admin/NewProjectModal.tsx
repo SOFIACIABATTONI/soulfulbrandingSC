@@ -129,14 +129,14 @@ export function NewProjectModal({
                 <option value="diseno-editorial">Diseño editorial</option>
               </select>
             </Field>
-            <Field label="Valor total (USD)" required>
+            <Field label="Valor total (EUR)" required>
               <input
                 required
                 type="number"
                 min="1"
                 step="0.01"
                 className="fv"
-                placeholder="Valor en USD"
+                placeholder="Valor en EUR"
                 value={form.value}
                 onChange={(e) => setForm({ ...form, value: e.target.value })}
               />

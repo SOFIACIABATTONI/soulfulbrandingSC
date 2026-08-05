@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
+import { validateInvoiceCreate } from "@/lib/invoice-utils";
 import { syncOnProjectInvoicePaid } from "@/lib/project-phase-sync";
 import { z } from "zod";
 
@@ -59,16 +60,31 @@ export async function POST(req: Request) {
   }
   const { issuedAt, projectId, ...rest } = parsed.data;
 
+  let projectValue: number | undefined;
+  let projectInvoices: { type: string; status: string; total: number; projectId: string | null }[] =
+    [];
+
   if (projectId) {
     const project = await prisma.clientProject.findFirst({
       where: { id: projectId, clientId: rest.clientId },
-      select: { id: true },
+      select: {
+        id: true,
+        value: true,
+        invoices: { select: { type: true, status: true, total: true, projectId: true } },
+      },
     });
     if (!project) {
       return NextResponse.json(
         { error: "El proyecto no pertenece a este cliente" },
         { status: 400 },
       );
+    }
+    projectValue = project.value;
+    projectInvoices = project.invoices;
+
+    const validation = validateInvoiceCreate(rest.type, projectId, projectValue, projectInvoices);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
   }
 

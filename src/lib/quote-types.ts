@@ -1,4 +1,13 @@
 import { z } from "zod";
+import { normalizeLegacyProposalPdfUrl } from "@/lib/quote-proposal-pdfs";
+
+export const QUOTE_PROPOSAL_IDS = [
+  "born-and-be",
+  "estrategia-visual",
+  "diseno-editorial",
+] as const;
+
+export type QuoteProposalId = (typeof QUOTE_PROPOSAL_IDS)[number];
 
 export const QUOTE_STATUSES = [
   "borrador",
@@ -16,12 +25,17 @@ export const CLIENT_RESPONSES = ["aprobado", "rechazado", "consultar"] as const;
 
 export type ClientResponse = (typeof CLIENT_RESPONSES)[number];
 
-export const QUOTE_CONTENT_FORMATS = ["markdown", "plain", "bbb-deck-2026"] as const;
+export const QUOTE_CONTENT_FORMATS = ["markdown", "plain", "bbb-deck-2026", "pdf"] as const;
 export type QuoteContentFormat = (typeof QUOTE_CONTENT_FORMATS)[number];
 
 export const quoteContentSchema = z.object({
   body: z.string().min(1).max(50000),
   format: z.enum(QUOTE_CONTENT_FORMATS).optional().default("markdown"),
+  proposalId: z.enum(QUOTE_PROPOSAL_IDS).optional(),
+  pdfUrl: z.preprocess(
+    (v) => (typeof v === "string" && !v.trim() ? undefined : v),
+    z.string().max(500).optional(),
+  ),
   videoUrl: z.preprocess(
     (v) => (typeof v === "string" && !v.trim() ? undefined : v),
     z.string().url().max(500).optional(),
@@ -44,11 +58,27 @@ export function normalizeQuoteContent(raw: unknown): QuoteContent {
       ? "plain"
       : formatRaw === "bbb-deck-2026"
         ? "bbb-deck-2026"
-        : "markdown";
+        : formatRaw === "pdf"
+          ? "pdf"
+          : "markdown";
+
+  const pdfUrlRaw = o.pdfUrl;
+  const pdfUrl = normalizeLegacyProposalPdfUrl(
+    typeof pdfUrlRaw === "string" ? pdfUrlRaw : undefined,
+  );
+
+  const proposalRaw = o.proposalId;
+  const proposalId =
+    typeof proposalRaw === "string" &&
+    QUOTE_PROPOSAL_IDS.includes(proposalRaw as (typeof QUOTE_PROPOSAL_IDS)[number])
+      ? (proposalRaw as (typeof QUOTE_PROPOSAL_IDS)[number])
+      : undefined;
 
   const parsed = quoteContentSchema.safeParse({
     body: typeof o.body === "string" ? o.body : "",
     format,
+    proposalId,
+    pdfUrl,
     videoUrl: typeof o.videoUrl === "string" ? o.videoUrl : undefined,
     total: typeof o.total === "number" ? o.total : undefined,
     currency: typeof o.currency === "string" ? o.currency : undefined,

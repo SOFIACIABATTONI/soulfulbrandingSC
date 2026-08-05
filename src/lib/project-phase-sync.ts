@@ -226,9 +226,9 @@ export async function syncOnProjectInvoicePaid(invoice: {
   status: string;
 }): Promise<void> {
   if (invoice.status !== "pagado") return;
-  if (invoice.type === "sena") {
-    const { syncLeadPipelineOnSenaPaid } = await import("@/lib/lead-pipeline");
-    await syncLeadPipelineOnSenaPaid(invoice.clientId);
+  if (invoice.type === "sena" || invoice.type === "final") {
+    const { syncLeadPipelineOnPaymentPaid } = await import("@/lib/lead-pipeline");
+    await syncLeadPipelineOnPaymentPaid(invoice.clientId);
   }
   if (invoice.projectId && (invoice.type === "sena" || invoice.type === "final")) {
     await syncProjectPhasesFromProgress(invoice.projectId);

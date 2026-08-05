@@ -12,7 +12,7 @@ function firstName(name: string): string {
 
 function formatTotal(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return "*A definir*";
-  return `$${value.toLocaleString("en-US")} USD`;
+  return `€${value.toLocaleString("en-US")} EUR`;
 }
 
 /**
@@ -21,7 +21,7 @@ function formatTotal(value: number | null | undefined): string {
  */
 export const SOULFUL_PREBRIEF_WELCOME_MARKDOWN = `### Bienvenida al proceso de Soulful Branding
 
-Antes de comenzar con el brief creativo, quiero invitarte a hacer una pequeña pausa.
+Antes de comenzar con Brand Soul, quiero invitarte a hacer una pequeña pausa.
 
 El proceso que estás a punto de iniciar no es un proceso tradicional de diseño o branding.
 
@@ -47,7 +47,7 @@ Tómate tu tiempo para responder.
 
 Puedes escribir libremente, reflexionar, incluso dejar preguntas abiertas.
 
-Este pre-brief es el primer paso para **abrir el campo creativo donde tu marca va a revelarse**.
+Brand Soul es el primer paso para **abrir el campo creativo donde tu marca va a revelarse**.
 
 Bienvenido a este proceso de **alquimia creativa**.`;
 
@@ -60,7 +60,58 @@ export function buildPrebriefWelcomeMarkdown(): string {
 export function buildPresupuestoMarkdown(
   lead: Pick<Lead, "name" | "email" | "company" | "service" | "estimatedValue" | "notes">,
 ): string {
-  const serviceLabel = SERVICE_LABELS[lead.service] ?? lead.service;
+  return buildServicePresupuestoMarkdown(lead, {
+    serviceTitle: SERVICE_LABELS[lead.service] ?? lead.service,
+    scopeIntro: "Proceso Soulful Branding® — identidad verbal y visual integral.",
+    stages: [
+      { name: "01 — Onboarding", detail: "Brand Soul + sesión Deep Dive", value: "Incluido" },
+      { name: "02 — Narrativa", detail: "Construcción del relato de marca", value: "Incluido" },
+      { name: "03 — Identidad visual", detail: "Logo, paleta, tipografía, sistema visual", value: "total" },
+      { name: "04 — Manual de marca", detail: "Guía de uso y aplicaciones", value: "Incluido" },
+    ],
+  });
+}
+
+/** Propuesta Estrategia visual — carta markdown. */
+export function buildEstrategiaVisualMarkdown(
+  lead: Pick<Lead, "name" | "email" | "company" | "service" | "estimatedValue" | "notes">,
+): string {
+  return buildServicePresupuestoMarkdown(lead, {
+    serviceTitle: "Estrategia visual",
+    scopeIntro:
+      "Dirección estética y sistema gráfico para que tu marca se vea coherente en todos los puntos de contacto.",
+    stages: [
+      { name: "01 — Diagnóstico visual", detail: "Auditoría de marca y referencias estratégicas", value: "Incluido" },
+      { name: "02 — Dirección creativa", detail: "Concepto visual, moodboard y criterios de sistema", value: "Incluido" },
+      { name: "03 — Sistema gráfico", detail: "Paleta, tipografía, composición y aplicaciones base", value: "total" },
+      { name: "04 — Entrega", detail: "Archivos editables + guía de uso visual", value: "Incluido" },
+    ],
+  });
+}
+
+/** Propuesta Diseño editorial — carta markdown. */
+export function buildDisenoEditorialMarkdown(
+  lead: Pick<Lead, "name" | "email" | "company" | "service" | "estimatedValue" | "notes">,
+): string {
+  return buildServicePresupuestoMarkdown(lead, {
+    serviceTitle: "Diseño editorial",
+    scopeIntro:
+      "Piezas editoriales y publicaciones de marca — catálogos, dossiers, presentaciones o material impreso/digital.",
+    stages: [
+      { name: "01 — Brief editorial", detail: "Objetivo, formato, tono y referencias del material", value: "Incluido" },
+      { name: "02 — Diseño y maquetación", detail: "Propuesta visual + composición de páginas", value: "total" },
+      { name: "03 — Revisiones", detail: "Rondas de ajuste según lo acordado", value: "Incluido" },
+      { name: "04 — Entrega final", detail: "PDF listo para impresión y/o archivos editables", value: "Incluido" },
+    ],
+  });
+}
+
+type StageRow = { name: string; detail: string; value: string };
+
+function buildServicePresupuestoMarkdown(
+  lead: Pick<Lead, "name" | "email" | "company" | "service" | "estimatedValue" | "notes">,
+  opts: { serviceTitle: string; scopeIntro: string; stages: StageRow[] },
+): string {
   const companyLine = lead.company.trim()
     ? `${lead.company.trim()} · ${lead.email.trim()}`
     : lead.email.trim();
@@ -69,7 +120,14 @@ export function buildPresupuestoMarkdown(
     ? lead.notes.trim()
     : "_Completá alcance, entregables y condiciones según la propuesta._";
 
-  return `### Propuesta de presupuesto — Soulful Branding®
+  const stageRows = opts.stages
+    .map((s) => {
+      const val = s.value === "total" ? totalLine : s.value;
+      return `| ${s.name} | ${s.detail} | ${val} |`;
+    })
+    .join("\n");
+
+  return `### Propuesta — ${opts.serviceTitle} · Soulful Branding®
 
 Hola ${firstName(lead.name)},
 
@@ -78,8 +136,8 @@ Gracias por tu consulta y por compartir el contexto de tu proyecto.
 **Preparado para:** ${lead.name.trim()}  
 ${companyLine}
 
-**Servicio:** ${serviceLabel}  
-**Proceso:** Soulful Branding®
+**Servicio:** ${opts.serviceTitle}  
+${opts.scopeIntro}
 
 ---
 
@@ -87,17 +145,14 @@ ${companyLine}
 
 | Etapa | Descripción | Valor |
 |-------|-------------|-------|
-| 01 — Onboarding | Pre-brief + sesión Deep Dive | Incluido |
-| 02 — Narrativa | Construcción del relato de marca | Incluido |
-| 03 — Identidad visual | Logo, paleta, tipografía, sistema visual | ${totalLine} |
-| 04 — Manual de marca | Guía de uso y aplicaciones | Incluido |
+${stageRows}
 
 #### Inversión total
 
 **${totalLine}**
 
 - Validez: 30 días
-- Forma de pago: 50% seña al confirmar · 50% al entregar
+- Forma de pago: seña por el monto acordado al confirmar · saldo al entregar
 
 #### Notas
 

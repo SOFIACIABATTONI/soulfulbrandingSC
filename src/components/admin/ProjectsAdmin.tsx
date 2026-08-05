@@ -5,8 +5,15 @@ import Link from "next/link";
 import type { Project } from "@prisma/client";
 import { ImageField } from "@/components/admin/ImageField";
 
+type ErpPortfolioLink = {
+  id: string;
+  title: string;
+  clientName: string;
+};
+
 export function ProjectsAdmin() {
   const [items, setItems] = useState<Project[]>([]);
+  const [erpByPortfolioSlug, setErpByPortfolioSlug] = useState<Record<string, ErpPortfolioLink>>({});
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
@@ -21,9 +28,35 @@ export function ProjectsAdmin() {
   });
 
   async function load() {
-    const res = await fetch("/api/projects?all=1", { credentials: "include" });
-    const j = (await res.json()) as Project[];
-    if (res.ok) setItems(j);
+    const [projectsRes, erpRes] = await Promise.all([
+      fetch("/api/projects?all=1", { credentials: "include" }),
+      fetch("/api/admin/projects-erp", { credentials: "include" }),
+    ]);
+    const j = (await projectsRes.json()) as Project[];
+    if (projectsRes.ok) setItems(j);
+
+    if (erpRes.ok) {
+      const erpJson = (await erpRes.json()) as {
+        items?: Array<{
+          id: string;
+          title: string;
+          portfolioSlug?: string;
+          client?: { name?: string };
+        }>;
+      };
+      const map: Record<string, ErpPortfolioLink> = {};
+      for (const item of erpJson.items ?? []) {
+        const slug = String(item.portfolioSlug ?? "").trim();
+        if (!slug) continue;
+        map[slug] = {
+          id: item.id,
+          title: item.title,
+          clientName: item.client?.name ?? "",
+        };
+      }
+      setErpByPortfolioSlug(map);
+    }
+
     setLoading(false);
   }
 
@@ -45,6 +78,7 @@ export function ProjectsAdmin() {
     });
     setCreating(false);
     if (res.ok) {
+      const created = (await res.json()) as Project;
       setForm({
         title: "",
         slug: "",
@@ -55,7 +89,8 @@ export function ProjectsAdmin() {
         order: 0,
         published: false,
       });
-      await load();
+      window.location.href = `/admin/projects/${encodeURIComponent(created.slug)}/publicar`;
+      return;
     }
   }
 
@@ -73,7 +108,8 @@ export function ProjectsAdmin() {
         <div>
           <h1 className="font-serif text-3xl text-brand-navy md:text-4xl">Proyectos</h1>
           <p className="mt-2 max-w-2xl text-sm text-neutral-600">
-            Elegí un proyecto para abrir el panel de entregas y fases, o creá uno nuevo.
+            Casos publicados en Brand&apos;s. Si el caso salió de un proyecto ERP, el Brand ID y la identidad visual
+            viven en Proyectos (ERP), no en el panel legacy.
           </p>
         </div>
         <Link href="/admin" className="text-sm font-medium text-brand-blue hover:underline">
@@ -87,12 +123,17 @@ export function ProjectsAdmin() {
         </p>
       ) : (
         <ul className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((p) => (
+          {items.map((p) => {
+            const erp = erpByPortfolioSlug[p.slug];
+            return (
             <li
               key={p.id}
               className="flex flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm transition hover:border-brand-blue/25 hover:shadow-md"
             >
-              <Link href={`/admin/projects/${encodeURIComponent(p.slug)}`} className="group block flex-1">
+              <Link
+                href={`/admin/projects/${encodeURIComponent(p.slug)}/publicar`}
+                className="group block flex-1"
+              >
                 <div className="relative aspect-[16/10] bg-neutral-100">
                   {p.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- URLs pueden ser externas o blob sin remotePatterns
@@ -112,16 +153,35 @@ export function ProjectsAdmin() {
                   <p className="mt-1 text-xs text-neutral-500">
                     /portfolio/{p.slug} · {p.published ? "publicado" : "borrador"}
                   </p>
+                  {erp ? (
+                    <p className="mt-1 text-[11px] text-brand-blue">
+                      Vinculado a ERP · {erp.clientName || erp.title}
+                    </p>
+                  ) : null}
                   {p.excerpt ? (
                     <p className="mt-2 line-clamp-2 text-sm text-neutral-600">{p.excerpt}</p>
                   ) : null}
-                  <span className="mt-3 inline-flex text-sm font-medium text-brand-blue group-hover:underline">
-                    Abrir panel de entregas →
+                  <span className="mt-3 inline-flex text-sm font-medium text-brand-magenta group-hover:underline">
+                    Editar caso Brand&apos;s →
                   </span>
                 </div>
               </Link>
               <div className="space-y-3 border-t border-neutral-100 px-4 py-3">
                 <div className="flex flex-wrap items-center gap-3">
+                  {erp ? (
+                    <Link
+                      href={`/admin/proyectos/${encodeURIComponent(erp.id)}#fase-identidad`}
+                      className="text-xs font-semibold text-brand-blue hover:underline"
+                    >
+                      Proyecto ERP · Identidad visual →
+                    </Link>
+                  ) : null}
+                  <Link
+                    href={`/admin/projects/${encodeURIComponent(p.slug)}/publicar`}
+                    className="text-xs font-semibold text-brand-magenta hover:underline"
+                  >
+                    Editar caso Brand&apos;s
+                  </Link>
                   <Link
                     href={`/portfolio/${p.slug}`}
                     className="text-xs font-medium text-neutral-600 hover:text-brand-navy"
@@ -129,6 +189,14 @@ export function ProjectsAdmin() {
                   >
                     Ver sitio
                   </Link>
+                  {!erp ? (
+                    <Link
+                      href={`/admin/projects/${encodeURIComponent(p.slug)}`}
+                      className="text-xs font-medium text-neutral-500 hover:underline"
+                    >
+                      Panel fases (legacy)
+                    </Link>
+                  ) : null}
                   <button
                     type="button"
                     className="ml-auto text-xs font-medium text-red-700 hover:underline"
@@ -140,7 +208,8 @@ export function ProjectsAdmin() {
                 <ProjectInlineEdit project={p} onSaved={load} />
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 
@@ -148,8 +217,7 @@ export function ProjectsAdmin() {
         <div className="max-w-3xl">
           <h2 className="font-serif text-2xl text-brand-navy">Nuevo proyecto</h2>
           <p className="mt-2 text-sm text-neutral-600">
-            Los datos de portfolio (título, slug, textos e imagen) se gestionan aquí. El panel de fases se abre desde cada
-            tarjeta.
+            Los datos del caso público se editan en «Editar caso Brand&apos;s». Acá solo creás el registro inicial.
           </p>
         </div>
 

@@ -41,6 +41,8 @@ export async function GET(req: Request, ctx: RouteParams) {
       content: {
         body: content.body,
         format: content.format,
+        proposalId: content.proposalId,
+        pdfUrl: content.pdfUrl,
         videoUrl: content.videoUrl,
         total: content.total,
         currency: content.currency,

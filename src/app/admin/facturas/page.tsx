@@ -23,8 +23,11 @@ export default async function AdminFacturasPage({
           ERP
         </p>
         <h1 className="font-serif text-3xl italic" style={{ color: "#131945" }}>
-          Facturas
+          Cobros
         </h1>
+        <p className="text-sm mt-1" style={{ color: "rgba(19,25,69,0.55)" }}>
+          Recibos de seña y facturas finales por proyecto.
+        </p>
       </div>
       <InvoicesManager
         initialClientId={sp.clientId}

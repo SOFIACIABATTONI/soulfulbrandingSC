@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { put } from "@vercel/blob";
 import { isAdminRequest } from "@/lib/auth-api";
@@ -8,9 +7,11 @@ import {
   blobStorageErrorMessage,
   BRAND_ASSET_MAX_BYTES,
   buildBrandAssetPathname,
+  hasBlobCredentials,
   resolveBlobPutOptions,
   resolveBrandAssetMime,
 } from "@/lib/admin-blob-upload";
+import { saveLocalDevUpload } from "@/lib/local-dev-upload-store";
 
 export const runtime = "nodejs";
 
@@ -41,7 +42,8 @@ export async function POST(req: Request) {
     const name = buildBrandAssetPathname(file.name, resolvedMime);
 
     const onVercel = process.env.VERCEL === "1";
-    if (onVercel) {
+    const useBlob = onVercel || hasBlobCredentials();
+    if (useBlob) {
       try {
         const blob = await put(
           name,
@@ -59,16 +61,16 @@ export async function POST(req: Request) {
       } catch (error) {
         const cause = error instanceof Error ? error.message : String(error);
         console.error("[api/admin/brand-asset-upload] blob put failed", cause, blobStorageDiagnostics());
-        return NextResponse.json({ error: blobStorageErrorMessage(cause) }, { status: 500 });
+        if (onVercel) {
+          return NextResponse.json({ error: blobStorageErrorMessage(cause) }, { status: 500 });
+        }
       }
     }
 
-    const dir = path.join(process.cwd(), "public", "uploads", "brand");
-    await mkdir(dir, { recursive: true });
     const fileName = path.basename(name);
-    await writeFile(path.join(dir, fileName), buf);
+    const url = await saveLocalDevUpload("brand", fileName, buf);
     return NextResponse.json({
-      url: `/uploads/brand/${fileName}`,
+      url,
       fileName: file.name,
       mime: resolvedMime,
     });

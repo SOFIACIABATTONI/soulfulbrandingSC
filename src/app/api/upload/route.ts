@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { put } from "@vercel/blob";
 import { imageSize } from "image-size";
 import { isAdminRequest } from "@/lib/auth-api";
-import { blobStorageDiagnostics, blobStorageErrorMessage, resolveBlobPutOptions } from "@/lib/admin-blob-upload";
+import { blobStorageDiagnostics, blobStorageErrorMessage, hasBlobCredentials, resolveBlobPutOptions } from "@/lib/admin-blob-upload";
+import { saveLocalDevUpload } from "@/lib/local-dev-upload-store";
 
 export const runtime = "nodejs";
 
@@ -56,7 +56,8 @@ export async function POST(req: Request) {
     const ext = path.extname(file.name) || (file.type === "image/png" ? ".png" : ".jpg");
     const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
     const onVercel = process.env.VERCEL === "1";
-    if (onVercel) {
+    const useBlob = onVercel || hasBlobCredentials();
+    if (useBlob) {
       try {
         const blob = await put(
           `uploads/${name}`,
@@ -70,15 +71,15 @@ export async function POST(req: Request) {
       } catch (error) {
         const cause = error instanceof Error ? error.message : String(error);
         console.error("[api/upload] blob put failed", cause, blobStorageDiagnostics());
-        return NextResponse.json({ error: blobStorageErrorMessage(cause) }, { status: 500 });
+        if (onVercel) {
+          return NextResponse.json({ error: blobStorageErrorMessage(cause) }, { status: 500 });
+        }
+        console.warn("[api/upload] blob unavailable in dev, using temp storage (outside repo)");
       }
     }
 
-    const dir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(dir, { recursive: true });
-    const fsPath = path.join(dir, name);
-    await writeFile(fsPath, buf);
-    return NextResponse.json({ url: `/uploads/${name}` });
+    const url = await saveLocalDevUpload("uploads", name, buf);
+    return NextResponse.json({ url });
   } catch (error) {
     console.error("[api/upload] upload failed", error);
     return NextResponse.json(

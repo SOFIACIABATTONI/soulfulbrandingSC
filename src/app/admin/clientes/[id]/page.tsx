@@ -52,7 +52,7 @@ export default async function AdminClienteDetailPage({ params }: PageProps) {
   if (!client) notFound();
 
   return (
-    <div className="px-6 py-8 max-w-5xl mx-auto">
+    <div className="px-6 py-8 max-w-5xl mx-auto w-full min-w-0">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <Link href="/admin/clientes" className="text-[9px] font-medium uppercase tracking-widest hover:underline"

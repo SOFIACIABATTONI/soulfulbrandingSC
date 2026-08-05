@@ -28,8 +28,8 @@ export function getContractHtmlTemplate(project: ContractProjectInput): string {
 <li><p>Revisiones incluidas según lo acordado en la propuesta.</p></li>
 </ul>
 <h2>Inversión</h2>
-<p><strong>Total:</strong> USD ${project.value.toLocaleString("en-US")}</p>
-<p><strong>Forma de pago:</strong> 50% seña al firmar + 50% contra entrega final (salvo acuerdo distinto por escrito).</p>
+<p><strong>Total:</strong> EUR ${project.value.toLocaleString("en-US")}</p>
+<p><strong>Forma de pago:</strong> seña inicial por el monto acordado al firmar + saldo contra entrega final (salvo acuerdo distinto por escrito).</p>
 <h2>Plazos</h2>
 <p>Los plazos estimados se coordinarán al inicio del proyecto. El cliente se compromete a entregar feedback en un plazo razonable para no demorar la producción.</p>
 <h2>Propiedad intelectual</h2>

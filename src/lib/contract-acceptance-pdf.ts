@@ -105,7 +105,7 @@ export async function buildContractAcceptancePdf(
     `Email registrado: ${record.clientEmail}`,
     `Nombre declarado al aceptar: ${record.typedName}`,
     `Servicio: ${record.project.service}`,
-    `Inversion: USD ${record.project.value.toLocaleString("en-US")}`,
+    `Inversion: EUR ${record.project.value.toLocaleString("en-US")}`,
     `Direccion IP: ${record.ipAddress || "no registrada"}`,
     `Navegador: ${record.userAgent || "no registrado"}`,
     `Huella del contrato (SHA-256): ${record.contentHash}`,

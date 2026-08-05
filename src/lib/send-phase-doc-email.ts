@@ -5,6 +5,7 @@ import { isPermanentAccessPurpose } from "@/lib/access-token";
 import { markdownToQuoteHtml, wrapAdminNotificationEmailHtml, wrapPhaseDocumentEmailHtml, wrapQuoteEmailHtml } from "@/lib/quote-markdown-html";
 import { stripHtmlToPlainText } from "@/lib/contract-acceptance";
 import { brandUi } from "@/lib/brand-ui";
+import { soLogoEmailAttachments } from "@/lib/invoice-logo.server";
 
 export type SendPhaseDocEmailPayload = {
   config: PhaseSendConfig;
@@ -79,6 +80,7 @@ export async function sendPhaseDocEmailToClient(
     subject: payload.config.emailSubject,
     text,
     html,
+    attachments: soLogoEmailAttachments(),
   });
 
   if (error) {
@@ -136,6 +138,7 @@ export async function sendPhaseInternalNotesEmail(payload: {
     subject: `${payload.phaseTitle} — ${payload.projectTitle}`,
     text,
     html,
+    attachments: soLogoEmailAttachments(),
   });
 
   if (error) {
@@ -188,6 +191,7 @@ export async function sendPhaseResponseNotificationToAdmin(payload: {
     subject: `${payload.subject} — ${payload.clientName}`,
     text,
     html,
+    attachments: soLogoEmailAttachments(),
   });
 }
 

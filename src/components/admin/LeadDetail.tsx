@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Lead } from "@prisma/client";
 import { derivePipelineStep } from "@/lib/lead-pipeline";
-import { projectHasSenaPaid, type ProjectPipelineSignals } from "@/lib/project-pipeline";
+import { projectHasSenaPaid, projectHasFinalPaid, type ProjectPipelineSignals } from "@/lib/project-pipeline";
 import { ProjectFlowBar } from "./ProjectFlowBar";
 import { SERVICE_LABELS, SOURCE_LABELS, STATUS_LABELS } from "./LeadsManager";
 import { FormMessageViewer, isFormMessage } from "./FormMessageViewer";
@@ -230,6 +230,7 @@ export function LeadDetail({
   const approvedQuote = pipelineContext.quotes.find((q) => q.status === "aprobado");
   const acceptedProject = linkedClient?.projects.find((p) => p.contractStatus === "aceptado");
   const paidSena = linkedClient?.invoices.find((i) => i.type === "sena" && i.status === "pagado");
+  const paidFinal = linkedClient?.invoices.find((i) => i.type === "final" && i.status === "pagado");
 
   return (
     <div>
@@ -291,7 +292,7 @@ export function LeadDetail({
               label="Valor estimado"
               value={
                 lead.estimatedValue
-                  ? `$${lead.estimatedValue.toLocaleString("es-AR")} USD`
+                  ? `€${lead.estimatedValue.toLocaleString("es-AR")} EUR`
                   : "—"
               }
             />
@@ -469,8 +470,15 @@ export function LeadDetail({
             {paidSena && (
               <TimelineRow
                 color="#1a6b1a"
-                text={`Seña pagada (${paidSena.number})`}
+                text={`Recibo de seña pagado (${paidSena.number})`}
                 date={paidSena.paidAt ?? paidSena.issuedAt}
+              />
+            )}
+            {paidFinal && (
+              <TimelineRow
+                color="#1a6b1a"
+                text={`Factura final pagada (${paidFinal.number})`}
+                date={paidFinal.paidAt ?? paidFinal.issuedAt}
               />
             )}
             {linkedClient && !approvedQuote && (
@@ -547,6 +555,7 @@ export function LeadDetail({
                   const signals: ProjectPipelineSignals = {
                     contractStatus: p.contractStatus ?? "borrador",
                     hasSenaPaid: projectHasSenaPaid(linkedClient.invoices, p.id),
+                    hasFinalPaid: projectHasFinalPaid(linkedClient.invoices, p.id),
                     phases: p.phases ?? {},
                     projectStatus: p.status,
                   };
@@ -591,7 +600,7 @@ export function LeadDetail({
             {lead.estimatedValue && (
               <div className="flex justify-between">
                 <span style={{ color: "rgba(19,25,69,0.42)" }}>Valor est.</span>
-                <span className="font-medium">${lead.estimatedValue.toLocaleString("es-AR")} USD</span>
+                <span className="font-medium">€{lead.estimatedValue.toLocaleString("es-AR")} EUR</span>
               </div>
             )}
             <div className="flex justify-between">

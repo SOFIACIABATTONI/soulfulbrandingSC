@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AdminShell } from "@/components/admin/AdminShell";
+import "./admin-typography.css";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },

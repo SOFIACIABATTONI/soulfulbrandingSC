@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useCallback, useEffect, useLayoutEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,9 +8,11 @@ import {
   ADMIN_PHASE_NAVIGATE_EVENT,
   navigateAdminToPhaseHash,
   scrollAdminMainToTop,
+  waitForAdminScrollToHash,
 } from "@/lib/admin-main-scroll";
 import { PhaseDocumentEditor } from "@/components/admin/PhaseDocumentEditor";
 import { PhaseManualStatusBar } from "@/components/admin/PhaseManualStatusBar";
+import { AdminPanelErrorBoundary } from "@/components/admin/AdminPanelErrorBoundary";
 import { BrandKitPanel } from "@/components/admin/BrandKitPanel";
 import { ManualPdfPanel } from "@/components/admin/ManualPdfPanel";
 import { getManualPdfFromPhase } from "@/lib/manual-pdf";
@@ -56,7 +58,7 @@ const ContractEditor = dynamic(
 
 const PrebriefPanel = dynamic(
   () => import("@/components/admin/PrebriefPanel").then((m) => ({ default: m.PrebriefPanel })),
-  { loading: () => <PanelLoading label="pre-brief" /> },
+  { loading: () => <PanelLoading label="Brand Soul" /> },
 );
 
 const NarrativaPanel = dynamic(
@@ -185,6 +187,61 @@ function parsePhases(
   return result;
 }
 
+/** Evita que un sync en vuelo pise contenido recién guardado (p. ej. Brand ID). */
+function mergeSyncedPhaseContent(
+  prev: Record<string, PhaseContent>,
+  synced: Record<string, PhaseContent>,
+): Record<string, PhaseContent> {
+  const merged: Record<string, PhaseContent> = { ...synced };
+  for (const [key, syncedPc] of Object.entries(synced)) {
+    const prevPc = prev[key];
+    if (!prevPc) continue;
+
+    let next = { ...syncedPc };
+    const preserveIfSyncedEmpty = (
+      field: keyof Pick<
+        PhaseContent,
+        | "brandKit"
+        | "body"
+        | "bodyFormat"
+        | "coverUrl"
+        | "manualPdfUrl"
+        | "manualPdfFileName"
+        | "manualPdfMime"
+        | "owner"
+        | "startDate"
+        | "endDate"
+      >,
+    ) => {
+      const prevVal = String(prevPc[field] ?? "").trim();
+      const syncVal = String(syncedPc[field] ?? "").trim();
+      if (prevVal && !syncVal) {
+        next = { ...next, [field]: prevPc[field] };
+      }
+    };
+
+    preserveIfSyncedEmpty("brandKit");
+    preserveIfSyncedEmpty("body");
+    preserveIfSyncedEmpty("bodyFormat");
+    preserveIfSyncedEmpty("coverUrl");
+    preserveIfSyncedEmpty("manualPdfUrl");
+    preserveIfSyncedEmpty("manualPdfFileName");
+    preserveIfSyncedEmpty("manualPdfMime");
+    preserveIfSyncedEmpty("owner");
+    preserveIfSyncedEmpty("startDate");
+    preserveIfSyncedEmpty("endDate");
+
+    const prevBrandKit = String(prevPc.brandKit ?? "").trim();
+    const syncBrandKit = String(syncedPc.brandKit ?? "").trim();
+    if (prevBrandKit && syncBrandKit && prevBrandKit.length > syncBrandKit.length) {
+      next = { ...next, brandKit: prevPc.brandKit };
+    }
+
+    merged[key] = next;
+  }
+  return merged;
+}
+
 function phaseCoverImage(
   content?: Pick<PhaseContent, "coverUrl">,
   previewUrl?: string,
@@ -250,6 +307,16 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [syncingPhases, setSyncingPhases] = useState(false);
   const [savingProjectDates, setSavingProjectDates] = useState(false);
+  const [preparingPortfolio, setPreparingPortfolio] = useState(false);
+  const [portfolioPrepError, setPortfolioPrepError] = useState<string | null>(null);
+  const [brandKitUploading, setBrandKitUploading] = useState(false);
+  const [stabilizingAfterUpload, setStabilizingAfterUpload] = useState(false);
+  const brandKitBusyRef = useRef(false);
+
+  const portfolioSlug =
+    "portfolioSlug" in project
+      ? String((project as ClientProject & { portfolioSlug?: string }).portfolioSlug ?? "").trim()
+      : "";
 
   const refreshPhaseStates = useCallback(async () => {
     setSyncingPhases(true);
@@ -265,7 +332,12 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
       };
       if (j.phases) {
         setRawPhases(j.phases);
-        setPhases(parsePhases(j.phases, buildPhaseListFromRaw(j.phases)));
+        setPhases((prev) =>
+          mergeSyncedPhaseContent(
+            prev,
+            parsePhases(j.phases, buildPhaseListFromRaw(j.phases)),
+          ),
+        );
       }
       if (j.progress) {
         setProject((p) => ({
@@ -286,16 +358,31 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
     }
   }, [project.id]);
 
-  useEffect(() => {
-    void refreshPhaseStates();
-  }, [refreshPhaseStates]);
+  const phaseSessionKey = `erp-active-phase:${project.id}`;
+  const uploadBusyKey = `erp-upload-busy:${project.id}`;
 
   useLayoutEffect(() => {
     const hash = window.location.hash;
     if (hash.startsWith("#fase-")) {
-      setActivePhaseKey(hash.slice("#fase-".length));
+      const key = hash.slice("#fase-".length);
+      setActivePhaseKey(key);
+      try {
+        sessionStorage.setItem(phaseSessionKey, key);
+      } catch {
+        /* ignore */
+      }
+      return;
     }
-  }, []);
+    try {
+      const stored = sessionStorage.getItem(phaseSessionKey);
+      if (stored) {
+        setActivePhaseKey(stored);
+        navigateAdminToPhaseHash(stored);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [phaseSessionKey]);
 
   useEffect(() => {
     function readHashFromUrl() {
@@ -320,11 +407,31 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
 
   useLayoutEffect(() => {
     if (!activePhaseKey) return;
+    const resolved = phaseList.find((p) => p.key === activePhaseKey);
+    if (!resolved) return;
     scrollAdminMainToTop("auto");
-  }, [activePhaseKey]);
+  }, [activePhaseKey, phaseList]);
+
+  function openPhaseDetail(phaseKey: string) {
+    setActivePhaseKey(phaseKey);
+    try {
+      sessionStorage.setItem(phaseSessionKey, phaseKey);
+    } catch {
+      /* ignore */
+    }
+    navigateAdminToPhaseHash(phaseKey);
+    window.requestAnimationFrame(() => {
+      waitForAdminScrollToHash(`#fase-${phaseKey}`, "auto");
+    });
+  }
 
   function goToPhasesGrid() {
     setActivePhaseKey(null);
+    try {
+      sessionStorage.removeItem(phaseSessionKey);
+    } catch {
+      /* ignore */
+    }
     window.history.replaceState(
       null,
       "",
@@ -334,13 +441,55 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   }
 
   useEffect(() => {
+    brandKitBusyRef.current = brandKitUploading;
+  }, [brandKitUploading]);
+
+  const prevBrandKitUploadingRef = useRef(false);
+  useEffect(() => {
+    if (prevBrandKitUploadingRef.current && !brandKitUploading) {
+      setStabilizingAfterUpload(true);
+      try {
+        sessionStorage.setItem(uploadBusyKey, "1");
+      } catch {
+        /* ignore */
+      }
+    }
+    prevBrandKitUploadingRef.current = brandKitUploading;
+  }, [brandKitUploading, uploadBusyKey]);
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(uploadBusyKey) === "1") {
+        setStabilizingAfterUpload(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [uploadBusyKey]);
+
+  useEffect(() => {
+    if (!stabilizingAfterUpload) return;
+    const timer = window.setTimeout(() => {
+      setStabilizingAfterUpload(false);
+      try {
+        sessionStorage.removeItem(uploadBusyKey);
+      } catch {
+        /* ignore */
+      }
+    }, 3500);
+    return () => window.clearTimeout(timer);
+  }, [stabilizingAfterUpload, uploadBusyKey]);
+
+  // Sync de estados solo al volver a la pestaña y en vista grilla (no al montar ni en detalle).
+  useEffect(() => {
     const onFocus = () => {
       if (document.visibilityState !== "visible") return;
+      if (activePhaseKey || savingPhase || brandKitUploading || brandKitBusyRef.current) return;
       void refreshPhaseStates();
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [refreshPhaseStates]);
+  }, [refreshPhaseStates, savingPhase, brandKitUploading, activePhaseKey]);
 
   const savePhaseContent = useCallback(
     async (key: string, data: Partial<PhaseContent>): Promise<boolean> => {
@@ -356,7 +505,21 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         const j = (await res.json()) as { phases?: Record<string, Record<string, string>> };
         if (j.phases) {
           setRawPhases(j.phases);
-          setPhases(parsePhases(j.phases, buildPhaseListFromRaw(j.phases)));
+          setPhases((prev) => {
+            const parsed = parsePhases(j.phases!, buildPhaseListFromRaw(j.phases!));
+            if (content.brandKit !== undefined) {
+              parsed[key] = { ...parsed[key], brandKit: content.brandKit };
+            }
+            if (content.coverUrl !== undefined) {
+              parsed[key] = { ...parsed[key], coverUrl: content.coverUrl };
+            }
+            return parsed;
+          });
+        } else if (content.brandKit !== undefined) {
+          setPhases((prev) => ({
+            ...prev,
+            [key]: { ...prev[key], brandKit: content.brandKit! },
+          }));
         }
       }
       setSavingPhase(null);
@@ -394,6 +557,50 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
       return false;
     },
     [project.id],
+  );
+
+  /** Igual que portada de etapa: PATCH mínimo, sin setSavingPhase ni resync agresivo. */
+  const saveBrandKitJson = useCallback(
+    async (key: string, brandKit: string): Promise<boolean> => {
+      brandKitBusyRef.current = true;
+      try {
+        const res = await fetch(`/api/admin/projects-erp/${project.id}/phases`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phase: key, content: { brandKit } }),
+        });
+        if (res.ok) {
+          setRawPhases((prev) => {
+            const next = { ...prev };
+            const cur =
+              typeof next[key] === "object" && next[key] !== null
+                ? { ...(next[key] as Record<string, string>) }
+                : {};
+            next[key] = { ...cur, brandKit };
+            return next;
+          });
+          setPhases((prev) => ({
+            ...prev,
+            [key]: { ...(prev[key] ?? emptyPhaseContent()), brandKit },
+          }));
+          if (activePhaseKey === key) {
+            try {
+              sessionStorage.setItem(phaseSessionKey, key);
+            } catch {
+              /* ignore */
+            }
+          }
+          return true;
+        }
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        console.error("[saveBrandKitJson]", res.status, body?.error ?? res.statusText);
+        return false;
+      } finally {
+        brandKitBusyRef.current = false;
+      }
+    },
+    [project.id, activePhaseKey, phaseSessionKey],
   );
 
   const handlePhaseMetaChange = useCallback(
@@ -521,8 +728,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
     const ok = await saveCustomPhaseLayout(defs);
     setAddingPhase(false);
     if (ok) {
-      setActivePhaseKey(key);
-      navigateAdminToPhaseHash(key);
+      openPhaseDetail(key);
     }
   }
 
@@ -599,6 +805,59 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   const totalFacturado = project.invoices.reduce((a, i) => a + i.total, 0);
   const porCobrar = project.invoices.filter((i) => i.status === "pendiente").reduce((a, i) => a + i.total, 0);
 
+  const activePhase = activePhaseKey
+    ? phaseList.find((p) => p.key === activePhaseKey) ?? null
+    : null;
+
+  if (stabilizingAfterUpload) {
+    return (
+      <>
+        <div
+          className="rounded-xl border border-neutral-200/80 bg-white p-8 shadow-sm md:p-10"
+          style={{ borderColor: "rgba(19,25,69,0.1)" }}
+        >
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-400">Identidad visual</p>
+          <h2 className="mt-2 font-serif text-2xl italic text-brand-navy">{project.title}</h2>
+          <p className="mt-4 text-sm text-neutral-600">Guardando portada en Brand ID…</p>
+          <p className="mt-2 text-xs text-neutral-400">
+            El editor se reconecta solo. Si tarda más de unos segundos, usá «Ver todas las etapas» abajo.
+          </p>
+          <button
+            type="button"
+            onClick={goToPhasesGrid}
+            className="mt-6 rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-medium text-neutral-800"
+          >
+            Ver todas las etapas
+          </button>
+        </div>
+        <ProjectTrackingFab
+          projectTitle={project.title}
+          client={project.client}
+          projectId={project.id}
+          startDate={project.startDate}
+          deliveryDate={project.deliveryDate}
+          savingProjectDates={savingProjectDates}
+          phases={phaseList.map((p) => ({
+            key: p.key,
+            title: p.title,
+            state: phases[p.key]?.state ?? "pending",
+            startDate: phases[p.key]?.startDate ?? "",
+            endDate: phases[p.key]?.endDate ?? "",
+            owner: phases[p.key]?.owner ?? "",
+          }))}
+          stateLabels={STATE_LABELS}
+          stateColors={STATE_COLORS}
+          invoices={project.invoices}
+          totalFacturado={totalFacturado}
+          porCobrar={porCobrar}
+          toDateInputValue={toDateInputValue}
+          onProjectDateChange={updateProjectDateField}
+          onSaveProjectDates={() => void saveProjectDates()}
+        />
+      </>
+    );
+  }
+
   return (
     <>
     <div className="rounded-xl border border-neutral-200/80 bg-white p-4 shadow-sm md:p-8">
@@ -614,7 +873,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
             {project.client.name}
             {project.client.company ? ` — ${project.client.company}` : ""}
             {" · "}{SERVICE_LABELS[project.service] ?? project.service}
-            {" · "}${project.value.toLocaleString("en-US")} USD
+            {" · "}€{project.value.toLocaleString("en-US")} EUR
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -650,8 +909,8 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         </p>
         <ProjectFlowBar signals={projectPipelineSignals} />
         <p className="text-[10px] mt-2" style={{ color: "rgba(19,25,69,0.38)" }}>
-          Contrato y seña en <strong>1) Onboarding</strong>. Pre-brief en{" "}
-          <strong>2) Pre-brief</strong>. Narrativa en <strong>3) Narrativa</strong>. Onboarding
+          Contrato y seña en <strong>1) Onboarding</strong>. Brand Soul en{" "}
+          <strong>2) Brand Soul</strong>. Narrativa en <strong>3) Narrativa</strong>. Onboarding
           también se marca con el pago total. Los estados se actualizan solos según cada hito.
           {displayProjectStatus === "entregado" ? (
             <strong style={{ color: "#1a6b1a" }}> Proyecto entregado.</strong>
@@ -660,9 +919,107 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         </p>
       </div>
 
-      {/* ── Grilla de cards (solo en vista listado) ── */}
-      {!activePhaseKey ? (
-      <div id="phases-grid" className="rounded-lg border bg-white p-4 md:p-6 mb-8" style={{ borderColor: "rgba(19,25,69,0.1)" }}>
+      <div
+        className="mb-8 rounded-xl border px-4 py-4 md:px-5"
+        style={{ borderColor: "rgba(240,49,114,0.22)", background: "rgba(240,49,114,0.05)" }}
+      >
+        <p className="text-sm font-semibold text-brand-navy">Publicar en Brand&apos;s (sitio público)</p>
+        <p className="mt-1 text-xs leading-relaxed" style={{ color: "rgba(19,25,69,0.62)" }}>
+          Creá un borrador en Brand&apos;s y subí las imágenes del caso como en el resto del portfolio.
+        </p>
+        {portfolioPrepError ? (
+          <p className="mt-2 text-xs text-red-700">{portfolioPrepError}</p>
+        ) : null}
+        <div className="mt-3 flex flex-wrap gap-3">
+          {portfolioSlug ? (
+            <Link
+              href={`/admin/projects/${encodeURIComponent(portfolioSlug)}/publicar`}
+              className="inline-flex items-center rounded-md border border-brand-navy/15 bg-white px-3 py-2 text-xs font-semibold text-brand-navy hover:bg-neutral-50"
+            >
+              Editar caso Brand&apos;s →
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled={preparingPortfolio}
+              onClick={async () => {
+                setPortfolioPrepError(null);
+                setPreparingPortfolio(true);
+                try {
+                  const res = await fetch(`/api/admin/projects-erp/${project.id}/prepare-portfolio`, {
+                    method: "POST",
+                    credentials: "include",
+                  });
+                  const j = (await res.json()) as { slug?: string; editPath?: string; error?: string };
+                  if (!res.ok || !j.slug) {
+                    setPortfolioPrepError(j.error ?? "No se pudo preparar el borrador.");
+                    return;
+                  }
+                  setProject((p) => ({ ...p, portfolioSlug: j.slug! } as ClientProject));
+                  window.location.href = j.editPath ?? `/admin/projects/${encodeURIComponent(j.slug)}/publicar`;
+                } catch {
+                  setPortfolioPrepError("Error de red al preparar el caso.");
+                } finally {
+                  setPreparingPortfolio(false);
+                }
+              }}
+              className="inline-flex items-center rounded-md px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              style={{ background: "#F03172" }}
+            >
+              {preparingPortfolio ? "Preparando…" : "Preparar borrador para Brand's"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {activePhase ? (
+        <nav
+          className="mb-6 rounded-xl border bg-white px-3 py-3 md:px-4"
+          style={{ borderColor: "rgba(19,25,69,0.1)" }}
+          aria-label="Navegación entre etapas"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={goToPhasesGrid}
+              className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-[11px] font-medium text-neutral-700 hover:bg-white"
+            >
+              ← Ver todas las etapas
+            </button>
+            {phaseList.map((ph) => {
+              const isActive = ph.key === activePhase.key;
+              const pc = phases[ph.key] ?? emptyPhaseContent();
+              const stc = STATE_COLORS[pc.state] ?? STATE_COLORS.pending;
+              return (
+                <button
+                  key={ph.key}
+                  type="button"
+                  onClick={() => openPhaseDetail(ph.key)}
+                  className="rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors"
+                  style={
+                    isActive
+                      ? { background: "#F03172", color: "#fff" }
+                      : { background: stc.bg, color: stc.color, border: "1px solid rgba(19,25,69,0.08)" }
+                  }
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  {ph.title.replace(/^\d+\)\s*/, "")}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[10px]" style={{ color: "rgba(19,25,69,0.42)" }}>
+            La etapa activa se muestra debajo de las cards. Podés cambiar de etapa acá o volver al listado.
+          </p>
+        </nav>
+      ) : null}
+
+      {/* ── Grilla de cards (siempre visible) ── */}
+      <div
+        id="phases-grid"
+        className="rounded-lg border bg-white p-4 md:p-6 mb-8"
+        style={{ borderColor: "rgba(19,25,69,0.1)" }}
+      >
         <div className="mb-5">
           <h2 className="text-xl font-bold tracking-tight text-neutral-900">{project.title}</h2>
           <p className="mt-1 text-sm text-neutral-500">
@@ -682,8 +1039,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                 href={`#fase-${ph.key}`}
                 onClick={(e) => {
                   e.preventDefault();
-                  setActivePhaseKey(ph.key);
-                  navigateAdminToPhaseHash(ph.key);
+                  openPhaseDetail(ph.key);
                 }}
                 className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
               >
@@ -747,14 +1103,11 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
           </button>
         </div>
       </div>
-      ) : null}
 
-      {/* ── Detalle de etapa activa (reemplaza la grilla, sin scroll a anclas) ── */}
-      {activePhaseKey ? (
+      {/* ── Detalle de etapa activa ── */}
+      {activePhase ? (
       <div className="space-y-6">
-        {phaseList
-          .filter((ph) => ph.key === activePhaseKey)
-          .map((ph) => {
+        {[activePhase].map((ph) => {
           const pc = phases[ph.key] ?? emptyPhaseContent();
           const isSaving = savingPhase === ph.key;
           const isCustom = ph.genericClient === true;
@@ -910,13 +1263,13 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                         style={{ borderColor: "rgba(19,25,69,0.1)" }}
                       >
                         <div>
-                          <p className="font-medium text-neutral-900">Seña del proyecto</p>
+                          <p className="font-medium text-neutral-900">Recibo de seña</p>
                           <p className="text-xs text-neutral-500 mt-0.5">
                             {(() => {
                               const sena = project.invoices.find((i) => i.type === "sena");
                               if (!sena) return "Sin recibo de seña vinculado aún.";
                               return sena.status === "pagado"
-                                ? `Pagada · ${sena.number}`
+                                ? `Pagado · ${sena.number}`
                                 : `Pendiente · ${sena.number}`;
                             })()}
                           </p>
@@ -926,7 +1279,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                           className="text-xs font-medium hover:underline"
                           style={{ color: "#F03172" }}
                         >
-                          Gestionar facturas →
+                          Gestionar cobros →
                         </Link>
                       </div>
                     </>
@@ -993,18 +1346,14 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                       />
                     )}
                     {!isCustom && ph.key === "identidad" && (
-                      <BrandKitPanel
-                        phaseLabel="Identidad visual"
-                        brandKitJson={pc.brandKit}
-                        saving={isSaving}
-                        onSave={async (brandKit) => {
-                          setPhases((prev) => ({
-                            ...prev,
-                            [ph.key]: { ...prev[ph.key], brandKit },
-                          }));
-                          return savePhaseContent(ph.key, { brandKit });
-                        }}
-                      />
+                      <AdminPanelErrorBoundary label="Brand ID — Identidad visual">
+                        <BrandKitPanel
+                          phaseLabel="Identidad visual"
+                          brandKitJson={pc.brandKit}
+                          onUploadActivityChange={setBrandKitUploading}
+                          onSave={(brandKit) => saveBrandKitJson(ph.key, brandKit)}
+                        />
+                      </AdminPanelErrorBoundary>
                     )}
                     {!isCustom && ph.key === "manual" && (
                       <ManualPdfPanel
@@ -1099,7 +1448,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                         ph.key === "onboarding"
                           ? "Útil si el contrato, la seña o el pago total se cerraron por fuera del sistema."
                           : ph.key === "prebrief"
-                            ? "Marcá recibido si el cliente completó el pre-brief por otro canal."
+                            ? "Marcá recibido si el cliente completó Brand Soul por otro canal."
                             : ph.key === "narrativa"
                               ? "Marcá recibido si el cliente aprobó la narrativa fuera del portal."
                               : undefined

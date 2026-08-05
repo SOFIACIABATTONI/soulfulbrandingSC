@@ -45,12 +45,12 @@ ${table(["Recurso", "Link"], [
   ["Calendario / grabaciones", PLACEHOLDER],
 ])}`,
 
-  prebrief: `<h1>Pre-brief — notas internas</h1>
+  prebrief: `<h1>Brand Soul — notas internas</h1>
 <h2>Antes de enviar el cuestionario</h2>
 ${task([
   "Revisar presupuesto aprobado y contexto del lead",
   "Personalizar la nota del mail si hace falta",
-  "Enviar pre-brief al cliente (panel de arriba)",
+  "Enviar Brand Soul al cliente (panel de arriba)",
 ])}
 <h2>Después de recibir respuestas</h2>
 <p><strong>Insights clave para la sesión Deep Dive:</strong></p>

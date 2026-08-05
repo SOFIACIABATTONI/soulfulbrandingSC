@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { wrapAdminNotificationEmailHtml } from "@/lib/quote-markdown-html";
 import { brandUi } from "@/lib/brand-ui";
+import { soLogoEmailAttachments } from "@/lib/invoice-logo.server";
 
 export type ContactEmailPayload = {
   name: string;
@@ -72,6 +73,7 @@ export async function sendContactEmailNotification(
     subject: `Contacto web — ${stageTitle}`,
     text,
     html,
+    attachments: soLogoEmailAttachments(),
   });
 
   if (error) {

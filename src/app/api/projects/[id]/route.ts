@@ -26,6 +26,30 @@ export async function PATCH(req: Request, ctx: Params) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
   }
+
+  const existing = await prisma.project.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+  }
+
+  const newSlug = parsed.data.slug;
+  if (newSlug && newSlug !== existing.slug) {
+    const clash = await prisma.project.findFirst({
+      where: { slug: newSlug, id: { not: id } },
+    });
+    if (clash) {
+      return NextResponse.json({ error: "Ese slug ya está en uso" }, { status: 409 });
+    }
+    await prisma.portfolioGalleryItem.updateMany({
+      where: { slug: existing.slug },
+      data: { slug: newSlug },
+    });
+    await prisma.clientProject.updateMany({
+      where: { portfolioSlug: existing.slug },
+      data: { portfolioSlug: newSlug },
+    });
+  }
+
   const updated = await prisma.project.update({
     where: { id },
     data: parsed.data,

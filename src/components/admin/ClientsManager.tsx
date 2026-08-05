@@ -89,7 +89,7 @@ export function ClientsManager() {
     );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 min-w-0 max-w-full">
       {/* ── Barra de herramientas ── */}
       <div className="flex flex-wrap items-center gap-3">
         <input
@@ -112,8 +112,8 @@ export function ClientsManager() {
       </div>
 
       {/* ── Tabla ── */}
-      <div className="overflow-x-auto rounded border border-neutral-200 bg-white">
-        <table className="min-w-full text-sm">
+      <div className="max-w-full min-w-0 overflow-x-auto rounded border border-neutral-200 bg-white">
+        <table className="w-full text-sm">
           <thead
             className="border-b border-neutral-200 text-left text-[11px] font-medium uppercase tracking-widest"
             style={{ background: "#FFFFFF", color: "rgba(19,25,69,0.42)" }}

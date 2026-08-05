@@ -81,7 +81,7 @@ export function PhaseNotesEmailBar({
         <textarea
           className="mt-1 w-full rounded border p-2 text-sm min-h-[56px]"
           style={{ borderColor: brandUi.borderStrong, background: brandUi.surface }}
-          placeholder="Ej: Copia de mis notas del pre-brief para revisar en el celular…"
+          placeholder="Ej: Copia de mis notas de Brand Soul para revisar en el celular…"
           value={personalNote}
           onChange={(e) => setPersonalNote(e.target.value)}
         />

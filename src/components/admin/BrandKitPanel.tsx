@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { brandUi, clientFrame } from "@/lib/brand-ui";
 import { uploadBrandAssetFile } from "@/lib/admin-client-upload";
+import { BrandKitCardCoverField } from "@/components/admin/BrandKitCardCoverField";
 import { isLocalAdminUploadHost, isLocalDevUploadUrl } from "@/lib/admin-blob-upload";
 import {
   cardHasContent,
@@ -34,40 +35,93 @@ type BrandKitPanelProps = {
   brandKitJson: string;
   saving?: boolean;
   onSave: (brandKitJson: string) => Promise<boolean> | boolean;
+  onUploadActivityChange?: (active: boolean) => void;
 };
 
-export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave }: BrandKitPanelProps) {
+export function BrandKitPanel({
+  phaseLabel,
+  brandKitJson,
+  saving = false,
+  onSave,
+  onUploadActivityChange,
+}: BrandKitPanelProps) {
   const [kit, setKit] = useState<BrandKit>(() => parseBrandKit(brandKitJson));
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [newCardTitle, setNewCardTitle] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const [coverPreviewByCard, setCoverPreviewByCard] = useState<Record<string, string>>({});
+  const [coverFieldUploading, setCoverFieldUploading] = useState(false);
+  const [manualSaving, setManualSaving] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPersistedRef = useRef(serializeBrandKit(parseBrandKit(brandKitJson)));
+  const kitRef = useRef(kit);
+  /** Tras guardar OK, ignorar props del padre hasta que reflejen lo persistido (evita pantalla en blanco). */
+  const awaitingPropSyncRef = useRef(false);
 
   useEffect(() => {
+    kitRef.current = kit;
+  }, [kit]);
+
+  useEffect(() => {
+    if (uploadingKey || coverFieldUploading) return;
+
+    const incomingSerialized = serializeBrandKit(parseBrandKit(brandKitJson));
+    const localSerialized = serializeBrandKit(kitRef.current);
+
+    if (awaitingPropSyncRef.current) {
+      if (incomingSerialized === lastPersistedRef.current || incomingSerialized === localSerialized) {
+        awaitingPropSyncRef.current = false;
+      } else {
+        return;
+      }
+    }
+
+    if (incomingSerialized === localSerialized) {
+      lastPersistedRef.current = incomingSerialized;
+      return;
+    }
+
     const next = parseBrandKit(brandKitJson);
     setKit(next);
-    lastPersistedRef.current = serializeBrandKit(next);
+    lastPersistedRef.current = incomingSerialized;
+  }, [brandKitJson, uploadingKey, coverFieldUploading]);
+
+  useEffect(() => {
+    if (!awaitingPropSyncRef.current) return;
+    const timer = window.setTimeout(() => {
+      awaitingPropSyncRef.current = false;
+    }, 4000);
+    return () => window.clearTimeout(timer);
   }, [brandKitJson]);
 
   useEffect(() => () => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
   }, []);
 
+  useEffect(() => {
+    onUploadActivityChange?.(Boolean(uploadingKey) || coverFieldUploading);
+  }, [uploadingKey, coverFieldUploading, onUploadActivityChange]);
+
   const activeCard = activeCardId ? kit.cards.find((c) => c.id === activeCardId) ?? null : null;
 
   async function persist(nextKit: BrandKit, opts?: { silent?: boolean }) {
     const serialized = serializeBrandKit(nextKit);
     if (serialized === lastPersistedRef.current) return true;
-    const ok = await onSave(serialized);
-    if (ok) {
-      lastPersistedRef.current = serialized;
-      if (!opts?.silent) setMessage("Brand ID guardado.");
-    } else if (!opts?.silent) {
-      setMessage("No se pudo guardar.");
+    setManualSaving(true);
+    try {
+      const ok = await onSave(serialized);
+      if (ok) {
+        lastPersistedRef.current = serialized;
+        awaitingPropSyncRef.current = true;
+        if (!opts?.silent) setMessage("Brand ID guardado.");
+      } else if (!opts?.silent) {
+        setMessage("No se pudo guardar.");
+      }
+      return ok;
+    } finally {
+      setManualSaving(false);
     }
-    return ok;
   }
 
   function updateKit(updater: (prev: BrandKit) => BrandKit) {
@@ -118,26 +172,25 @@ export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave
     }
   }
 
-  async function replaceCoverImage(cardId: string, fileList: FileList | null) {
-    const file = fileList?.[0];
-    if (!file) return;
-    setUploadingKey(`${cardId}-cover`);
-    setMessage(null);
-    try {
-      const u = await uploadBrandAssetFile(file);
-      const coverFile: BrandKitAssetFile = {
-        id: createBrandKitId(),
-        url: u.url,
-        fileName: u.fileName,
-        mime: u.mime,
-      };
-      updateCardById(cardId, (c) => setCardCoverFiles(c, [coverFile]));
-      setMessage("Portada actualizada.");
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Error al subir portada.");
-    } finally {
-      setUploadingKey(null);
+  async function saveCoverForCard(cardId: string, nextCard: BrandKitCard): Promise<boolean> {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
     }
+    const nextKit: BrandKit = {
+      ...kitRef.current,
+      cards: kitRef.current.cards.map((c) => (c.id === cardId ? nextCard : c)),
+    };
+    kitRef.current = nextKit;
+    setKit(nextKit);
+    const serialized = serializeBrandKit(nextKit);
+    const ok = await onSave(serialized);
+    if (ok) {
+      lastPersistedRef.current = serialized;
+      awaitingPropSyncRef.current = true;
+      setMessage("Portada actualizada.");
+    }
+    return ok;
   }
 
   function addCustomCard() {
@@ -177,8 +230,10 @@ export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave
         {kit.cards.map((card) => {
           const preview = cardPreviewBackground(card);
           const filled = cardHasContent(card);
-          const previewStyle =
-            preview.type === "image"
+          const localCover = coverPreviewByCard[card.id];
+          const previewStyle = localCover
+            ? { background: `url("${localCover}") center/cover no-repeat` }
+            : preview.type === "image"
               ? { background: `url("${preview.value}") center/cover no-repeat` }
               : preview.type === "palette" || preview.type === "color"
                 ? { background: preview.value }
@@ -257,7 +312,19 @@ export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave
           uploadingKey={uploadingKey}
           onUpdate={(next) => updateCardById(activeCard.id, () => next)}
           onUpload={(groupId, files) => void uploadToGroup(activeCard.id, groupId, files)}
-          onReplaceCover={(files) => void replaceCoverImage(activeCard.id, files)}
+          onSaveCover={(nextCard) => saveCoverForCard(activeCard.id, nextCard)}
+          onCoverPreviewChange={(previewUrl) => {
+            setCoverPreviewByCard((prev) => {
+              if (!previewUrl) {
+                if (!prev[activeCard.id]) return prev;
+                const next = { ...prev };
+                delete next[activeCard.id];
+                return next;
+              }
+              return { ...prev, [activeCard.id]: previewUrl };
+            });
+          }}
+          onCoverUploadActivityChange={setCoverFieldUploading}
           onRemove={() => removeCustomCard(activeCard.id)}
           onClose={() => setActiveCardId(null)}
         />
@@ -266,12 +333,12 @@ export function BrandKitPanel({ phaseLabel, brandKitJson, saving = false, onSave
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
-          disabled={saving}
+          disabled={saving || manualSaving || Boolean(uploadingKey)}
           onClick={() => void persist(kit)}
           className="rounded-full px-4 py-2 text-xs font-medium border disabled:opacity-50"
           style={{ borderColor: brandUi.borderStrong, color: brandUi.text }}
         >
-          {saving ? "Guardando…" : "Guardar Brand ID"}
+          {saving || manualSaving ? "Guardando…" : "Guardar Brand ID"}
         </button>
         {message && (
           <p className="text-xs" style={{ color: brandUi.textMuted }}>
@@ -288,7 +355,9 @@ function CardEditor({
   uploadingKey,
   onUpdate,
   onUpload,
-  onReplaceCover,
+  onSaveCover,
+  onCoverPreviewChange,
+  onCoverUploadActivityChange,
   onRemove,
   onClose,
 }: {
@@ -296,13 +365,14 @@ function CardEditor({
   uploadingKey: string | null;
   onUpdate: (next: BrandKitCard) => void;
   onUpload: (groupId: string, files: FileList | null) => void;
-  onReplaceCover: (files: FileList | null) => void;
+  onSaveCover: (next: BrandKitCard) => Promise<boolean>;
+  onCoverPreviewChange?: (previewUrl: string | null) => void;
+  onCoverUploadActivityChange?: (active: boolean) => void;
   onRemove: () => void;
   onClose: () => void;
 }) {
   const def = getBrandKitCardDef(card.key);
   const isCustom = isCustomBrandKitCardKey(card.key);
-  const coverUploading = uploadingKey === `${card.id}-cover`;
 
   return (
     <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: brandUi.border }}>
@@ -344,11 +414,11 @@ function CardEditor({
         </div>
       </div>
 
-      <CoverImageEditor
+      <BrandKitCardCoverField
         card={card}
-        uploading={coverUploading}
-        onReplace={onReplaceCover}
-        onClear={() => onUpdate(setCardCoverFiles(card, []))}
+        onPreviewChange={onCoverPreviewChange}
+        onSaveCover={onSaveCover}
+        onUploadActivityChange={onCoverUploadActivityChange}
       />
 
       {def.kind === "palette" && (
@@ -468,70 +538,6 @@ function CardEditor({
           placeholder="https://drive.google.com/…"
           value={card.driveUrl}
           onChange={(e) => onUpdate({ ...card, driveUrl: e.target.value })}
-        />
-      </label>
-    </div>
-  );
-}
-
-function CoverImageEditor({
-  card,
-  uploading,
-  onReplace,
-  onClear,
-}: {
-  card: BrandKitCard;
-  uploading: boolean;
-  onReplace: (files: FileList | null) => void;
-  onClear: () => void;
-}) {
-  const coverUrl = cardPreviewImage(card);
-
-  return (
-    <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: brandUi.border }}>
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-xs font-medium" style={{ color: brandUi.text }}>
-            Imagen de portada
-          </p>
-          <p className="text-[10px] mt-0.5" style={{ color: brandUi.textMuted }}>
-            Es lo que se ve en el grid y en el portal del cliente. Reemplazala cuando cambies de proyecto.
-          </p>
-        </div>
-        {coverUrl && (
-          <button type="button" className="text-[11px] shrink-0" style={{ color: brandUi.accent }} onClick={onClear}>
-            Quitar
-          </button>
-        )}
-      </div>
-
-      {coverUrl ? (
-        <div className="relative aspect-[5/2] max-w-md rounded-lg overflow-hidden border" style={{ borderColor: brandUi.border }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={coverUrl} alt={`Portada ${card.title}`} className="h-full w-full object-cover" />
-        </div>
-      ) : (
-        <div
-          className="aspect-[5/2] max-w-md rounded-lg border flex items-center justify-center"
-          style={{ borderColor: brandUi.border, background: "rgba(50,63,246,0.04)" }}
-        >
-          <span className="text-[10px]" style={{ color: brandUi.textFaint }}>
-            Sin portada — se usa la paleta de colores si hay
-          </span>
-        </div>
-      )}
-
-      <label className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-medium border cursor-pointer" style={{ borderColor: brandUi.borderStrong, color: brandUi.text }}>
-        {uploading ? "Subiendo…" : coverUrl ? "Cambiar imagen" : "Subir imagen de portada"}
-        <input
-          type="file"
-          accept="image/*,.svg"
-          className="sr-only"
-          disabled={uploading}
-          onChange={(e) => {
-            onReplace(e.target.files);
-            e.target.value = "";
-          }}
         />
       </label>
     </div>

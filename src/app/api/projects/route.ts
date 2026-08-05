@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       imageUrl: data.imageUrl ?? "",
       category: data.category ?? "",
       order: data.order ?? 0,
-      published: data.published ?? true,
+      published: data.published ?? false,
     },
   });
   return NextResponse.json(created);

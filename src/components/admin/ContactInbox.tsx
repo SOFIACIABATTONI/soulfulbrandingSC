@@ -401,11 +401,11 @@ export function ContactInbox({ onNewCountChange }: { onNewCountChange?: (n: numb
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="fld-label">Valor estimado (USD)</label>
+                  <label className="fld-label">Valor estimado (EUR)</label>
                   <input
                     type="number"
                     className="fv"
-                    placeholder="Valor en USD"
+                    placeholder="Valor en EUR"
                     value={leadForm.estimatedValue}
                     onChange={(e) =>
                       setLeadForm({ ...leadForm, estimatedValue: e.target.value })

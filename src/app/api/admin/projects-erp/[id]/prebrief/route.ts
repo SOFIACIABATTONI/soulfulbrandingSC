@@ -61,7 +61,7 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   }
   if (project.prebriefSubmittedAt) {
     return NextResponse.json(
-      { error: "El cliente ya respondió el pre-brief; la plantilla ya no se puede editar." },
+      { error: "El cliente ya respondió Brand Soul; la plantilla ya no se puede editar." },
       { status: 409 },
     );
   }

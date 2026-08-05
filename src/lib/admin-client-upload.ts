@@ -336,6 +336,46 @@ export async function uploadPhaseCoverImageFile(
   return uploaded.url;
 }
 
+/** Portada e imágenes de Brand's (/portfolio) — URL pública, no requiere login. */
+export async function uploadPortfolioImageFile(
+  file: File,
+  onProgress?: (event: UploadProgressEvent) => void,
+): Promise<string> {
+  onProgress?.({ loaded: 0, total: file.size, percentage: 4, phase: "upload" });
+
+  const prepared = await preparePhaseCoverFile(file);
+  onProgress?.({
+    loaded: Math.round(prepared.size * 0.2),
+    total: prepared.size,
+    percentage: 18,
+    phase: "upload",
+  });
+
+  const mime = resolveBrandAssetMime(prepared);
+  if (!mime || !ADMIN_IMAGE_ALLOWED_CONTENT_TYPES.includes(mime)) {
+    throw new Error("Tipo no permitido.");
+  }
+  if (prepared.size > ADMIN_IMAGE_MAX_BYTES) {
+    throw new Error("Máximo 8MB");
+  }
+
+  const mapUploadProgress = (event: UploadProgressEvent) => {
+    onProgress?.({
+      ...event,
+      percentage: 18 + Math.round(event.percentage * 0.7),
+    });
+  };
+
+  const j = await postFormUpload(
+    "/api/admin/portfolio-image-upload",
+    prepared,
+    undefined,
+    mapUploadProgress,
+  );
+  onProgress?.({ loaded: prepared.size, total: prepared.size, percentage: 95, phase: "save" });
+  return j.url;
+}
+
 export async function uploadAdminImageFile(
   file: File,
   opts?: { minWidth?: number; minHeight?: number },

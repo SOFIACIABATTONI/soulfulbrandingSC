@@ -8,6 +8,11 @@ import {
   type NarrativaStatus,
 } from "@/lib/narrativa-types";
 import { resolveNarrativaContent } from "@/lib/narrativa-default-content";
+import { DEEP_DIVE_CALENDAR_URL } from "@/lib/deep-dive-calendar";
+import {
+  DEEP_DIVE_STATUS_LABELS,
+  normalizeDeepDiveStatus,
+} from "@/lib/deep-dive-types";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -37,6 +42,7 @@ export async function GET(_req: Request, ctx: RouteParams) {
     client: project.client,
   });
   const status = (project.narrativaStatus as NarrativaStatus) || "borrador";
+  const deepDiveStatus = normalizeDeepDiveStatus(project.deepDiveStatus);
 
   return NextResponse.json({
     content,
@@ -44,6 +50,11 @@ export async function GET(_req: Request, ctx: RouteParams) {
     statusLabel: NARRATIVA_STATUS_LABELS[status] ?? status,
     narrativaSentAt: project.narrativaSentAt,
     narrativaAcknowledgedAt: project.narrativaAcknowledgedAt,
+    deepDiveStatus,
+    deepDiveStatusLabel: DEEP_DIVE_STATUS_LABELS[deepDiveStatus],
+    deepDiveSentAt: project.deepDiveSentAt,
+    deepDiveDoneAt: project.deepDiveDoneAt,
+    deepDiveCalendarUrl: DEEP_DIVE_CALENDAR_URL,
     client: project.client,
     project: {
       id: project.id,

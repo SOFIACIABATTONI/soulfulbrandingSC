@@ -83,9 +83,15 @@ export async function PATCH(req: Request, ctx: RouteParams) {
       Object.keys(content).length === 1 &&
       Object.prototype.hasOwnProperty.call(content, "coverUrl");
 
-    const syncedPhases = isCoverOnlyUpdate
-      ? phases
-      : await syncProjectPhasesFromProgress(id);
+    const isBrandKitOnlyUpdate =
+      content &&
+      Object.keys(content).length === 1 &&
+      Object.prototype.hasOwnProperty.call(content, "brandKit");
+
+    const syncedPhases =
+      isCoverOnlyUpdate || isBrandKitOnlyUpdate
+        ? phases
+        : await syncProjectPhasesFromProgress(id);
     return NextResponse.json({ ok: true, phases: syncedPhases ?? phases });
   } catch {
     return NextResponse.json({ error: "No encontrado" }, { status: 404 });

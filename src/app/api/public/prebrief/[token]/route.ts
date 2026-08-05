@@ -73,7 +73,7 @@ export async function POST(req: Request, ctx: RouteParams) {
   }
 
   if (project.prebriefSubmittedAt) {
-    return NextResponse.json({ error: "El pre-brief ya fue enviado." }, { status: 409 });
+    return NextResponse.json({ error: "Brand Soul ya fue enviado." }, { status: 409 });
   }
 
   const json = await req.json().catch(() => null);

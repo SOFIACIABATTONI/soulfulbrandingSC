@@ -136,13 +136,32 @@ model ClientProject {
   narrativaStatus    String             @default("borrador")
   narrativaSentAt    DateTime?
   narrativaAcknowledgedAt DateTime?
+  /// pendiente | enviado | realizado
+  deepDiveStatus     String             @default("pendiente")
+  deepDiveSentAt     DateTime?
+  deepDiveDoneAt     DateTime?
+  /// Slug del `Project` de portfolio público vinculado (Brand's)
+  portfolioSlug String             @default("")
   clientId     String
   client       Client              @relation(fields: [clientId], references: [id])
   invoices     Invoice[]
   tokens       ClientAccessToken[]
   contractAcceptance ContractAcceptance?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+}
+
+/// Imágenes adicionales de un caso publicado en Brand's (slug = Project.slug)
+model PortfolioGalleryItem {
+  id        String   @id @default(cuid())
+  slug      String
+  url       String
+  fileName  String   @default("")
+  mime      String   @default("image/jpeg")
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([slug])
 }
 
 model Invoice {
@@ -156,7 +175,13 @@ model Invoice {
   status    String        @default("pendiente")
   paidAt    DateTime?
   issuedAt  DateTime       @default(now())
+  /// Fecha en que se envió el mail al cliente (recibo / factura)
+  emailSentAt DateTime?
   notes     String         @default("")
+  /// Hash SHA-256 del token público para ver el PDF desde el mail
+  tokenHash String?        @unique
+  /// Token público persistente para que los reenvíos mantengan válido el mismo enlace
+  publicToken String?      @unique
   clientId  String
   client    Client         @relation(fields: [clientId], references: [id])
   projectId String?
