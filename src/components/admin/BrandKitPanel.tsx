@@ -166,7 +166,9 @@ export function BrandKitPanel({
       }));
       setMessage(`${uploaded.length} archivo(s) subido(s).`);
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Error al subir.");
+      const errorMessage = e instanceof Error ? e.message : "Error al subir.";
+      setMessage(errorMessage);
+      window.alert(errorMessage);
     } finally {
       setUploadingKey(null);
     }

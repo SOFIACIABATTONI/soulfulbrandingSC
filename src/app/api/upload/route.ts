@@ -3,13 +3,21 @@ import path from "path";
 import { put } from "@vercel/blob";
 import { imageSize } from "image-size";
 import { isAdminRequest } from "@/lib/auth-api";
-import { blobStorageDiagnostics, blobStorageErrorMessage, hasBlobCredentials, resolveBlobPutOptions } from "@/lib/admin-blob-upload";
+import {
+  blobStorageDiagnostics,
+  blobStorageErrorMessage,
+  BRAND_ASSET_MAX_BYTES,
+  hasBlobCredentials,
+  resolveBlobPutOptions,
+  resolveBrandAssetMime,
+} from "@/lib/admin-blob-upload";
 import { saveLocalDevUpload } from "@/lib/local-dev-upload-store";
 
 export const runtime = "nodejs";
 
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"]);
 const MAX_DIM = 8000;
+const DEFAULT_MAX_BYTES = 8 * 1024 * 1024;
 
 function parsePositiveInt(v: FormDataEntryValue | null): number | null {
   if (typeof v !== "string") return null;
@@ -26,15 +34,24 @@ export async function POST(req: Request) {
     const file = form.get("file");
     const minWidth = parsePositiveInt(form.get("minWidth"));
     const minHeight = parsePositiveInt(form.get("minHeight"));
+    const context = form.get("context");
+    const isBrandAsset = context === "brand";
     if (!(file instanceof File) || file.size === 0) {
       return NextResponse.json({ error: "Archivo requerido" }, { status: 400 });
     }
-    if (!ALLOWED.has(file.type)) {
+    // Los assets de Brand ID reutilizan esta ruta pero el navegador a veces no
+    // reporta el mime correcto (p. ej. .svg en Windows); resolvemos por extensión.
+    const resolvedMime = isBrandAsset ? resolveBrandAssetMime(file) : file.type;
+    if (!resolvedMime || !ALLOWED.has(resolvedMime)) {
       return NextResponse.json({ error: "Tipo no permitido" }, { status: 400 });
     }
     const buf = Buffer.from(await file.arrayBuffer());
-    if (buf.length > 8 * 1024 * 1024) {
-      return NextResponse.json({ error: "Máximo 8MB" }, { status: 400 });
+    const maxBytes = isBrandAsset ? BRAND_ASSET_MAX_BYTES : DEFAULT_MAX_BYTES;
+    if (buf.length > maxBytes) {
+      return NextResponse.json(
+        { error: `Máximo ${Math.round(maxBytes / (1024 * 1024))}MB` },
+        { status: 400 },
+      );
     }
     if (minWidth || minHeight) {
       const meta = imageSize(buf);
@@ -53,7 +70,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: `Imagen muy pequeña: mínimo ${minHeight}px de alto.` }, { status: 400 });
       }
     }
-    const ext = path.extname(file.name) || (file.type === "image/png" ? ".png" : ".jpg");
+    const ext = path.extname(file.name) || (resolvedMime === "image/png" ? ".png" : ".jpg");
     const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
     const onVercel = process.env.VERCEL === "1";
     const useBlob = onVercel || hasBlobCredentials();
@@ -64,7 +81,7 @@ export async function POST(req: Request) {
           buf,
           await resolveBlobPutOptions({
             access: "public",
-            contentType: file.type || "application/octet-stream",
+            contentType: resolvedMime || "application/octet-stream",
           }),
         );
         return NextResponse.json({ url: blob.url });

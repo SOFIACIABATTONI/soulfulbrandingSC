@@ -6,7 +6,9 @@ import { generateAccessToken, accessExpiryFromNow } from "@/lib/access-token";
 import { ACCESS_EXPIRY_DAYS } from "@/lib/contract-types";
 import { accessPublicUrl } from "@/lib/access-url";
 import { sendNarrativaEmailToClient } from "@/lib/send-narrativa-email";
+import { sendPhaseInternalNotesEmail } from "@/lib/send-phase-doc-email";
 import { narrativaContentSchema, normalizeNarrativaContent } from "@/lib/narrativa-types";
+import { resolveNarrativaHtml } from "@/lib/narrativa-html-templates";
 import { syncProjectPhasesFromProgress } from "@/lib/project-phase-sync";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -69,6 +71,20 @@ export async function POST(req: Request, ctx: RouteParams) {
     toName: project.client.name,
     projectTitle: project.title,
     token: plain,
+    personalNote: parsed.data.personalNote,
+  });
+
+  // Copia fija de esta versión al mail de Sofía: si el cliente cambia el email
+  // o la narrativa se reenvía editada, el enlace del cliente pasa a mostrar la
+  // versión nueva — esta copia deja registro de lo que se envió en cada momento.
+  void sendPhaseInternalNotesEmail({
+    phaseTitle: "Narrativa de marca",
+    projectTitle: project.title,
+    clientName: project.client.name,
+    htmlBody: resolveNarrativaHtml(content, {
+      title: project.title,
+      client: project.client,
+    }),
     personalNote: parsed.data.personalNote,
   });
 
