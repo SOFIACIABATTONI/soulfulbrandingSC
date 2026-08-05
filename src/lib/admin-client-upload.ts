@@ -248,7 +248,10 @@ export async function uploadBrandAssetFile(
   }
 
   if (useServerBlobUpload(prepared)) {
-    const j = await postFormUpload("/api/admin/brand-asset-upload", prepared);
+    const endpoint = mime.startsWith("image/")
+      ? "/api/upload"
+      : "/api/admin/brand-asset-upload";
+    const j = await postFormUpload(endpoint, prepared);
     return { url: j.url, fileName: j.fileName ?? prepared.name, mime: j.mime ?? mime };
   }
 
