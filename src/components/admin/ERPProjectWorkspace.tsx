@@ -310,7 +310,6 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   const [preparingPortfolio, setPreparingPortfolio] = useState(false);
   const [portfolioPrepError, setPortfolioPrepError] = useState<string | null>(null);
   const [brandKitUploading, setBrandKitUploading] = useState(false);
-  const [stabilizingAfterUpload, setStabilizingAfterUpload] = useState(false);
   const brandKitBusyRef = useRef(false);
 
   const portfolioSlug =
@@ -359,7 +358,6 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   }, [project.id]);
 
   const phaseSessionKey = `erp-active-phase:${project.id}`;
-  const uploadBusyKey = `erp-upload-busy:${project.id}`;
 
   useLayoutEffect(() => {
     const hash = window.location.hash;
@@ -443,42 +441,6 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   useEffect(() => {
     brandKitBusyRef.current = brandKitUploading;
   }, [brandKitUploading]);
-
-  const prevBrandKitUploadingRef = useRef(false);
-  useEffect(() => {
-    if (prevBrandKitUploadingRef.current && !brandKitUploading) {
-      setStabilizingAfterUpload(true);
-      try {
-        sessionStorage.setItem(uploadBusyKey, "1");
-      } catch {
-        /* ignore */
-      }
-    }
-    prevBrandKitUploadingRef.current = brandKitUploading;
-  }, [brandKitUploading, uploadBusyKey]);
-
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem(uploadBusyKey) === "1") {
-        setStabilizingAfterUpload(true);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [uploadBusyKey]);
-
-  useEffect(() => {
-    if (!stabilizingAfterUpload) return;
-    const timer = window.setTimeout(() => {
-      setStabilizingAfterUpload(false);
-      try {
-        sessionStorage.removeItem(uploadBusyKey);
-      } catch {
-        /* ignore */
-      }
-    }, 3500);
-    return () => window.clearTimeout(timer);
-  }, [stabilizingAfterUpload, uploadBusyKey]);
 
   // Sync de estados solo al volver a la pestaña y en vista grilla (no al montar ni en detalle).
   useEffect(() => {
@@ -808,55 +770,6 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   const activePhase = activePhaseKey
     ? phaseList.find((p) => p.key === activePhaseKey) ?? null
     : null;
-
-  if (stabilizingAfterUpload) {
-    return (
-      <>
-        <div
-          className="rounded-xl border border-neutral-200/80 bg-white p-8 shadow-sm md:p-10"
-          style={{ borderColor: "rgba(19,25,69,0.1)" }}
-        >
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-400">Identidad visual</p>
-          <h2 className="mt-2 font-serif text-2xl italic text-brand-navy">{project.title}</h2>
-          <p className="mt-4 text-sm text-neutral-600">Guardando portada en Brand ID…</p>
-          <p className="mt-2 text-xs text-neutral-400">
-            El editor se reconecta solo. Si tarda más de unos segundos, usá «Ver todas las etapas» abajo.
-          </p>
-          <button
-            type="button"
-            onClick={goToPhasesGrid}
-            className="mt-6 rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-medium text-neutral-800"
-          >
-            Ver todas las etapas
-          </button>
-        </div>
-        <ProjectTrackingFab
-          projectTitle={project.title}
-          client={project.client}
-          projectId={project.id}
-          startDate={project.startDate}
-          deliveryDate={project.deliveryDate}
-          savingProjectDates={savingProjectDates}
-          phases={phaseList.map((p) => ({
-            key: p.key,
-            title: p.title,
-            state: phases[p.key]?.state ?? "pending",
-            startDate: phases[p.key]?.startDate ?? "",
-            endDate: phases[p.key]?.endDate ?? "",
-            owner: phases[p.key]?.owner ?? "",
-          }))}
-          stateLabels={STATE_LABELS}
-          stateColors={STATE_COLORS}
-          invoices={project.invoices}
-          totalFacturado={totalFacturado}
-          porCobrar={porCobrar}
-          toDateInputValue={toDateInputValue}
-          onProjectDateChange={updateProjectDateField}
-          onSaveProjectDates={() => void saveProjectDates()}
-        />
-      </>
-    );
-  }
 
   return (
     <>

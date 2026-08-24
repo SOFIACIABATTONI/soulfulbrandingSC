@@ -158,13 +158,29 @@ export function BrandKitPanel({
           mime: u.mime,
         });
       }
-      updateCardById(cardId, (c) => ({
-        ...c,
-        fileGroups: c.fileGroups.map((g) =>
-          g.id === groupId ? { ...g, files: [...g.files, ...uploaded] } : g,
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
+      const nextKit: BrandKit = {
+        ...kitRef.current,
+        cards: kitRef.current.cards.map((c) =>
+          c.id === cardId
+            ? {
+                ...c,
+                fileGroups: c.fileGroups.map((g) =>
+                  g.id === groupId ? { ...g, files: [...g.files, ...uploaded] } : g,
+                ),
+              }
+            : c,
         ),
-      }));
-      setMessage(`${uploaded.length} archivo(s) subido(s).`);
+      };
+      kitRef.current = nextKit;
+      setKit(nextKit);
+      const ok = await persist(nextKit, { silent: true });
+      if (ok) {
+        setMessage(`${uploaded.length} archivo(s) subido(s).`);
+      }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Error al subir.";
       setMessage(errorMessage);
