@@ -3,6 +3,9 @@ import { z } from "zod";
 import { isAdminRequest } from "@/lib/auth-api";
 import { DEEP_DIVE_CALENDAR_URL } from "@/lib/deep-dive-calendar";
 import { prisma } from "@/lib/prisma";
+import { generateAccessToken, accessExpiryFromNow } from "@/lib/access-token";
+import { ACCESS_EXPIRY_DAYS } from "@/lib/contract-types";
+import { accessPublicUrl } from "@/lib/access-url";
 import { sendDeepDiveEmailToClient } from "@/lib/send-deep-dive-email";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -30,26 +33,45 @@ export async function POST(req: Request, ctx: RouteParams) {
     return NextResponse.json({ error: "No encontrado" }, { status: 404 });
   }
 
+  const plain = generateAccessToken();
+  const expiresAt = accessExpiryFromNow(ACCESS_EXPIRY_DAYS);
   const sentAt = new Date();
-  await prisma.clientProject.update({
-    where: { id },
-    data: {
-      deepDiveStatus: project.deepDiveDoneAt ? "realizado" : "enviado",
-      deepDiveSentAt: sentAt,
-    },
+
+  await prisma.$transaction(async (tx) => {
+    await tx.clientAccessToken.create({
+      data: {
+        token: plain,
+        purpose: "deep-dive",
+        expiresAt,
+        clientId: project.clientId,
+        projectId: id,
+      },
+    });
+    await tx.clientProject.update({
+      where: { id },
+      data: {
+        deepDiveStatus: project.deepDiveDoneAt ? "realizado" : "enviado",
+        deepDiveSentAt: sentAt,
+      },
+    });
   });
+
+  const scheduleConfirmUrl = accessPublicUrl("deep-dive", plain);
 
   const emailed = await sendDeepDiveEmailToClient({
     toEmail: project.client.email,
     toName: project.client.name,
     projectTitle: project.title,
     personalNote: parsed.data.personalNote,
+    scheduleConfirmUrl,
   });
 
   return NextResponse.json({
     ok: true,
     emailed,
     calendarUrl: DEEP_DIVE_CALENDAR_URL,
+    scheduleConfirmUrl,
     deepDiveSentAt: sentAt.toISOString(),
+    publicToken: process.env.NODE_ENV === "development" ? plain : undefined,
   });
 }

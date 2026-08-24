@@ -11,7 +11,7 @@ import {
   getPhaseClientMeta,
 } from "@/lib/phase-client-store";
 import { parseProjectPhases } from "@/lib/prebrief-service";
-import { sendPhaseResponseNotificationToAdmin } from "@/lib/send-phase-doc-email";
+import { notifyAdminPhaseReceived } from "@/lib/send-project-milestone-email";
 import { isPermanentAccessPurpose } from "@/lib/access-token";
 import { brandKitFromPhaseData, brandKitHasContent } from "@/lib/brand-kit";
 import { getManualPdfFromPhase, hasManualPdf } from "@/lib/manual-pdf";
@@ -152,14 +152,13 @@ export async function POST(_req: Request, ctx: RouteParams) {
   const { syncProjectPhasesFromProgress } = await import("@/lib/project-phase-sync");
   await syncProjectPhasesFromProgress(record.projectId);
 
-  void sendPhaseResponseNotificationToAdmin({
-    subject: config.adminNotifySubject,
+  await notifyAdminPhaseReceived({
     phaseLabel: config.title,
-    hash: `#fase-${storageKey}`,
     clientName: project.client.name,
     clientEmail: project.client.email,
     projectTitle: project.title,
     projectId: project.id,
+    adminHash: `#fase-${storageKey}`,
   });
 
   return NextResponse.json({ ok: true });

@@ -16,8 +16,8 @@ import {
 import { acceptancePdfFilename, buildContractAcceptancePdf } from "@/lib/contract-acceptance-pdf";
 import {
   sendContractAcceptedConfirmationToClient,
-  sendContractAcceptedNotificationToAdmin,
 } from "@/lib/send-contract-email";
+import { notifyAdminContractSigned } from "@/lib/send-project-milestone-email";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
@@ -133,7 +133,7 @@ export async function POST(req: Request, ctx: RouteParams) {
   });
   const pdfFilename = acceptancePdfFilename(acceptance.project.title);
 
-  void sendContractAcceptedNotificationToAdmin({
+  await notifyAdminContractSigned({
     clientName: record.client.name,
     clientEmail: record.client.email,
     projectTitle: record.project.title,
@@ -143,7 +143,7 @@ export async function POST(req: Request, ctx: RouteParams) {
     contentHash: acceptance.contentHash,
   });
 
-  void sendContractAcceptedConfirmationToClient({
+  await sendContractAcceptedConfirmationToClient({
     toEmail: record.client.email,
     toName: record.client.name,
     projectTitle: record.project.title,

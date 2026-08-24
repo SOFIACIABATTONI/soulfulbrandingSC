@@ -3,18 +3,14 @@ import { prisma } from "@/lib/prisma";
 import {
   findAccessTokenByPlain,
   isAccessTokenExpired,
-  isAccessTokenUsed,
 } from "@/lib/access-service";
-import { resolveNarrativaContent } from "@/lib/narrativa-default-content";
-import { resolveNarrativaHtml } from "@/lib/narrativa-html-templates";
-import { syncProjectPhasesFromProgress } from "@/lib/project-phase-sync";
-import { notifyAdminNarrativaReceived } from "@/lib/send-project-milestone-email";
+import { notifyAdminDeepDiveScheduled } from "@/lib/send-project-milestone-email";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
 export async function GET(_req: Request, ctx: RouteParams) {
   const { token } = await ctx.params;
-  const record = await findAccessTokenByPlain(token, "narrativa");
+  const record = await findAccessTokenByPlain(token, "deep-dive");
   if (!record) {
     return NextResponse.json({ error: "Enlace no válido" }, { status: 404 });
   }
@@ -25,59 +21,32 @@ export async function GET(_req: Request, ctx: RouteParams) {
 
   const project = await prisma.clientProject.findUnique({
     where: { id: record.projectId },
-    select: {
-      title: true,
-      narrativaContent: true,
-      narrativaSentAt: true,
-      narrativaAcknowledgedAt: true,
-      narrativaStatus: true,
-    },
+    select: { title: true, deepDiveStatus: true },
   });
   if (!project) {
     return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
   }
 
-  const content = resolveNarrativaContent({
-    title: project.title,
-    narrativaContent: project.narrativaContent,
-    client: { name: record.client.name },
-  });
-  const htmlBody = resolveNarrativaHtml(content, {
-    title: project.title,
-    narrativaContent: project.narrativaContent,
-    client: { name: record.client.name },
-  });
-
-  const received =
-    project.narrativaStatus === "recibido" ||
-    project.narrativaAcknowledgedAt != null ||
-    isAccessTokenUsed(record);
+  const scheduled =
+    project.deepDiveStatus === "agendado" || project.deepDiveStatus === "realizado";
 
   return NextResponse.json({
     clientName: record.client.name,
     projectTitle: project.title,
-    content: { body: htmlBody, format: "html" as const },
-    sentAt: project.narrativaSentAt,
-    acknowledgedAt: project.narrativaAcknowledgedAt,
-    canAcknowledge: !received,
-    done: received,
+    scheduled,
     expiresAt: record.expiresAt,
   });
 }
 
 export async function POST(_req: Request, ctx: RouteParams) {
   const { token } = await ctx.params;
-  const record = await findAccessTokenByPlain(token, "narrativa");
+  const record = await findAccessTokenByPlain(token, "deep-dive");
   if (!record) {
     return NextResponse.json({ error: "Enlace no válido" }, { status: 404 });
   }
 
   if (isAccessTokenExpired(record)) {
     return NextResponse.json({ error: "Este enlace expiró." }, { status: 410 });
-  }
-
-  if (isAccessTokenUsed(record)) {
-    return NextResponse.json({ error: "Ya confirmaste la recepción." }, { status: 409 });
   }
 
   const project = await prisma.clientProject.findUnique({
@@ -88,8 +57,12 @@ export async function POST(_req: Request, ctx: RouteParams) {
     return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
   }
 
-  if (project.narrativaAcknowledgedAt) {
-    return NextResponse.json({ error: "Ya fue confirmado." }, { status: 409 });
+  if (project.deepDiveStatus === "realizado") {
+    return NextResponse.json({ ok: true, alreadyScheduled: true });
+  }
+
+  if (project.deepDiveStatus === "agendado") {
+    return NextResponse.json({ ok: true, alreadyScheduled: true });
   }
 
   const now = new Date();
@@ -98,8 +71,7 @@ export async function POST(_req: Request, ctx: RouteParams) {
     await tx.clientProject.update({
       where: { id: record.projectId },
       data: {
-        narrativaStatus: "recibido",
-        narrativaAcknowledgedAt: now,
+        deepDiveStatus: "agendado",
       },
     });
     await tx.clientAccessToken.update({
@@ -108,14 +80,12 @@ export async function POST(_req: Request, ctx: RouteParams) {
     });
   });
 
-  await syncProjectPhasesFromProgress(record.projectId);
-
-  await notifyAdminNarrativaReceived({
+  await notifyAdminDeepDiveScheduled({
     clientName: project.client.name,
     clientEmail: project.client.email,
     projectTitle: project.title,
     projectId: project.id,
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, scheduledAt: now.toISOString() });
 }

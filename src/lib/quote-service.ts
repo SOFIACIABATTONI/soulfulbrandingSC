@@ -8,9 +8,7 @@ import {
   type QuoteStatus,
 } from "@/lib/quote-types";
 import { notifyN8nQuoteEvent } from "@/lib/notify-n8n-quote";
-import {
-  sendQuoteResponseNotificationToAdmin,
-} from "@/lib/send-quote-email";
+import { notifyAdminQuoteResponse } from "@/lib/send-project-milestone-email";
 import { provisionClientFromApprovedQuote } from "@/lib/client-provision";
 
 export function isQuoteExpired(quote: Pick<Quote, "expiresAt" | "status">): boolean {
@@ -107,12 +105,12 @@ export async function applyClientQuoteResponse(
     }
   }
 
-  void sendQuoteResponseNotificationToAdmin({
+  await notifyAdminQuoteResponse({
     leadName: quote.lead.name,
     leadEmail: quote.lead.email,
     response,
     comment,
-    quoteId: quote.id,
+    leadId: quote.lead.id,
   });
 
   void notifyN8nQuoteEvent({

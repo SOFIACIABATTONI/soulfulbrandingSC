@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { findAccessTokenByPlain, isAccessTokenExpired } from "@/lib/access-service";
 import { getProjectPrebriefResponses } from "@/lib/prebrief-service";
 import { resolvePrebriefTemplate } from "@/lib/prebrief-template";
+import { notifyAdminPrebriefSubmitted } from "@/lib/send-project-milestone-email";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
@@ -96,7 +97,6 @@ export async function POST(req: Request, ctx: RouteParams) {
     );
   }
 
-  const { sendPrebriefSubmittedNotificationToAdmin } = await import("@/lib/send-prebrief-email");
   const { syncProjectPhasesFromProgress } = await import("@/lib/project-phase-sync");
 
   const now = new Date();
@@ -117,7 +117,7 @@ export async function POST(req: Request, ctx: RouteParams) {
 
   await syncProjectPhasesFromProgress(project.id);
 
-  void sendPrebriefSubmittedNotificationToAdmin({
+  await notifyAdminPrebriefSubmitted({
     clientName: record.client.name,
     clientEmail: record.client.email,
     projectTitle: record.project.title,

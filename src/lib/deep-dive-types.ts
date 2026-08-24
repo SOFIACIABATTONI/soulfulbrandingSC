@@ -1,10 +1,11 @@
-export const DEEP_DIVE_STATUSES = ["pendiente", "enviado", "realizado"] as const;
+export const DEEP_DIVE_STATUSES = ["pendiente", "enviado", "agendado", "realizado"] as const;
 
 export type DeepDiveStatus = (typeof DEEP_DIVE_STATUSES)[number];
 
 export const DEEP_DIVE_STATUS_LABELS: Record<DeepDiveStatus, string> = {
   pendiente: "Pendiente",
   enviado: "Agenda enviada",
+  agendado: "Llamada agendada",
   realizado: "Realizado",
 };
 

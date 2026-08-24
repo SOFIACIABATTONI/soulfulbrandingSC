@@ -342,12 +342,16 @@ export function NarrativaPanel({
               background:
                 data?.deepDiveStatus === "realizado"
                   ? "#e3f2e3"
+                  : data?.deepDiveStatus === "agendado"
+                    ? "#e8ecff"
                   : data?.deepDiveStatus === "enviado"
                     ? brandUi.accentSoft
                     : brandUi.navySoft,
               color:
                 data?.deepDiveStatus === "realizado"
                   ? "#1a6b1a"
+                  : data?.deepDiveStatus === "agendado"
+                    ? brandUi.blue
                   : data?.deepDiveStatus === "enviado"
                     ? brandUi.accent
                     : brandUi.textMuted,

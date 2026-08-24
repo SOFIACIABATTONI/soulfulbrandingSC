@@ -13,6 +13,7 @@ export const ACCESS_PURPOSES = [
   "pre-brief",
   "contrato",
   "narrativa",
+  "deep-dive",
   "identidad",
   "manual",
   "entrega",

@@ -9,6 +9,8 @@ export type SendDeepDiveEmailPayload = {
   toName: string;
   projectTitle: string;
   personalNote?: string;
+  /** Enlace para que el cliente confirme que ya agendó la llamada. */
+  scheduleConfirmUrl?: string;
 };
 
 function escapeHtml(value: string): string {
@@ -24,9 +26,7 @@ export async function sendDeepDiveEmailToClient(
 ): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) {
-    if (process.env.NODE_ENV === "development") {
-      console.warn("[deep-dive] RESEND_API_KEY no configurada; email omitido");
-    }
+    console.warn("[deep-dive] RESEND_API_KEY no configurada; email omitido");
     return false;
   }
 
@@ -39,9 +39,14 @@ export async function sendDeepDiveEmailToClient(
   const noteBlock = payload.personalNote?.trim()
     ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:${brandUi.textMuted};font-style:italic;">${escapeHtml(payload.personalNote.trim())}</p>`
     : "";
+
+  const confirmBlock = payload.scheduleConfirmUrl?.trim()
+    ? `<p style="margin:20px 0 0;font-size:14px;line-height:1.7;color:${brandUi.textMuted};">Cuando hayas reservado tu horario, confirmalo acá para que Sofía reciba la notificación:<br /><a href="${escapeHtml(payload.scheduleConfirmUrl.trim())}" style="color:${brandUi.accent};text-decoration:underline;">Ya agendé mi llamada →</a></p>`
+    : "";
+
   const innerHtml = `${noteBlock}
 <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:${brandUi.textMuted};">Llegó el momento de profundizar en la narrativa y preparar el próximo paso de <strong style="color:${brandUi.text};">${escapeHtml(payload.projectTitle)}</strong>.</p>
-<p style="margin:0;font-size:15px;line-height:1.7;color:${brandUi.textMuted};">Elegí en el calendario el horario que mejor te resulte para nuestra sesión Deep Dive.</p>`;
+<p style="margin:0;font-size:15px;line-height:1.7;color:${brandUi.textMuted};">Elegí en el calendario el horario que mejor te resulte para nuestra sesión Deep Dive.</p>${confirmBlock}`;
 
   const text = [
     `Hola ${payload.toName},`,
@@ -50,6 +55,10 @@ export async function sendDeepDiveEmailToClient(
     "",
     `Agendá la sesión Deep Dive para el proyecto "${payload.projectTitle}":`,
     DEEP_DIVE_CALENDAR_URL,
+    "",
+    payload.scheduleConfirmUrl?.trim()
+      ? `Cuando hayas reservado, confirmá acá: ${payload.scheduleConfirmUrl.trim()}`
+      : "",
   ]
     .filter(Boolean)
     .join("\n");
