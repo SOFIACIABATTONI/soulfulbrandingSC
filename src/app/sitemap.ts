@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { getPortfolioShowcaseItems } from "@/lib/portfolio-items";
+import { PORTFOLIO_SHOWCASE } from "@/lib/portfolio-showcase";
 import { SITE_URL } from "@/lib/site-metadata";
 
 const STATIC_PAGES: MetadataRoute.Sitemap = [
@@ -41,10 +41,8 @@ const STATIC_PAGES: MetadataRoute.Sitemap = [
   },
 ];
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const showcaseItems = await getPortfolioShowcaseItems();
-
-  const portfolioPages: MetadataRoute.Sitemap = showcaseItems.map((item) => ({
+export default function sitemap(): MetadataRoute.Sitemap {
+  const portfolioPages: MetadataRoute.Sitemap = PORTFOLIO_SHOWCASE.map((item) => ({
     url: `${SITE_URL}/portfolio/${item.id}`,
     lastModified: new Date(),
     changeFrequency: "monthly",
