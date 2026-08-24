@@ -1176,14 +1176,17 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                         style={{ borderColor: "rgba(19,25,69,0.1)" }}
                       >
                         <div>
-                          <p className="font-medium text-neutral-900">Recibo de seña</p>
+                          <p className="font-medium text-neutral-900">Recibos de seña</p>
                           <p className="text-xs text-neutral-500 mt-0.5">
                             {(() => {
-                              const sena = project.invoices.find((i) => i.type === "sena");
-                              if (!sena) return "Sin recibo de seña vinculado aún.";
-                              return sena.status === "pagado"
-                                ? `Pagado · ${sena.number}`
-                                : `Pendiente · ${sena.number}`;
+                              const senas = project.invoices.filter((i) => i.type === "sena");
+                              if (senas.length === 0) return "Sin recibos de seña vinculados aún.";
+                              const pagados = senas.filter((i) => i.status === "pagado");
+                              const pendientes = senas.length - pagados.length;
+                              if (pendientes === 0) {
+                                return `${senas.length} recibo(s) · todos pagados`;
+                              }
+                              return `${senas.length} recibo(s) · ${pagados.length} pagado(s), ${pendientes} pendiente(s)`;
                             })()}
                           </p>
                         </div>

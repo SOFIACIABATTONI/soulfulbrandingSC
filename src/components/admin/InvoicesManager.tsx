@@ -5,10 +5,10 @@ import Link from "next/link";
 import {
   INVOICE_TYPE_SHORT,
   projectHasFinalInvoice,
-  projectHasSenaInvoice,
-  projectSenaIsPaid,
   suggestedFinalTotal,
+  suggestedRemainingTotal,
   validateInvoiceCreate,
+  type InvoiceLike,
 } from "@/lib/invoice-utils";
 
 // ── tipos ──────────────────────────────────────────────────
@@ -44,14 +44,31 @@ const SERVICE_LABELS: Record<string, string> = {
   "diseno-editorial": "Diseño editorial",
 };
 
+function projectInvoicesAsLike(items: InvoiceItem[], projectId: string): InvoiceLike[] {
+  return items
+    .filter((i) => i.project?.id === projectId)
+    .map((i) => ({
+      id: i.id,
+      type: i.type,
+      status: i.status,
+      total: i.total,
+      projectId,
+    }));
+}
+
 function defaultInvoiceType(
   projectId: string,
   invoices: InvoiceItem[],
+  project?: ProjectOption,
+  preferredType?: "sena" | "final",
 ): "sena" | "final" {
-  if (!projectId) return "sena";
-  if (projectHasSenaInvoice(invoices, projectId) && projectSenaIsPaid(invoices, projectId)) {
-    if (!projectHasFinalInvoice(invoices, projectId)) return "final";
+  if (preferredType === "final") {
+    if (!projectId || projectHasFinalInvoice(projectInvoicesAsLike(invoices, projectId), projectId)) {
+      return "sena";
+    }
+    return "final";
   }
+  if (preferredType === "sena") return "sena";
   return "sena";
 }
 
@@ -61,9 +78,10 @@ function defaultInvoiceTotal(
   projectId: string,
   invoices: InvoiceItem[],
 ): string {
-  if (!project) return "";
+  if (!project || !projectId) return "";
+  const projectInvoices = projectInvoicesAsLike(invoices, projectId);
   if (type === "final") {
-    const remaining = suggestedFinalTotal(project.value, invoices, projectId);
+    const remaining = suggestedFinalTotal(project.value, projectInvoices, projectId);
     return remaining > 0 ? String(remaining) : "";
   }
   return "";
@@ -145,8 +163,15 @@ export function InvoicesManager({
       initialProjectId ??
       (clientProjs.length === 1 ? clientProjs[0].id : "");
     const project = clientProjs.find((p) => p.id === projectId);
-    const type = preferredType ?? defaultInvoiceType(projectId, items);
+    const type = defaultInvoiceType(projectId, items, project, preferredType);
     setFormError(null);
+    if (
+      preferredType === "final" &&
+      projectId &&
+      projectHasFinalInvoice(projectInvoicesAsLike(items, projectId), projectId)
+    ) {
+      setFormError("Este proyecto ya tiene una factura final.");
+    }
     setForm({
       ...EMPTY_FORM,
       clientId,
@@ -161,7 +186,7 @@ export function InvoicesManager({
     const clientProjs = projectsForClient(clientId);
     const projectId = clientProjs.length === 1 ? clientProjs[0].id : "";
     const project = clientProjs.find((p) => p.id === projectId);
-    const type = defaultInvoiceType(projectId, items);
+    const type = defaultInvoiceType(projectId, items, project);
     setFormError(null);
     setForm((f) => ({
       ...f,
@@ -174,7 +199,14 @@ export function InvoicesManager({
 
   function setProjectId(projectId: string) {
     const project = clientProjects.find((p) => p.id === projectId);
-    const type = defaultInvoiceType(projectId, items);
+    let type = defaultInvoiceType(projectId, items, project);
+    if (
+      type === "final" &&
+      projectId &&
+      projectHasFinalInvoice(projectInvoicesAsLike(items, projectId), projectId)
+    ) {
+      type = "sena";
+    }
     setFormError(null);
     setForm((f) => ({
       ...f,
@@ -185,6 +217,14 @@ export function InvoicesManager({
   }
 
   function setInvoiceType(type: "sena" | "final") {
+    if (
+      type === "final" &&
+      form.projectId &&
+      projectHasFinalInvoice(projectInvoicesAsLike(items, form.projectId), form.projectId)
+    ) {
+      setFormError("Este proyecto ya tiene una factura final.");
+      return;
+    }
     const project = clientProjects.find((p) => p.id === form.projectId);
     setFormError(null);
     setForm((f) => ({
@@ -197,14 +237,19 @@ export function InvoicesManager({
   const formValidation = useMemo(() => {
     if (!form.projectId) return { ok: true as const };
     const project = clientProjects.find((p) => p.id === form.projectId);
-    const projectInvoices = items.filter((i) => i.project?.id === form.projectId);
+    const projectInvoices = projectInvoicesAsLike(items, form.projectId);
+    const newTotal = Number(form.total);
     return validateInvoiceCreate(
       form.type as "sena" | "final",
       form.projectId,
       project?.value,
       projectInvoices,
+      {
+        newTotal: Number.isFinite(newTotal) && newTotal > 0 ? newTotal : 0,
+        newStatus: form.status as "pendiente" | "pagado",
+      },
     );
-  }, [form.projectId, form.type, clientProjects, items]);
+  }, [form.projectId, form.type, form.total, form.status, clientProjects, items]);
 
   async function load() {
     const [invRes, cliRes, projRes] = await Promise.all([
@@ -391,6 +436,15 @@ export function InvoicesManager({
     return <p className="py-12 text-center text-sm text-neutral-500">Cargando documentos…</p>;
 
   const selectedProject = clientProjects.find((p) => p.id === form.projectId);
+  const selectedProjectInvoices = form.projectId
+    ? projectInvoicesAsLike(items, form.projectId)
+    : [];
+  const selectedProjectHasFinal = form.projectId
+    ? projectHasFinalInvoice(selectedProjectInvoices, form.projectId)
+    : false;
+  const initialProjectHasFinal = initialProjectId
+    ? projectHasFinalInvoice(projectInvoicesAsLike(items, initialProjectId), initialProjectId)
+    : false;
   const modalTitle =
     form.type === "sena" ? "Nuevo recibo de seña" : "Nueva factura final";
 
@@ -451,7 +505,13 @@ export function InvoicesManager({
           </button>
           <button
             onClick={() => openNewInvoiceModal("final")}
-            className="rounded px-4 py-2 text-sm font-medium text-white"
+            disabled={initialProjectHasFinal}
+            title={
+              initialProjectHasFinal
+                ? "Este proyecto ya tiene una factura final"
+                : undefined
+            }
+            className="rounded px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-45"
             style={{ background: "#F03172" }}
           >
             + Factura final
@@ -674,7 +734,13 @@ export function InvoicesManager({
                     onChange={(e) => setInvoiceType(e.target.value as "sena" | "final")}
                   >
                     <option value="sena">Recibo de seña</option>
-                    <option value="final">Factura final (saldo)</option>
+                    <option
+                      value="final"
+                      disabled={selectedProjectHasFinal}
+                    >
+                      Factura final (saldo)
+                      {selectedProjectHasFinal ? " — ya emitida" : ""}
+                    </option>
                   </select>
                 </Field>
                 <Field label="Total (EUR)" required>
@@ -698,17 +764,24 @@ export function InvoicesManager({
                     {form.type === "sena" ? (
                       <>
                         Valor del proyecto: €{selectedProject.value.toLocaleString("es-AR")} EUR —
-                        ingresá la seña acordada (no tiene que ser un porcentaje fijo).
+                        podés emitir varios recibos de seña. Saldo sin documentar: €{" "}
+                        {suggestedRemainingTotal(
+                          selectedProject.value,
+                          selectedProjectInvoices,
+                          form.projectId,
+                        ).toLocaleString("es-AR")}{" "}
+                        EUR.
                       </>
                     ) : (
                       <>
                         Saldo sugerido: €{" "}
                         {suggestedFinalTotal(
                           selectedProject.value,
-                          items.filter((i) => i.project?.id === form.projectId),
+                          selectedProjectInvoices,
                           form.projectId,
                         ).toLocaleString("es-AR")}{" "}
-                        EUR (valor del proyecto menos lo ya cobrado).
+                        EUR (valor del proyecto menos lo ya cobrado). Solo una factura final por
+                        proyecto.
                       </>
                     )}
                   </p>

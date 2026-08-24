@@ -4,7 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { Button } from "@/components/admin/ui/Button";
 import type { PrebriefField } from "@/lib/prebrief-content";
-import { getDefaultPrebriefTemplate, type PrebriefTemplate } from "@/lib/prebrief-template";
+import {
+  createPrebriefQuestionField,
+  createPrebriefSectionField,
+  getDefaultPrebriefTemplate,
+  type PrebriefTemplate,
+} from "@/lib/prebrief-template";
 import { brandUi, clientFrame } from "@/lib/brand-ui";
 import "@/components/admin/rich-text-editor.css";
 
@@ -126,6 +131,34 @@ export function PrebriefTemplateEditor({
     updateDraft({ ...draft, fields });
   }
 
+  function addQuestion(afterIndex?: number) {
+    const field = createPrebriefQuestionField(draft.fields);
+    const fields = [...draft.fields];
+    const insertAt = afterIndex == null ? fields.length : afterIndex + 1;
+    fields.splice(insertAt, 0, field);
+    updateDraft({ ...draft, fields });
+  }
+
+  function addSection(afterIndex?: number) {
+    const field = createPrebriefSectionField(draft.fields);
+    const fields = [...draft.fields];
+    const insertAt = afterIndex == null ? fields.length : afterIndex + 1;
+    fields.splice(insertAt, 0, field);
+    updateDraft({ ...draft, fields });
+  }
+
+  function removeField(index: number) {
+    if (draft.fields.length <= 1) {
+      setMessage("Debe quedar al menos una pregunta.");
+      return;
+    }
+    const field = draft.fields[index];
+    const label = field.label.trim() || field.sectionTitle?.trim() || "esta pregunta";
+    if (!window.confirm(`¿Eliminar "${label}" del cuestionario?`)) return;
+    const fields = draft.fields.filter((_, i) => i !== index);
+    updateDraft({ ...draft, fields });
+  }
+
   async function persist(next = draft, silent = false) {
     if (disabled) return false;
     setSaving(true);
@@ -218,19 +251,71 @@ export function PrebriefTemplateEditor({
       </div>
 
       <div className="space-y-4 rounded-xl border p-4" style={{ borderColor: brandUi.border }}>
-        <p className="text-xs font-medium uppercase tracking-wider" style={{ color: brandUi.text }}>
-          Preguntas ({draft.fields.length})
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: brandUi.text }}>
+            Preguntas ({draft.fields.length})
+          </p>
+          {!disabled && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => addQuestion()}
+                className="rounded-full px-3 py-1 text-[11px] font-medium border transition-colors hover:bg-neutral-50"
+                style={{ borderColor: brandUi.border, color: brandUi.accent }}
+              >
+                + Pregunta
+              </button>
+              <button
+                type="button"
+                onClick={() => addSection()}
+                className="rounded-full px-3 py-1 text-[11px] font-medium border transition-colors hover:bg-neutral-50"
+                style={{ borderColor: brandUi.border, color: brandUi.textMuted }}
+              >
+                + Sección
+              </button>
+            </div>
+          )}
+        </div>
         {draft.fields.map((field, index) => (
           <div
             key={field.id}
             className="space-y-3 rounded-lg border p-3"
             style={{ borderColor: brandUi.border, background: "#FAFAFA" }}
           >
-            {field.sectionTitle && (
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: brandUi.textFaint }}>
+                {field.sectionTitle
+                  ? `Sección · ${field.sectionTitle}`
+                  : field.id.startsWith("q")
+                    ? `Pregunta ${field.id.replace("q", "")}`
+                    : "Pregunta personalizada"}
+              </p>
+              {!disabled && (
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => addQuestion(index)}
+                    className="rounded px-2 py-0.5 text-[10px] border hover:bg-white"
+                    style={{ borderColor: brandUi.border, color: brandUi.textMuted }}
+                  >
+                    + Debajo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeField(index)}
+                    disabled={draft.fields.length <= 1}
+                    className="rounded px-2 py-0.5 text-[10px] border hover:bg-red-50 disabled:opacity-40"
+                    style={{ borderColor: "rgba(240,49,114,0.35)", color: brandUi.accent }}
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              )}
+            </div>
+            {(field.sectionTitle !== undefined || field.sectionIntro !== undefined) && (
               <PlainInput
                 label="Título de sección"
-                value={field.sectionTitle}
+                value={field.sectionTitle ?? ""}
                 onChange={(sectionTitle) => updateField(index, { sectionTitle })}
               />
             )}
@@ -243,27 +328,25 @@ export function PrebriefTemplateEditor({
               />
             )}
             <PlainInput
-              label={field.id.startsWith("q") ? `Pregunta ${field.id.replace("q", "")}` : "Campo"}
+              label="Pregunta"
               value={field.label}
               onChange={(label) => updateField(index, { label })}
             />
-            {field.hint !== undefined && (
-              <label className="block">
-                <span
-                  className="text-[9px] font-medium uppercase tracking-widest"
-                  style={{ color: brandUi.textFaint }}
-                >
-                  Ayuda / subtítulo
-                </span>
-                <textarea
-                  className="mt-1 w-full rounded border p-2 text-sm leading-relaxed resize-y min-h-[56px]"
-                  style={{ borderColor: brandUi.borderStrong, background: brandUi.surface }}
-                  rows={2}
-                  value={field.hint ?? ""}
-                  onChange={(e) => updateField(index, { hint: e.target.value })}
-                />
-              </label>
-            )}
+            <label className="block">
+              <span
+                className="text-[9px] font-medium uppercase tracking-widest"
+                style={{ color: brandUi.textFaint }}
+              >
+                Ayuda / subtítulo
+              </span>
+              <textarea
+                className="mt-1 w-full rounded border p-2 text-sm leading-relaxed resize-y min-h-[56px]"
+                style={{ borderColor: brandUi.borderStrong, background: brandUi.surface }}
+                rows={2}
+                value={field.hint ?? ""}
+                onChange={(e) => updateField(index, { hint: e.target.value })}
+              />
+            </label>
           </div>
         ))}
       </div>

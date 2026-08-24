@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
+import { validateInvoiceCreate } from "@/lib/invoice-utils";
 import { syncOnProjectInvoicePaid } from "@/lib/project-phase-sync";
 import { z } from "zod";
 const patchSchema = z.object({
@@ -48,13 +49,57 @@ export async function PATCH(req: Request, ctx: RouteParams) {
 
   const existing = await prisma.invoice.findUnique({
     where: { id },
-    select: { clientId: true, type: true, status: true },
+    select: {
+      id: true,
+      clientId: true,
+      type: true,
+      status: true,
+      total: true,
+      projectId: true,
+    },
   });
   if (!existing) {
     return NextResponse.json({ error: "No encontrado" }, { status: 404 });
   }
 
-  if (projectId) {
+  const targetProjectId =
+    projectId !== undefined ? projectId : existing.projectId;
+
+  if (targetProjectId) {
+    const project = await prisma.clientProject.findFirst({
+      where: { id: targetProjectId, clientId: existing.clientId },
+      select: {
+        id: true,
+        value: true,
+        invoices: {
+          select: { id: true, type: true, status: true, total: true, projectId: true },
+        },
+      },
+    });
+    if (!project) {
+      return NextResponse.json(
+        { error: "El proyecto no pertenece a este cliente" },
+        { status: 400 },
+      );
+    }
+
+    const nextTotal = rest.total ?? existing.total;
+    const nextStatus = (rest.status ?? existing.status) as "pendiente" | "pagado";
+    const validation = validateInvoiceCreate(
+      (rest.type ?? existing.type) as "sena" | "final",
+      targetProjectId,
+      project.value,
+      project.invoices,
+      {
+        excludeInvoiceId: existing.id,
+        newTotal: nextTotal,
+        newStatus: nextStatus,
+      },
+    );
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+  } else if (projectId) {
     const project = await prisma.clientProject.findFirst({
       where: { id: projectId, clientId: existing.clientId },
       select: { id: true },

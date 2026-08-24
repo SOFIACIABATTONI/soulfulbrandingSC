@@ -82,7 +82,10 @@ export async function POST(req: Request) {
     projectValue = project.value;
     projectInvoices = project.invoices;
 
-    const validation = validateInvoiceCreate(rest.type, projectId, projectValue, projectInvoices);
+    const validation = validateInvoiceCreate(rest.type, projectId, projectValue, projectInvoices, {
+      newTotal: rest.total,
+      newStatus: rest.status,
+    });
     if (!validation.ok) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }

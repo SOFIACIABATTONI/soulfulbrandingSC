@@ -10,6 +10,7 @@ export const INVOICE_TYPE_SHORT: Record<string, string> = {
 };
 
 export type InvoiceLike = {
+  id?: string;
   type: string;
   status: string;
   total: number;
@@ -30,6 +31,37 @@ export function sumPaidInvoices(
     .reduce((acc, i) => acc + i.total, 0);
 }
 
+/** Suma de montos pendientes en un proyecto. */
+export function sumPendingInvoices(
+  invoices: InvoiceLike[],
+  projectId: string,
+): number {
+  return invoices
+    .filter((i) => i.projectId === projectId && i.status === "pendiente")
+    .reduce((acc, i) => acc + i.total, 0);
+}
+
+/** Total comprometido (pagado + pendiente) en un proyecto, con override opcional para edición. */
+export function projectInvoiceCommittedTotal(
+  invoices: InvoiceLike[],
+  projectId: string,
+  override?: { invoiceId?: string; total?: number; status?: string },
+): number {
+  let sum = 0;
+  for (const inv of invoices) {
+    if (inv.projectId !== projectId) continue;
+    let total = inv.total;
+    if (override?.invoiceId && inv.id === override.invoiceId) {
+      if (override.total !== undefined) total = override.total;
+    }
+    sum += total;
+  }
+  if (override && !override.invoiceId && override.total != null) {
+    sum += override.total;
+  }
+  return Math.round(sum * 100) / 100;
+}
+
 /** Saldo sugerido para factura final. */
 export function suggestedFinalTotal(
   projectValue: number,
@@ -38,6 +70,16 @@ export function suggestedFinalTotal(
 ): number {
   const paid = sumPaidInvoices(invoices, projectId);
   return Math.max(0, Math.round((projectValue - paid) * 100) / 100);
+}
+
+/** Saldo pendiente por emitir (valor del proyecto menos todo lo ya documentado). */
+export function suggestedRemainingTotal(
+  projectValue: number,
+  invoices: InvoiceLike[],
+  projectId: string,
+): number {
+  const committed = projectInvoiceCommittedTotal(invoices, projectId);
+  return Math.max(0, Math.round((projectValue - committed) * 100) / 100);
 }
 
 export function projectHasSenaInvoice(
@@ -50,8 +92,14 @@ export function projectHasSenaInvoice(
 export function projectHasFinalInvoice(
   invoices: InvoiceLike[],
   projectId: string,
+  excludeInvoiceId?: string,
 ): boolean {
-  return invoices.some((i) => i.type === "final" && i.projectId === projectId);
+  return invoices.some(
+    (i) =>
+      i.type === "final" &&
+      i.projectId === projectId &&
+      i.id !== excludeInvoiceId,
+  );
 }
 
 export function projectSenaIsPaid(
@@ -70,44 +118,61 @@ export type InvoiceCreateValidation = {
   error: string;
 };
 
-/** Reglas de negocio al crear recibo / factura final. */
+export type InvoiceCreateOptions = {
+  newTotal?: number;
+  newStatus?: "pendiente" | "pagado";
+  excludeInvoiceId?: string;
+};
+
+function formatEur(amount: number): string {
+  return amount.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+/** Reglas de negocio al crear o modificar recibos / facturas de un proyecto. */
 export function validateInvoiceCreate(
   type: "sena" | "final",
   projectId: string | undefined,
   projectValue: number | undefined,
   invoices: InvoiceLike[],
+  opts?: InvoiceCreateOptions,
 ): InvoiceCreateValidation {
   if (!projectId) {
     return { ok: true };
   }
 
-  if (type === "sena") {
-    if (projectHasSenaInvoice(invoices, projectId)) {
-      return { ok: false, error: "Este proyecto ya tiene un recibo de seña." };
-    }
-    return { ok: true };
-  }
-
-  if (projectHasFinalInvoice(invoices, projectId)) {
-    return { ok: false, error: "Este proyecto ya tiene una factura final." };
-  }
-
-  const hasSena = projectHasSenaInvoice(invoices, projectId);
-  if (hasSena && !projectSenaIsPaid(invoices, projectId)) {
+  if (type === "final" && projectHasFinalInvoice(invoices, projectId, opts?.excludeInvoiceId)) {
     return {
       ok: false,
-      error: "Primero debe pagarse el recibo de seña antes de emitir la factura final.",
+      error: "Este proyecto ya tiene una factura final.",
     };
   }
 
-  if (projectValue != null && projectValue > 0) {
-    const paid = sumPaidInvoices(invoices, projectId);
-    if (paid >= projectValue) {
-      return {
-        ok: false,
-        error: "El proyecto ya está totalmente cobrado.",
-      };
-    }
+  if (projectValue == null || projectValue <= 0) {
+    return { ok: true };
+  }
+
+  const relevant = invoices.filter((i) => i.projectId === projectId);
+
+  const paid = sumPaidInvoices(relevant, projectId);
+  const newTotal = opts?.newTotal ?? 0;
+
+  if (paid >= projectValue && newTotal > 0 && !opts?.excludeInvoiceId) {
+    return {
+      ok: false,
+      error: "El proyecto ya está totalmente cobrado.",
+    };
+  }
+
+  const committed = projectInvoiceCommittedTotal(relevant, projectId, {
+    invoiceId: opts?.excludeInvoiceId,
+    total: newTotal > 0 ? newTotal : undefined,
+  });
+
+  if (committed > projectValue + 0.001) {
+    return {
+      ok: false,
+      error: `El total de recibos y facturas (€${formatEur(committed)} EUR) supera el valor del proyecto (€${formatEur(projectValue)} EUR).`,
+    };
   }
 
   return { ok: true };

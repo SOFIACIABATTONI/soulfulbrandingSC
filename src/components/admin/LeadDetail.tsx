@@ -229,8 +229,12 @@ export function LeadDetail({
 
   const approvedQuote = pipelineContext.quotes.find((q) => q.status === "aprobado");
   const acceptedProject = linkedClient?.projects.find((p) => p.contractStatus === "aceptado");
-  const paidSena = linkedClient?.invoices.find((i) => i.type === "sena" && i.status === "pagado");
-  const paidFinal = linkedClient?.invoices.find((i) => i.type === "final" && i.status === "pagado");
+  const paidSenas = linkedClient?.invoices.filter(
+    (i) => i.type === "sena" && i.status === "pagado",
+  ) ?? [];
+  const paidFinal = linkedClient?.invoices.find(
+    (i) => i.type === "final" && i.status === "pagado",
+  );
 
   return (
     <div>
@@ -467,13 +471,14 @@ export function LeadDetail({
                 date={acceptedProject.contractAcceptedAt}
               />
             )}
-            {paidSena && (
+            {paidSenas.map((invoice) => (
               <TimelineRow
+                key={invoice.id}
                 color="#1a6b1a"
-                text={`Recibo de seña pagado (${paidSena.number})`}
-                date={paidSena.paidAt ?? paidSena.issuedAt}
+                text={`Recibo de seña pagado (${invoice.number})`}
+                date={invoice.paidAt ?? invoice.issuedAt}
               />
-            )}
+            ))}
             {paidFinal && (
               <TimelineRow
                 color="#1a6b1a"

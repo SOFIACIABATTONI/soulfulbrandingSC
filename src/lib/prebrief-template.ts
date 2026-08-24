@@ -131,10 +131,12 @@ function mergePrebriefFields(
   defaults: PrebriefField[],
   stored: PrebriefField[],
 ): PrebriefField[] {
-  const byId = new Map(stored.map((f) => [f.id, f]));
-  return defaults.map((def) => {
-    const custom = byId.get(def.id);
-    if (!custom) return { ...def };
+  const defaultsById = new Map(defaults.map((f) => [f.id, f]));
+  return stored.map((custom) => {
+    const def = defaultsById.get(custom.id);
+    if (!def) {
+      return { ...custom };
+    }
     const merged = {
       ...def,
       ...custom,
@@ -145,6 +147,34 @@ function mergePrebriefFields(
     }
     return merged;
   });
+}
+
+/** Genera un id único para una pregunta custom del cuestionario. */
+export function nextPrebriefFieldId(existing: PrebriefField[]): string {
+  const ids = new Set(existing.map((f) => f.id));
+  let n = existing.length + 1;
+  while (ids.has(`custom_q${n}`)) n += 1;
+  return `custom_q${n}`;
+}
+
+export function createPrebriefQuestionField(existing: PrebriefField[]): PrebriefField {
+  return {
+    id: nextPrebriefFieldId(existing),
+    label: "Nueva pregunta",
+    hint: "",
+    rows: 4,
+  };
+}
+
+export function createPrebriefSectionField(existing: PrebriefField[]): PrebriefField {
+  return {
+    id: nextPrebriefFieldId(existing),
+    sectionTitle: "Nueva sección",
+    sectionIntro: "",
+    label: "Pregunta de la sección",
+    hint: "",
+    rows: 4,
+  };
 }
 
 export function serializePrebriefTemplateForPhases(
