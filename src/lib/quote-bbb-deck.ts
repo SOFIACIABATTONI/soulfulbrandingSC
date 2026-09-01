@@ -1,5 +1,7 @@
-/** Born & Be Brand ID — deck visual (12 diapositivas, SB® BBB 2026). */
-export const BBB_DECK_SLIDES = [
+export type BbbDeckSlide = { src: string; alt: string };
+
+/** Deck visual Born & Be anterior (12 diapositivas). Presupuestos ya enviados. */
+export const BBB_DECK_SLIDES_LEGACY: BbbDeckSlide[] = [
   { src: "/quotes/bbb-2026/pagina_01.jpg", alt: "Born & Be — Método Soulful Branding®" },
   { src: "/quotes/bbb-2026/pagina_02.jpg", alt: "Born and Be — branding estratégico" },
   { src: "/quotes/bbb-2026/pagina_03.jpg", alt: "Acompañamiento creativo y alquimia de marca" },
@@ -12,8 +14,28 @@ export const BBB_DECK_SLIDES = [
   { src: "/quotes/bbb-2026/pagina_10.jpg", alt: "Alcance, inversión y condiciones de pago" },
   { src: "/quotes/bbb-2026/pagina_11.jpg", alt: "Marcas visionarias — portfolio" },
   { src: "/quotes/bbb-2026/pagina_12.jpg", alt: "It's time to bloom — Born and Be" },
-] as const;
+];
+
+/** Deck HT actual (4 diapositivas, sep 2026). */
+export const BBB_DECK_SLIDES_HT: BbbDeckSlide[] = [
+  { src: "/quotes/bbb-ht-2026/pagina_01.jpg", alt: "Born & Be — Propuesta HT 1" },
+  { src: "/quotes/bbb-ht-2026/pagina_02.jpg", alt: "Born & Be — Propuesta HT 2" },
+  { src: "/quotes/bbb-ht-2026/pagina_03.jpg", alt: "Born & Be — Propuesta HT 3" },
+  { src: "/quotes/bbb-ht-2026/pagina_04.jpg", alt: "Born & Be — Propuesta HT 4" },
+];
+
+/** @deprecated Usar getBbbDeckSlides(format) */
+export const BBB_DECK_SLIDES = BBB_DECK_SLIDES_HT;
+
+export function getBbbDeckSlides(format: string | undefined): readonly BbbDeckSlide[] {
+  if (format === "bbb-deck-2026") return BBB_DECK_SLIDES_LEGACY;
+  return BBB_DECK_SLIDES_HT;
+}
+
+export function bbbDeckSlideCount(format: string | undefined): number {
+  return getBbbDeckSlides(format).length;
+}
 
 export function isBbbDeckFormat(format: string | undefined): boolean {
-  return format === "bbb-deck-2026";
+  return format === "bbb-deck-2026" || format === "bbb-deck-ht-2026";
 }

@@ -37,6 +37,19 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  const client = await prisma.client.create({ data: parsed.data });
+  const existing = await prisma.client.findFirst({
+    where: { email: { equals: parsed.data.email.trim(), mode: "insensitive" } },
+    select: { id: true, name: true, email: true },
+  });
+  if (existing) {
+    return NextResponse.json(
+      {
+        error: `Ya existe un cliente con ese email (${existing.name}). Abrí su ficha y usá «Fusionar con otro cliente» si es un duplicado.`,
+        existingClientId: existing.id,
+      },
+      { status: 409 },
+    );
+  }
+  const client = await prisma.client.create({ data: { ...parsed.data, email: parsed.data.email.trim() } });
   return NextResponse.json({ ok: true, item: client }, { status: 201 });
 }

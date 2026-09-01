@@ -187,7 +187,7 @@ export function QuoteFormattedBody({
     return (
       <div>
         <QuoteVideoEmbed videoUrl={videoUrl} theme={theme} />
-        <QuoteBBBDeck variant={deckVariant} />
+        <QuoteBBBDeck variant={deckVariant} format={format} />
       </div>
     );
   }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { CLIENT_RESPONSE_LABELS } from "@/lib/quote-types";
 import { getQuoteProposalTemplate, resolveProposalIdFromContent } from "@/lib/quote-proposal-templates";
 import { QuoteFormattedBody } from "@/components/quote/QuoteFormattedBody";
+import { isBbbDeckFormat } from "@/lib/quote-bbb-deck";
 import { PortalCard, PortalShell } from "@/components/portal/PortalShell";
 import { brandUi } from "@/lib/brand-ui";
 
@@ -11,7 +12,7 @@ type PublicQuote = {
   status: string;
   content: {
     body: string;
-    format?: "markdown" | "plain" | "bbb-deck-2026" | "pdf";
+    format?: "markdown" | "plain" | "bbb-deck-2026" | "bbb-deck-ht-2026" | "pdf";
     proposalId?: string;
     pdfUrl?: string;
     videoUrl?: string;
@@ -98,7 +99,7 @@ export function QuoteRespondClient({ token }: { token: string }) {
 
   if (!data) return null;
 
-  const isDeck = data.content.format === "bbb-deck-2026";
+  const isDeck = isBbbDeckFormat(data.content.format);
   const isPdf = data.content.format === "pdf";
   const proposalLabel = getQuoteProposalTemplate(
     resolveProposalIdFromContent({

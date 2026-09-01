@@ -25,7 +25,13 @@ export const CLIENT_RESPONSES = ["aprobado", "rechazado", "consultar"] as const;
 
 export type ClientResponse = (typeof CLIENT_RESPONSES)[number];
 
-export const QUOTE_CONTENT_FORMATS = ["markdown", "plain", "bbb-deck-2026", "pdf"] as const;
+export const QUOTE_CONTENT_FORMATS = [
+  "markdown",
+  "plain",
+  "bbb-deck-2026",
+  "bbb-deck-ht-2026",
+  "pdf",
+] as const;
 export type QuoteContentFormat = (typeof QUOTE_CONTENT_FORMATS)[number];
 
 export const quoteContentSchema = z.object({
@@ -56,11 +62,13 @@ export function normalizeQuoteContent(raw: unknown): QuoteContent {
   const format: QuoteContentFormat =
     formatRaw === "plain"
       ? "plain"
-      : formatRaw === "bbb-deck-2026"
-        ? "bbb-deck-2026"
-        : formatRaw === "pdf"
-          ? "pdf"
-          : "markdown";
+      : formatRaw === "bbb-deck-ht-2026"
+        ? "bbb-deck-ht-2026"
+        : formatRaw === "bbb-deck-2026"
+          ? "bbb-deck-2026"
+          : formatRaw === "pdf"
+            ? "pdf"
+            : "markdown";
 
   const pdfUrlRaw = o.pdfUrl;
   const pdfUrl = normalizeLegacyProposalPdfUrl(

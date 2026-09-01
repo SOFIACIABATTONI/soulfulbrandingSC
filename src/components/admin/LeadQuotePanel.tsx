@@ -20,7 +20,7 @@ import {
   type QuoteProposalTemplate,
 } from "@/lib/quote-proposal-templates";
 import type { QuoteProposalId } from "@/lib/quote-types";
-import { isBbbDeckFormat } from "@/lib/quote-bbb-deck";
+import { bbbDeckSlideCount, isBbbDeckFormat } from "@/lib/quote-bbb-deck";
 import { isQuotePdfFormat } from "@/lib/quote-proposal-pdfs";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 
@@ -334,7 +334,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                 </p>
                 {template.id === "born-and-be" && (
                   <p className="mt-2 text-[10px] leading-relaxed" style={{ color: "rgba(19,25,69,0.55)" }}>
-                    12 diapositivas JPG — no hace falta PDF.
+                    {bbbDeckSlideCount("bbb-deck-ht-2026")} diapositivas JPG — no hace falta PDF.
                   </p>
                 )}
               </button>
@@ -447,7 +447,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                     {isPdf
                       ? `El cliente verá el PDF «${activeProposal.label}» en el link del mail. Ingresá el total acordado abajo antes de enviar.`
                       : isDeck
-                        ? `Deck JPG «${activeProposal.label}» (12 diapositivas). Ingresá el total acordado abajo antes de enviar.`
+                        ? `Deck JPG «${activeProposal.label}» (${bbbDeckSlideCount(format)} diapositivas). Ingresá el total acordado abajo antes de enviar.`
                         : `Propuesta «${activeProposal.label}». Ingresá el total acordado abajo.`}
                   </p>
                   <div className="space-y-4">

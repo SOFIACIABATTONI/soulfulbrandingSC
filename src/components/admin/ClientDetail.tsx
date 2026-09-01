@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Client } from "@prisma/client";
@@ -92,6 +92,14 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
   const [deletePhrase, setDeletePhrase] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeSearch, setMergeSearch] = useState("");
+  const [mergeCandidates, setMergeCandidates] = useState<
+    { id: string; name: string; email: string; _count: { projects: number; invoices: number } }[]
+  >([]);
+  const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
+  const [merging, setMerging] = useState(false);
+  const [mergeError, setMergeError] = useState<string | null>(null);
 
   async function patchClient(data: Partial<Client>) {
     setSaving(true);
@@ -129,6 +137,60 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
     setDeleteAck(false);
     setDeletePhrase("");
     setDeleteError(null);
+  }
+
+  function resetMergeModal() {
+    setMergeOpen(false);
+    setMergeSearch("");
+    setMergeSourceId(null);
+    setMergeError(null);
+  }
+
+  useEffect(() => {
+    if (!mergeOpen) return;
+    void (async () => {
+      const res = await fetch("/api/admin/clients", { credentials: "include" });
+      if (!res.ok) return;
+      const j = (await res.json()) as {
+        items: { id: string; name: string; email: string; _count: { projects: number; invoices: number } }[];
+      };
+      setMergeCandidates(j.items.filter((item) => item.id !== client.id));
+    })();
+  }, [mergeOpen, client.id]);
+
+  const filteredMergeCandidates = useMemo(() => {
+    if (!mergeSearch.trim()) return mergeCandidates;
+    const q = mergeSearch.toLowerCase();
+    return mergeCandidates.filter(
+      (item) =>
+        item.name.toLowerCase().includes(q) ||
+        item.email.toLowerCase().includes(q),
+    );
+  }, [mergeCandidates, mergeSearch]);
+
+  async function mergeWithClient() {
+    if (!mergeSourceId) return;
+    setMergeError(null);
+    setMerging(true);
+    const res = await fetch(`/api/admin/clients/${client.id}/merge`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourceClientId: mergeSourceId }),
+    });
+    setMerging(false);
+    if (!res.ok) {
+      const j = (await res.json().catch(() => null)) as { error?: string } | null;
+      setMergeError(j?.error ?? "No se pudo fusionar.");
+      return;
+    }
+    resetMergeModal();
+    router.refresh();
+    const detailRes = await fetch(`/api/admin/clients/${client.id}`, { credentials: "include" });
+    if (detailRes.ok) {
+      const j = (await detailRes.json()) as { item: ClientFull };
+      setClient(j.item);
+    }
   }
 
   async function deleteClientPermanently() {
@@ -366,6 +428,19 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
             <button
               type="button"
               onClick={() => {
+                setMergeError(null);
+                setMergeSourceId(null);
+                setMergeSearch("");
+                setMergeOpen(true);
+              }}
+              className="rounded border px-3 py-2 text-xs text-center transition-colors hover:bg-neutral-50"
+              style={{ borderColor: "rgba(19,25,69,0.15)", color: "#131945" }}
+            >
+              Fusionar con otro cliente…
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 setDeleteAck(false);
                 setDeletePhrase("");
                 setDeleteError(null);
@@ -416,6 +491,89 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
         </div>
       </div>
     </div>
+
+    {mergeOpen && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: "rgba(19,25,69,0.2)" }}
+        onClick={(e) => e.target === e.currentTarget && !merging && resetMergeModal()}
+      >
+        <div
+          className="w-full max-w-lg rounded bg-white shadow-2xl p-5 space-y-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="merge-client-title"
+        >
+          <h3 id="merge-client-title" className="font-serif text-lg italic" style={{ color: "#131945" }}>
+            Fusionar clientes
+          </h3>
+          <p className="text-sm leading-relaxed" style={{ color: "rgba(19,25,69,0.65)" }}>
+            Esta ficha (<strong>{client.name}</strong> · {client.email}) se queda como principal. El
+            otro registro se elimina y sus proyectos, facturas y accesos pasan acá. El email alternativo
+            queda anotado en notas.
+          </p>
+          <input
+            type="text"
+            className="w-full rounded border px-3 py-2 text-sm"
+            style={{ borderColor: "rgba(19,25,69,0.15)" }}
+            placeholder="Buscar por nombre o email…"
+            value={mergeSearch}
+            onChange={(e) => setMergeSearch(e.target.value)}
+          />
+          <div className="max-h-48 overflow-y-auto rounded border" style={{ borderColor: "rgba(19,25,69,0.1)" }}>
+            {filteredMergeCandidates.length === 0 ? (
+              <p className="p-3 text-xs" style={{ color: "rgba(19,25,69,0.42)" }}>
+                No hay otros clientes para fusionar.
+              </p>
+            ) : (
+              filteredMergeCandidates.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setMergeSourceId(item.id)}
+                  className="w-full text-left px-3 py-2 border-b last:border-b-0 hover:bg-neutral-50"
+                  style={{
+                    borderColor: "rgba(19,25,69,0.06)",
+                    background: mergeSourceId === item.id ? "rgba(50,63,246,0.06)" : undefined,
+                  }}
+                >
+                  <p className="text-sm font-medium" style={{ color: "#131945" }}>
+                    {item.name}
+                  </p>
+                  <p className="text-[11px]" style={{ color: "rgba(19,25,69,0.55)" }}>
+                    {item.email} · {item._count.projects} proyecto(s) · {item._count.invoices} factura(s)
+                  </p>
+                </button>
+              ))
+            )}
+          </div>
+          {mergeError && (
+            <p className="text-xs text-red-700 bg-red-50 border border-red-100 rounded px-2 py-1.5">
+              {mergeError}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              disabled={merging}
+              onClick={() => resetMergeModal()}
+              className="rounded border border-neutral-200 px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={merging || !mergeSourceId}
+              onClick={() => void mergeWithClient()}
+              className="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+              style={{ background: "#323FF6" }}
+            >
+              {merging ? "Fusionando…" : "Fusionar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {deleteOpen && (
       <div

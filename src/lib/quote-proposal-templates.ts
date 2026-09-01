@@ -43,7 +43,7 @@ export const QUOTE_PROPOSAL_TEMPLATES: QuoteProposalTemplate[] = [
   {
     id: "born-and-be",
     label: "Born & Be · Brand ID",
-    description: "Deck visual original (12 diapositivas) — la propuesta BBB tal cual.",
+    description: "Deck visual HT (4 diapositivas) — propuesta Born & Be actual.",
     serviceKey: "identidad-de-marca",
     buildContent: (lead) => ({
       ...buildBornAndBeDeckContent(lead),
@@ -78,7 +78,9 @@ export function resolveProposalIdFromContent(content: QuoteContent): QuotePropos
   if (content.proposalId && QUOTE_PROPOSAL_IDS.includes(content.proposalId as QuoteProposalId)) {
     return content.proposalId as QuoteProposalId;
   }
-  if (content.format === "bbb-deck-2026") return "born-and-be";
+  if (content.format === "bbb-deck-ht-2026" || content.format === "bbb-deck-2026") {
+    return "born-and-be";
+  }
   if (content.format === "pdf" && content.pdfUrl?.includes("soul-brand-map")) {
     return "estrategia-visual";
   }

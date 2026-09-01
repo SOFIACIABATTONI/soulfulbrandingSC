@@ -1,14 +1,16 @@
 "use client";
 
-import { BBB_DECK_SLIDES } from "@/lib/quote-bbb-deck";
+import { getBbbDeckSlides } from "@/lib/quote-bbb-deck";
 
 type QuoteBBBDeckProps = {
   /** En admin la vista previa puede ir en columna estrecha */
   variant?: "portal" | "preview";
+  format?: string;
 };
 
-export function QuoteBBBDeck({ variant = "portal" }: QuoteBBBDeckProps) {
+export function QuoteBBBDeck({ variant = "portal", format }: QuoteBBBDeckProps) {
   const isPortal = variant === "portal";
+  const slides = getBbbDeckSlides(format);
 
   return (
     <div
@@ -18,7 +20,7 @@ export function QuoteBBBDeck({ variant = "portal" }: QuoteBBBDeckProps) {
           : "bbb-deck w-full max-w-none -mx-1"
       }
     >
-      {BBB_DECK_SLIDES.map((slide, index) => (
+      {slides.map((slide, index) => (
         <figure key={slide.src} className="m-0 leading-none">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

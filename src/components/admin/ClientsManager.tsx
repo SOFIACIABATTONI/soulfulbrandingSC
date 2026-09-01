@@ -78,6 +78,9 @@ export function ClientsManager() {
       setModalOpen(false);
       setForm(EMPTY_FORM);
       await load();
+    } else {
+      const j = (await res.json().catch(() => null)) as { error?: string } | null;
+      window.alert(j?.error ?? "No se pudo crear el cliente.");
     }
   }
 
