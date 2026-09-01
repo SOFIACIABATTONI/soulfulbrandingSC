@@ -6,72 +6,49 @@
 - `ContactMessage` se mantiene intacto. Los leads del ERP usan el modelo `Lead` separado.
 - `SiteContent` no se toca.
 - `/api/admin/contact-messages/` no se toca.
-- El middleware.ts actual no se modifica.
-- `src/components/admin/ProjectWorkspace.tsx` NO se modifica — es el workspace del portfolio activo (admin/projects/[slug]). La UI de seguimiento de proyectos ERP usa `ERPProjectWorkspace.tsx` (nuevo), que copia su patrón pero trabaja con `ClientProject`.
+- El middleware.ts actual no se modifica (salvo pedido explícito).
+- `src/components/admin/ProjectWorkspace.tsx` NO se modifica — workspace del portfolio en admin (`/admin/projects/[slug]`). El ERP usa `ERPProjectWorkspace.tsx` con `ClientProject`.
+
+## Producción (sep 2026)
+- **Dominio:** https://www.sofiaciabattoni.com
+- **Git:** remoto `sofia` → rama `master`
+- **Neon:** branch `production` (Vercel Production) · branch `dev` (preview)
+- **ERP en vivo:** `/admin`, portales `/cliente/*`, `/presupuesto/*`
+- **Antes de push a `master` con cambios de BD:** backup Neon → regla `.cursor/rules/neon-backup-before-master.mdc`
+- **Docs internas:** `private-notes/backups-y-restauracion.md`, `private-notes/deploy-dev-a-master.md`, `private-notes/_ciberseguridad.md`
 
 ## Stack
-Next.js 15 App Router · Prisma 6 · PostgreSQL (Neon) · Vercel · TypeScript · Tailwind CSS
+Next.js 15 App Router · Prisma 6 · PostgreSQL (Neon) · Vercel · TypeScript · Tailwind CSS · Vercel Blob
 
 ## Rama de trabajo
-Crear rama antes de cada bloque:
-- feature/erp-bloque-1-schema
-- feature/erp-bloque-2-leads-api
-- feature/erp-bloque-3-presupuesto
-- etc.
-Nunca trabajar directo en main.
+- Desarrollo: `dev` (preview) o ramas `feature/*`
+- Publicación: merge a `master` → `git push sofia master`
+- No trabajar cambios de producción directo en `master` sin probar en `dev`
 
 ## Convenciones del proyecto
-- Componentes admin en: src/components/admin/
-- Páginas admin en: src/app/admin/
-- APIs admin en: src/app/api/admin/
-- Seguir el patrón de contact-messages/ para nuevas APIs
-- Seguir el patrón de LeadsManager.tsx para nuevos componentes admin
+- Componentes admin: `src/components/admin/`
+- Páginas admin: `src/app/admin/`
+- APIs admin: `src/app/api/admin/`
+- Patrón APIs: `contact-messages/` · Patrón UI: `LeadsManager.tsx`
 
-## Paleta de colores (manual de marca aprobado)
-- Crema: #F9F3DB (fondo principal del admin)
-- Negro: #0D0D0D (sidebar, headers de documentos)
-- Rosa: #F03172 (acento principal, CTAs)
-- Azul: #323FF6 (estados informativos, links)
-- Navy: #131945 (textos secundarios)
+## Paleta de colores (manual de marca)
+- Crema: #F9F3DB · Negro: #0D0D0D · Rosa: #F03172 · Azul: #323FF6 · Navy: #131945
 
 ## Tipografía
-- Títulos: EB Garamond (serif, itálica)
-- Cuerpo: Helvetica / sans-serif del sistema
+- Títulos: EB Garamond (serif) · Cuerpo: Helvetica / sistema
 
-## Referencia visual
-El archivo soulful-erp-prototipo.html (en la raíz o en /docs) tiene
-el diseño completo aprobado por la clienta. Usarlo como referencia
-de UI para cada pantalla nueva — no copiarlo literalmente, adaptarlo a Next.js/Tailwind.
+## Referencia visual ERP
+`soulful-erp-prototipo.html` — UI aprobada; adaptar a Next.js/Tailwind.
 
-## Modelos ERP (todos nuevos, no existen todavía)
-Lead · Client · ClientProject · Invoice · ClientAccessToken
+## Modelos ERP (implementados)
+Lead · Quote · Client · ClientProject · Invoice · ClientAccessToken · ContractAcceptance · PortfolioGalleryItem
 
-## Sobre ProjectWorkspace.tsx
-Ya existe en `src/components/admin/ProjectWorkspace.tsx` y maneja el portfolio activo — NO tocar.
-En la Sesión 11 (Bloque 5), creá `ERPProjectWorkspace.tsx` copiando el patrón de `ProjectWorkspace.tsx`
-pero adaptado para `ClientProject`. Usar el original solo como referencia, no modificarlo.
+## Enums / estados
+- Servicios: `identidad-de-marca` | `estrategia-visual` | `diseno-editorial`
+- Lead status: `negociacion` | `ganado` | `perdido`
+- ClientProject status: `onboarding` | `diseno` | `implementacion` | `entregado`
+- Invoice: type `sena` | `final` · status `pendiente` | `pagado`
+- ClientAccessToken purpose: `pre-brief` | `contrato` | `narrativa` | `entrega`
 
 ## Documentación de desarrollo
-Al finalizar cada bloque, generar un resumen en `private-notes/dev-log.md` con:
-- Qué se construyó
-- Decisiones tomadas y por qué
-- Archivos creados o modificados
-- Qué queda pendiente para el siguiente bloque
-
-## Servicios disponibles (enum compartido)
-"identidad-de-marca" | "estrategia-visual" | "diseno-editorial"
-
-## Estados de Lead
-"negociacion" | "ganado" | "perdido"
-
-## Estados de ClientProject
-"onboarding" | "diseno" | "implementacion" | "entregado"
-
-## Estados de Invoice
-"pendiente" | "pagado"
-
-## Tipos de Invoice
-"sena" | "final"
-
-## Propósitos de ClientAccessToken
-"pre-brief" | "contrato" | "narrativa" | "entrega"
+Resúmenes de bloques: `private-notes/dev-log.md` (histórico). Nuevos hitos: entrada al inicio de ese archivo o nota en `private-notes/`.

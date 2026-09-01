@@ -1,0 +1,51 @@
+---
+description: Backup obligatorio en Neon antes de publicar en master (producción sofiaciabattoni.com).
+alwaysApply: true
+---
+
+# Neon — backup antes de `master`
+
+## Regla obligatoria
+
+**No ejecutar `git push sofia master`** (ni merge a `master` destinado a producción) sin antes crear un backup de la branch Neon **`production`**, cuando el cambio pueda afectar datos o esquema.
+
+## Cuándo es obligatorio el backup
+
+- Migraciones Prisma (`prisma/migrations/**`, cambios en `schema.prisma`)
+- APIs o scripts que escriben/leen datos ERP (`Lead`, `Client`, `ClientProject`, facturas, tokens, etc.)
+- Scripts de migración de datos (`scripts/migrate-erp-dev-to-prod.ts` u otros)
+- Deploy ERP grande tras merge `dev` → `master`
+
+## Cuándo NO hace falta
+
+- Solo UI/CSS/copy sin tocar BD ni APIs de datos
+- Cambios solo en `dev` / preview que no van a `master`
+
+## Comando (crear backup sin compute)
+
+Usar fecha del día en el nombre (`backup-AAAA-MM-DD`):
+
+```bash
+npx neonctl branches create \
+  --project-id round-cloud-45214139 \
+  --name backup-AAAA-MM-DD \
+  --parent production \
+  --no-compute
+```
+
+Proyecto: **SoulfulBranding** · branch live: **`production`** · plan Free (PITR solo 6 h; este backup cubre detección tardía).
+
+## Flujo del agente
+
+1. Antes de `git push sofia master`, evaluar si aplica backup obligatorio.
+2. Si aplica: crear el branch (o pedir confirmación explícita de que ya existe un backup del día).
+3. Solo entonces merge/push a `master`.
+4. Si el usuario pide saltarse el backup, advertir el riesgo y que no hay restore >6 h sin branch manual.
+
+## Restaurar (referencia)
+
+Neon → `production` → **Reset branch** → elegir el backup. No cambia `DATABASE_URL` en Vercel. Los archivos en Blob se re-enlazan solos si las URLs siguen vivas.
+
+## Más detalle
+
+`private-notes/backups-y-restauracion.md`

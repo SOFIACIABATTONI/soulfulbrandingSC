@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendContactEmailNotification } from "@/lib/send-contact-email";
+import { checkRateLimit, requestClientIp } from "@/lib/rate-limit";
 import { z } from "zod";
 import { isContactFormKey } from "@/lib/contact-form-keys";
+
+const CONTACT_MAX_PER_WINDOW = 8;
+const CONTACT_WINDOW_MS = 10 * 60_000;
 
 const schema = z.object({
   name: z.string().min(1).max(200),
@@ -21,6 +25,14 @@ const FORM_ORIGIN_FALLBACK: Record<string, string> = {
 };
 
 export async function POST(req: Request) {
+  const ip = requestClientIp(req);
+  if (!checkRateLimit("contact", ip, CONTACT_MAX_PER_WINDOW, CONTACT_WINDOW_MS)) {
+    return NextResponse.json(
+      { error: "Demasiados envíos. Probá de nuevo en unos minutos." },
+      { status: 429 },
+    );
+  }
+
   const json = await req.json().catch(() => null);
   const parsed = schema.safeParse(json);
   if (!parsed.success) {

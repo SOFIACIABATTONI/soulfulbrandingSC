@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createAdminToken, ADMIN_COOKIE_NAME } from "@/lib/session";
+import { checkRateLimit, requestClientIp } from "@/lib/rate-limit";
+
+const LOGIN_MAX_ATTEMPTS = 10;
+const LOGIN_WINDOW_MS = 15 * 60_000;
 
 export async function POST(req: Request) {
+  const ip = requestClientIp(req);
+  if (!checkRateLimit("admin-login", ip, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS)) {
+    return NextResponse.json(
+      { ok: false, error: "Demasiados intentos. Probá de nuevo en unos minutos." },
+      { status: 429 },
+    );
+  }
+
   const body = (await req.json().catch(() => null)) as { password?: string } | null;
   const password = body?.password ?? "";
   const expected = process.env.ADMIN_PASSWORD;

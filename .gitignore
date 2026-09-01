@@ -9,3 +9,4 @@ node_modules
 public/uploads/*
 !public/uploads/.gitkeep
 private-notes/
+.vercel
