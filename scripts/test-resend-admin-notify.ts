@@ -10,6 +10,7 @@
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { Resend } from "resend";
+import { erpAdminSubject, resolveResendFrom } from "../src/lib/resend-mail";
 
 function loadEnvFile(): void {
   const path = resolve(process.cwd(), ".env");
@@ -39,7 +40,7 @@ async function main(): Promise<void> {
   loadEnvFile();
 
   const apiKey = process.env.RESEND_API_KEY?.trim();
-  const from = process.env.RESEND_FROM?.trim();
+  const from = resolveResendFrom();
   const to = (
     process.env.CONTACT_TO_EMAIL?.trim() || "hola@sofiaciabattoni.com"
   ).trim();
@@ -59,16 +60,16 @@ async function main(): Promise<void> {
   const { data, error } = await resend.emails.send({
     from: from!,
     to: [to],
-    subject: "[TEST ERP] Notificaciones a Sofía — Soulful Branding®",
+    subject: erpAdminSubject("Notificaciones a Sofía — prueba"),
     text: [
       "Prueba de notificación ERP (puedes ignorar este mail).",
       "",
+      "Si lo recibiste en bandeja principal o Promociones, configurá el filtro [ERP] en Gmail (ver private-notes/notificaciones-email-sofia.md).",
       "Si lo recibiste, Resend y CONTACT_TO_EMAIL están bien en este entorno.",
-      "Siguiente paso: las mismas 3 variables en Vercel → Production + redeploy.",
     ].join("\n"),
     html: `<p>Prueba de notificación ERP (<strong>puedes ignorar este mail</strong>).</p>
-<p>Si lo recibiste, <code>RESEND_*</code> y <code>CONTACT_TO_EMAIL</code> están bien en este entorno.</p>
-<p>Siguiente paso: las mismas variables en <strong>Vercel → Production</strong> y redeploy de <code>master</code>.</p>`,
+<p>Asunto con prefijo <code>[ERP]</code> para filtrar en Gmail.</p>
+<p>Si lo recibiste, <code>RESEND_*</code> y <code>CONTACT_TO_EMAIL</code> están bien en este entorno.</p>`,
   });
 
   if (error) {

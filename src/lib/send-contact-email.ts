@@ -1,7 +1,7 @@
-import { Resend } from "resend";
 import { wrapAdminNotificationEmailHtml } from "@/lib/quote-markdown-html";
 import { brandUi } from "@/lib/brand-ui";
 import { soLogoEmailAttachments } from "@/lib/invoice-logo.server";
+import { erpAdminSubject, resolveAdminInboxEmail, sendResendMessage } from "@/lib/resend-mail";
 
 export type ContactEmailPayload = {
   name: string;
@@ -18,28 +18,7 @@ export type ContactEmailPayload = {
 export async function sendContactEmailNotification(
   payload: ContactEmailPayload,
 ): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  if (!apiKey) {
-    if (process.env.NODE_ENV === "development") {
-      console.warn(
-        "[contact] RESEND_API_KEY no configurada; email de notificación omitido",
-      );
-    }
-    return;
-  }
-
-  const from = process.env.RESEND_FROM?.trim();
-  if (!from) {
-    console.error(
-      "[contact] RESEND_FROM es obligatorio cuando RESEND_API_KEY está definida",
-    );
-    return;
-  }
-
-  const to = (
-    process.env.CONTACT_TO_EMAIL?.trim() || "hola@sofiaciabattoni.com"
-  ).trim();
-
+  const to = resolveAdminInboxEmail();
   const { name, email, message, formKey, stageTitle } = payload;
 
   const text = [
@@ -54,29 +33,25 @@ export async function sendContactEmailNotification(
     message,
   ].join("\n");
 
-  const innerHtml = `<p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:${brandUi.textMuted};"><strong style="color:${brandUi.text};">Origen:</strong> ${stageTitle.replace(/</g, "&lt;")}</p>
-<p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:${brandUi.textMuted};"><strong style="color:${brandUi.text};">Formulario:</strong> ${formKey.replace(/</g, "&lt;")}</p>
-<p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:${brandUi.textMuted};"><strong style="color:${brandUi.text};">Nombre:</strong> ${name.replace(/</g, "&lt;")}</p>
-<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:${brandUi.textMuted};"><strong style="color:${brandUi.text};">Email:</strong> <a href="mailto:${email.replace(/"/g, "")}" style="color:${brandUi.accent};text-decoration:underline;">${email.replace(/</g, "&lt;")}</a></p>
-<div style="margin:0;padding:16px;border-radius:8px;background:#FAFAFA;border:1px solid rgba(19,25,69,0.1);">
-<p style="margin:0 0 8px;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:${brandUi.textFaint};">Mensaje</p>
-<p style="margin:0;font-size:15px;line-height:1.7;color:${brandUi.text};white-space:pre-wrap;">${message.replace(/</g, "&lt;")}</p>
+  const innerHtml = `<p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#444;"><strong>Origen:</strong> ${stageTitle.replace(/</g, "&lt;")}</p>
+<p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#444;"><strong>Formulario:</strong> ${formKey.replace(/</g, "&lt;")}</p>
+<p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#444;"><strong>Nombre:</strong> ${name.replace(/</g, "&lt;")}</p>
+<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#444;"><strong>Email:</strong> <a href="mailto:${email.replace(/"/g, "")}" style="color:${brandUi.blue};text-decoration:underline;">${email.replace(/</g, "&lt;")}</a></p>
+<div style="margin:0;padding:14px;border-radius:6px;background:#f7f7f7;border:1px solid #e8e8e8;">
+<p style="margin:0 0 6px;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#888;">Mensaje</p>
+<p style="margin:0;font-size:15px;line-height:1.6;color:#131945;white-space:pre-wrap;">${message.replace(/</g, "&lt;")}</p>
 </div>`;
 
   const html = wrapAdminNotificationEmailHtml(`Contacto web — ${stageTitle}`, innerHtml);
 
-  const resend = new Resend(apiKey);
-  const { error } = await resend.emails.send({
-    from,
+  await sendResendMessage({
     to: [to],
     replyTo: email,
-    subject: `Contacto web — ${stageTitle}`,
+    subject: erpAdminSubject(`Contacto web — ${stageTitle}`),
     text,
     html,
     attachments: await soLogoEmailAttachments(),
+    logTag: "contact",
+    headerRef: "contact",
   });
-
-  if (error) {
-    console.error("[contact] Resend:", error);
-  }
 }

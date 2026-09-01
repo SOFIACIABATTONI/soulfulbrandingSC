@@ -13,6 +13,14 @@ import {
   wrapQuoteEmailHtml,
 } from "@/lib/quote-markdown-html";
 import { soLogoEmailAttachments } from "@/lib/invoice-logo.server";
+import {
+  erpAdminSubject,
+  resolveAdminInboxEmail,
+  resolveResendApiKey,
+  resolveResendFrom,
+  sendResendMessage,
+  transactionalResendHeaders,
+} from "@/lib/resend-mail";
 
 export type SendQuoteEmailPayload = {
   toEmail: string;
@@ -22,7 +30,7 @@ export type SendQuoteEmailPayload = {
 };
 
 export async function sendQuoteEmailToClient(payload: SendQuoteEmailPayload): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const apiKey = resolveResendApiKey();
   if (!apiKey) {
     if (process.env.NODE_ENV === "development") {
       console.warn("[quote] RESEND_API_KEY no configurada; email al cliente omitido");
@@ -30,7 +38,7 @@ export async function sendQuoteEmailToClient(payload: SendQuoteEmailPayload): Pr
     return false;
   }
 
-  const from = process.env.RESEND_FROM?.trim();
+  const from = resolveResendFrom();
   if (!from) {
     console.error("[quote] RESEND_FROM es obligatorio cuando RESEND_API_KEY está definida");
     return false;
@@ -90,6 +98,7 @@ export async function sendQuoteEmailToClient(payload: SendQuoteEmailPayload): Pr
     text,
     html,
     attachments: await soLogoEmailAttachments(),
+    headers: transactionalResendHeaders("quote-client"),
   });
 
   if (error) {
@@ -106,13 +115,7 @@ export async function sendQuoteResponseNotificationToAdmin(payload: {
   comment: string;
   quoteId: string;
 }): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  if (!apiKey) return;
-
-  const from = process.env.RESEND_FROM?.trim();
-  if (!from) return;
-
-  const to = (process.env.CONTACT_TO_EMAIL?.trim() || "hola@sofiaciabattoni.com").trim();
+  const to = resolveAdminInboxEmail();
 
   const text = [
     "Respuesta a presupuesto (ERP)",
@@ -139,17 +142,13 @@ ${payload.comment ? `<p style="margin:0 0 10px;font-size:15px;line-height:1.65;c
     innerHtml,
   );
 
-  const resend = new Resend(apiKey);
-  const { error } = await resend.emails.send({
-    from,
+  await sendResendMessage({
     to: [to],
-    subject: `Presupuesto — ${payload.response} — ${payload.leadName}`,
+    subject: erpAdminSubject(`Presupuesto — ${payload.response} — ${payload.leadName}`),
     text,
     html,
     attachments: await soLogoEmailAttachments(),
+    logTag: "quote-admin",
+    headerRef: "quote-admin",
   });
-
-  if (error) {
-    console.error("[quote] Resend notificación admin:", error);
-  }
 }

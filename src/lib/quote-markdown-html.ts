@@ -281,15 +281,27 @@ export function wrapPhaseDocumentEmailHtml(title: string, innerHtml: string): st
   });
 }
 
-/** Notificaciones internas al admin con la misma estética (sin foto hero). */
+/** Notificaciones internas al admin — HTML simple (menos “promo”, más bandeja principal en Gmail). */
 export function wrapAdminNotificationEmailHtml(title: string, innerHtml: string): string {
-  return wrapBrandEmailHtml({
-    inner: innerHtml,
-    title,
-    cardVariant: "fuchsia-frame",
-    logoImageCid: SO_LOGO_EMAIL_CID,
-    footerNote: "Soulful ERP — panel de administración",
-  });
+  const safeTitle = title
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+</head>
+<body style="margin:0;padding:20px 16px;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.65;color:#131945;background:#ffffff;">
+<p style="margin:0 0 14px;font-size:13px;color:#666;">Soulful ERP</p>
+<p style="margin:0 0 16px;font-size:17px;font-weight:600;color:#131945;">${safeTitle}</p>
+<div style="margin:0 0 8px;">${innerHtml}</div>
+<p style="margin:20px 0 0;font-size:12px;line-height:1.5;color:#999;border-top:1px solid #eee;padding-top:14px;">Aviso automático del ERP. Respondé este mail para escribirle al cliente.</p>
+</body>
+</html>`;
 }
 
 export function buildVideoEmailBlock(video: ParsedVideo | null): string {
