@@ -89,23 +89,30 @@ function reminderBadgeStyle(state: ReminderStepState): { background: string; col
 function renderReminderStatus(row: InvoiceItem) {
   const summary = buildInvoiceReminderSummary(row);
   if (summary.steps.length === 0) {
-    return <span className="text-[11px] text-neutral-400">{summary.headline}</span>;
+    return <span className="text-[10px] text-neutral-400 leading-snug">{summary.headline}</span>;
   }
   return (
-    <div className="min-w-[200px] max-w-[260px]">
-      <p className="text-[11px] font-medium leading-snug text-neutral-700">{summary.headline}</p>
-      <div className="mt-1.5 flex flex-col gap-1">
+    <div className="w-[150px]">
+      <p
+        className="text-[10px] font-medium leading-snug text-neutral-700 line-clamp-2"
+        title={summary.headline}
+      >
+        {summary.headline}
+      </p>
+      <div className="mt-1 flex flex-col gap-0.5">
         {summary.steps.map((step) => {
           const style = reminderBadgeStyle(step.state);
+          const shortKind =
+            step.kind === "7d" ? "7 días" : step.kind === "1d" ? "1 día" : "Vence";
           return (
             <div
               key={step.kind}
-              className="flex items-center justify-between gap-2 text-[10px]"
+              className="flex items-center justify-between gap-1 text-[9px]"
               title={step.detail}
             >
-              <span className="text-neutral-500 truncate">{step.shortLabel}</span>
+              <span className="text-neutral-500 shrink-0">{shortKind}</span>
               <span
-                className="shrink-0 rounded px-1.5 py-0.5 font-medium"
+                className="shrink-0 rounded px-1 py-px font-medium whitespace-nowrap"
                 style={{ background: style.background, color: style.color }}
               >
                 {step.state === "sent" ? "Enviado" : step.badge}
@@ -661,7 +668,7 @@ export function InvoicesManager({
     const status = emailStatusById[row.id];
     if (status === "sending") {
       return (
-        <span className="text-xs font-medium" style={{ color: "rgba(19,25,69,0.45)" }}>
+        <span className="text-xs font-medium whitespace-nowrap" style={{ color: "rgba(19,25,69,0.45)" }}>
           Enviando…
         </span>
       );
@@ -669,7 +676,7 @@ export function InvoicesManager({
     if (status === "sent" || row.emailSentAt) {
       return (
         <span
-          className="text-xs font-medium"
+          className="text-xs font-medium whitespace-nowrap"
           style={{ color: "#1a6b1a" }}
           title={
             row.emailSentAt
@@ -686,7 +693,7 @@ export function InvoicesManager({
         <button
           type="button"
           onClick={() => void sendByEmail(row.id)}
-          className="text-xs font-medium hover:underline text-left"
+          className="text-xs font-medium hover:underline text-left whitespace-nowrap"
           style={{ color: "#b45000" }}
           title="Tocá para reintentar"
         >
@@ -698,7 +705,7 @@ export function InvoicesManager({
       <button
         type="button"
         onClick={() => void sendByEmail(row.id)}
-        className="text-xs font-medium hover:underline text-left"
+        className="text-xs font-medium hover:underline text-left whitespace-nowrap"
         style={{ color: "#F03172" }}
         title="Envía el PDF de este documento al cliente. Los recordatorios de vencimiento (7 días, 1 día y el día del vencimiento) son automáticos y van aparte."
       >
@@ -842,24 +849,28 @@ export function InvoicesManager({
       </p>
 
       {/* ── Tabla ── */}
-      <div className="max-w-full min-w-0 overflow-x-auto rounded border border-neutral-200 bg-white">
-        <table className="w-full text-sm">
+      <div className="max-w-full min-w-0 -mx-1 overflow-x-auto rounded border border-neutral-200 bg-white">
+        <table className="w-full min-w-[920px] text-sm">
           <thead
             className="border-b border-neutral-200 text-left text-[11px] font-medium uppercase tracking-widest"
             style={{ background: "#FFFFFF", color: "rgba(19,25,69,0.42)" }}
           >
             <tr>
-              <th className="px-4 py-3">Número</th>
-              {!initialClientId && <th className="px-4 py-3">Cliente</th>}
-              <th className="px-4 py-3 min-w-0">Proyecto</th>
-              <th className="px-4 py-3">Tipo</th>
-              <th className="px-4 py-3">Total</th>
-              <th className="px-4 py-3">Estado</th>
-              <th className="px-4 py-3">Emisión</th>
-              <th className="px-4 py-3">Vencimiento</th>
-              <th className="px-4 py-3 min-w-[200px]">Recordatorios</th>
-              <th className="px-4 py-3">Pago</th>
-              <th className="px-4 py-3"></th>
+              <th className="px-2 py-3 whitespace-nowrap">Número</th>
+              {!initialClientId && <th className="px-2 py-3 whitespace-nowrap">Cliente</th>}
+              <th className="px-2 py-3 min-w-0">Proyecto</th>
+              <th className="px-2 py-3 whitespace-nowrap">Tipo</th>
+              <th className="px-2 py-3 whitespace-nowrap">Total</th>
+              <th className="px-2 py-3 whitespace-nowrap">Estado</th>
+              <th className="px-2 py-3 whitespace-nowrap">Emisión</th>
+              <th className="px-2 py-3 whitespace-nowrap">Vencimiento</th>
+              <th className="px-2 py-3 whitespace-nowrap">Recordatorios</th>
+              <th
+                className="sticky right-0 z-10 px-2 py-3 whitespace-nowrap text-left shadow-[-8px_0_12px_-8px_rgba(19,25,69,0.12)]"
+                style={{ background: "#FFFFFF" }}
+              >
+                Acciones
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -868,9 +879,9 @@ export function InvoicesManager({
                 key={row.id}
                 className="border-b border-neutral-100 hover:bg-brand-sky/30 transition-colors"
               >
-                <td className="px-4 py-3 font-mono text-xs font-medium">{row.number}</td>
+                <td className="px-2 py-3 font-mono text-xs font-medium whitespace-nowrap">{row.number}</td>
                 {!initialClientId && (
-                  <td className="px-4 py-3">
+                  <td className="px-2 py-3 max-w-[140px]">
                     <Link
                       href={`/admin/clientes/${row.client.id}`}
                       className="font-medium hover:underline"
@@ -883,7 +894,7 @@ export function InvoicesManager({
                     )}
                   </td>
                 )}
-                <td className="px-4 py-3 text-xs min-w-0 max-w-[220px]">
+                <td className="px-2 py-3 text-xs min-w-0 max-w-[160px]">
                   <div className="space-y-1.5 min-w-0">
                     {row.project ? (
                       <Link
@@ -920,7 +931,7 @@ export function InvoicesManager({
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-2 py-3 whitespace-nowrap">
                   <span
                     className="inline-block rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
                     style={{ background: "rgba(19,25,69,0.08)", color: "#131945" }}
@@ -928,16 +939,21 @@ export function InvoicesManager({
                     {INVOICE_TYPE_SHORT[row.type] ?? row.type}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-medium">
+                <td className="px-2 py-3 font-medium whitespace-nowrap">
                   €{row.total.toLocaleString("es-AR")} EUR
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-2 py-3 whitespace-nowrap">
                   <StatusPill status={row.status} />
+                  {row.status === "pagado" && row.paidAt && (
+                    <div className="mt-1 text-[10px] text-neutral-400">
+                      Pagada {formatDate(row.paidAt)}
+                    </div>
+                  )}
                 </td>
-                <td className="px-4 py-3 text-xs text-neutral-400 whitespace-nowrap">
+                <td className="px-2 py-3 text-xs text-neutral-400 whitespace-nowrap">
                   {formatDate(row.issuedAt)}
                 </td>
-                <td className="px-4 py-3 text-xs whitespace-nowrap">
+                <td className="px-2 py-3 text-xs whitespace-nowrap">
                   {row.status === "pendiente" ? (
                     <input
                       type="date"
@@ -951,17 +967,17 @@ export function InvoicesManager({
                     <span className="text-neutral-400">{formatDate(row.dueAt)}</span>
                   )}
                 </td>
-                <td className="px-4 py-3 align-top">{renderReminderStatus(row)}</td>
-                <td className="px-4 py-3 text-xs text-neutral-400 whitespace-nowrap">
-                  {formatDate(row.paidAt)}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-col gap-1 items-start">
+                <td className="px-2 py-3 align-top">{renderReminderStatus(row)}</td>
+                <td
+                  className="sticky right-0 z-10 px-2 py-3 align-top whitespace-nowrap shadow-[-8px_0_12px_-8px_rgba(19,25,69,0.12)]"
+                  style={{ background: "#FFFFFF" }}
+                >
+                  <div className="flex flex-col gap-1 items-start min-w-[6.75rem]">
                     <a
                       href={`/api/admin/invoices/${row.id}/pdf`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs font-medium hover:underline"
+                      className="text-xs font-medium hover:underline whitespace-nowrap"
                       style={{ color: "#323FF6" }}
                     >
                       PDF
@@ -969,9 +985,10 @@ export function InvoicesManager({
                     {renderEmailAction(row)}
                     {row.status === "pendiente" && (
                       <button
+                        type="button"
                         onClick={() => void markPaid(row.id)}
                         disabled={markingPaid === row.id}
-                        className="text-xs font-medium hover:underline disabled:opacity-50"
+                        className="text-xs font-medium hover:underline disabled:opacity-50 whitespace-nowrap text-left"
                         style={{ color: "#1a6b1a" }}
                       >
                         {markingPaid === row.id ? "…" : "Marcar pagada"}

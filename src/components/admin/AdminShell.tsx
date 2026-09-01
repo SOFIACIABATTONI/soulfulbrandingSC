@@ -113,7 +113,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </button>
         )}
 
-        <main className={`min-w-0 flex-1 overflow-x-hidden overflow-y-auto ${menuOpen ? "" : "pt-12"}`}>{children}</main>
+        <main className={`min-w-0 flex-1 overflow-y-auto ${menuOpen ? "" : "pt-12"}`}>{children}</main>
       </div>
     </div>
   );

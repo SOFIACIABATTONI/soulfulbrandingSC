@@ -379,7 +379,7 @@ export function ClientDetail({ client: initial }: { client: ClientFull }) {
 
         {/* Facturas */}
         <div
-          className="rounded border bg-white p-5 min-w-0 overflow-hidden"
+          className="rounded border bg-white p-5 min-w-0"
           style={{ borderColor: "rgba(19,25,69,0.1)" }}
         >
           <h3

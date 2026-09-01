@@ -16,7 +16,7 @@ export default async function AdminFacturasPage({
   const sp = await searchParams;
 
   return (
-    <div className="px-6 py-8 max-w-7xl mx-auto">
+    <div className="px-6 py-8 max-w-7xl mx-auto min-w-0">
       <div className="mb-6">
         <p className="text-[9px] font-medium uppercase tracking-widest mb-1"
           style={{ color: "rgba(19,25,69,0.42)" }}>
