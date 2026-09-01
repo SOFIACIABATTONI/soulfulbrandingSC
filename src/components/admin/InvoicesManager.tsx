@@ -14,6 +14,11 @@ import {
   buildInstallmentPlan,
   type InstallmentIntervalUnit,
 } from "@/lib/invoice-installment-plan";
+import type { InvoiceReminderKind } from "@/lib/invoice-due-dates";
+import {
+  buildInvoiceReminderSummary,
+  type ReminderStepState,
+} from "@/lib/invoice-reminder-status";
 
 // ── tipos ──────────────────────────────────────────────────
 type InvoiceItem = {
@@ -26,6 +31,9 @@ type InvoiceItem = {
   dueAt: string | null;
   paidAt: string | null;
   emailSentAt: string | null;
+  reminder7dSentAt: string | null;
+  reminder1dSentAt: string | null;
+  reminderDueSentAt: string | null;
   notes: string;
   client: { id: string; name: string; company: string };
   project: { id: string; title: string } | null;
@@ -48,6 +56,67 @@ const SERVICE_LABELS: Record<string, string> = {
   "estrategia-visual": "Estrategia visual",
   "diseno-editorial": "Diseño editorial",
 };
+
+const REMINDER_KIND_LABELS: Record<InvoiceReminderKind, string> = {
+  "7d": "7 días antes del vencimiento",
+  "1d": "1 día antes del vencimiento",
+  due: "día del vencimiento",
+};
+
+function invoiceSendActionLabel(type: string): string {
+  return type === "final" ? "Enviar factura" : "Enviar recibo";
+}
+
+function invoiceSentLabel(type: string): string {
+  return type === "final" ? "Factura enviada ✓" : "Recibo enviado ✓";
+}
+
+function reminderBadgeStyle(state: ReminderStepState): { background: string; color: string } {
+  switch (state) {
+    case "sent":
+      return { background: "rgba(26,107,26,0.12)", color: "#1a6b1a" };
+    case "today":
+      return { background: "rgba(255,160,0,0.2)", color: "#b45000" };
+    case "upcoming":
+      return { background: "rgba(50,63,246,0.1)", color: "#323FF6" };
+    case "missed":
+      return { background: "rgba(19,25,69,0.08)", color: "rgba(19,25,69,0.5)" };
+    default:
+      return { background: "rgba(19,25,69,0.06)", color: "rgba(19,25,69,0.45)" };
+  }
+}
+
+function renderReminderStatus(row: InvoiceItem) {
+  const summary = buildInvoiceReminderSummary(row);
+  if (summary.steps.length === 0) {
+    return <span className="text-[11px] text-neutral-400">{summary.headline}</span>;
+  }
+  return (
+    <div className="min-w-[200px] max-w-[260px]">
+      <p className="text-[11px] font-medium leading-snug text-neutral-700">{summary.headline}</p>
+      <div className="mt-1.5 flex flex-col gap-1">
+        {summary.steps.map((step) => {
+          const style = reminderBadgeStyle(step.state);
+          return (
+            <div
+              key={step.kind}
+              className="flex items-center justify-between gap-2 text-[10px]"
+              title={step.detail}
+            >
+              <span className="text-neutral-500 truncate">{step.shortLabel}</span>
+              <span
+                className="shrink-0 rounded px-1.5 py-0.5 font-medium"
+                style={{ background: style.background, color: style.color }}
+              >
+                {step.state === "sent" ? "Enviado" : step.badge}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function projectInvoicesAsLike(items: InvoiceItem[], projectId: string): InvoiceLike[] {
   return items
@@ -524,10 +593,21 @@ export function InvoicesManager({
       return;
     }
     const sent = j?.sent?.length ?? 0;
-    const label = dryRun ? "Simulación" : "Envío";
+    const label = dryRun ? "Simulación" : "Envío real";
+    const detail =
+      j?.sent && j.sent.length > 0
+        ? "\n\n" +
+          j.sent
+            .map(
+              (item) =>
+                `• ${item.number}: ${REMINDER_KIND_LABELS[item.kind as InvoiceReminderKind] ?? item.kind}`,
+            )
+            .join("\n")
+        : "\n\nNingún recordatorio coincide con hoy. Para probar los 3 tipos, usá facturas pendientes con vencimiento en +7 días, mañana y hoy.";
     window.alert(
-      `${label}: ${sent} recordatorio(s)${dryRun ? " listos para enviar" : " enviados"}.\n` +
-        `Facturas con vencimiento revisadas: ${j?.scanned ?? 0}.`,
+      `${label}: ${sent} recordatorio(s)${dryRun ? " listos para enviar" : " enviados al cliente"}.\n` +
+        `Facturas pendientes revisadas: ${j?.scanned ?? 0}.` +
+        detail,
     );
     if (!dryRun) await load();
   }
@@ -591,9 +671,13 @@ export function InvoicesManager({
         <span
           className="text-xs font-medium"
           style={{ color: "#1a6b1a" }}
-          title={row.emailSentAt ? `Enviado ${formatDate(row.emailSentAt)}` : undefined}
+          title={
+            row.emailSentAt
+              ? `${invoiceSentLabel(row.type)} · ${formatDate(row.emailSentAt)}`
+              : invoiceSentLabel(row.type)
+          }
         >
-          Enviado ✓
+          {invoiceSentLabel(row.type)}
         </span>
       );
     }
@@ -614,10 +698,11 @@ export function InvoicesManager({
       <button
         type="button"
         onClick={() => void sendByEmail(row.id)}
-        className="text-xs font-medium hover:underline"
+        className="text-xs font-medium hover:underline text-left"
         style={{ color: "#F03172" }}
+        title="Envía el PDF de este documento al cliente. Los recordatorios de vencimiento (7 días, 1 día y el día del vencimiento) son automáticos y van aparte."
       >
-        Enviar mail
+        {invoiceSendActionLabel(row.type)}
       </button>
     );
   }
@@ -700,9 +785,27 @@ export function InvoicesManager({
           disabled={runningReminders}
           onClick={() => void runDueReminders(true)}
           className="rounded border border-neutral-200 px-3 py-2 text-xs text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
-          title="Ver qué recordatorios se enviarían hoy sin mandar mails"
+          title="Lista qué recordatorios se enviarían hoy, sin mandar mails"
         >
-          {runningReminders ? "…" : "Simular recordatorios"}
+          {runningReminders ? "…" : "Revisar envíos de hoy"}
+        </button>
+        <button
+          type="button"
+          disabled={runningReminders}
+          onClick={() => {
+            if (
+              !window.confirm(
+                "¿Enviar ahora los recordatorios de vencimiento que correspondan hoy? (7 días antes, 1 día antes o día del vencimiento). No reenvía el PDF del recibo.",
+              )
+            ) {
+              return;
+            }
+            void runDueReminders(false);
+          }}
+          className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+          title="Envía mails reales de recordatorio al cliente (pruebas en preview)"
+        >
+          {runningReminders ? "…" : "Enviar recordatorios ahora"}
         </button>
         <div className="ml-auto flex flex-wrap gap-2">
           <button
@@ -728,6 +831,16 @@ export function InvoicesManager({
         </div>
       </div>
 
+      <p
+        className="rounded border px-3 py-2 text-[11px] leading-relaxed"
+        style={{ borderColor: "rgba(19,25,69,0.1)", color: "rgba(19,25,69,0.55)", background: "#fff" }}
+      >
+        <strong>Enviar recibo</strong> manda el PDF al cliente. La columna{" "}
+        <strong>Recordatorios</strong> muestra en qué situación está cada aviso automático (7 días
+        antes, 1 día antes y día de vencimiento). Si cambiás la fecha de vencimiento, los estados se
+        reinician.
+      </p>
+
       {/* ── Tabla ── */}
       <div className="max-w-full min-w-0 overflow-x-auto rounded border border-neutral-200 bg-white">
         <table className="w-full text-sm">
@@ -744,6 +857,7 @@ export function InvoicesManager({
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Emisión</th>
               <th className="px-4 py-3">Vencimiento</th>
+              <th className="px-4 py-3 min-w-[200px]">Recordatorios</th>
               <th className="px-4 py-3">Pago</th>
               <th className="px-4 py-3"></th>
             </tr>
@@ -837,6 +951,7 @@ export function InvoicesManager({
                     <span className="text-neutral-400">{formatDate(row.dueAt)}</span>
                   )}
                 </td>
+                <td className="px-4 py-3 align-top">{renderReminderStatus(row)}</td>
                 <td className="px-4 py-3 text-xs text-neutral-400 whitespace-nowrap">
                   {formatDate(row.paidAt)}
                 </td>
