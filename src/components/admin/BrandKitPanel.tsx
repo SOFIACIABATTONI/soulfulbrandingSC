@@ -4,11 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { brandUi, clientFrame } from "@/lib/brand-ui";
 import { uploadBrandAssetFile } from "@/lib/admin-client-upload";
 import { BrandKitCardCoverField } from "@/components/admin/BrandKitCardCoverField";
-import { isLocalAdminUploadHost, isLocalDevUploadUrl } from "@/lib/admin-blob-upload";
+import { isLocalAdminUploadHost, isLocalDevUploadUrl, BRAND_ASSET_FORMAT_HINT } from "@/lib/admin-blob-upload";
 import {
   cardHasContent,
   cardPreviewBackground,
-  cardPreviewImage,
   cardColorCount,
   createBrandKitId,
   createCustomBrandKitCard,
@@ -230,13 +229,17 @@ export function BrandKitPanel({
     }
   }
 
-  async function saveCoverForCard(cardId: string, nextCard: BrandKitCard): Promise<boolean> {
+  async function saveCoverForCard(cardId: string, coverFiles: BrandKitAssetFile[]): Promise<boolean> {
     if (saveTimer.current) {
       clearTimeout(saveTimer.current);
       saveTimer.current = null;
     }
+    const currentCard = kitRef.current.cards.find((c) => c.id === cardId);
+    if (!currentCard) return false;
+
     setManualSaving(true);
     try {
+      const nextCard = setCardCoverFiles(currentCard, coverFiles);
       const nextKit: BrandKit = {
         ...kitRef.current,
         cards: kitRef.current.cards.map((c) => (c.id === cardId ? nextCard : c)),
@@ -248,7 +251,9 @@ export function BrandKitPanel({
       if (ok) {
         lastPersistedRef.current = serialized;
         awaitingPropSyncRef.current = true;
-        setMessage("Portada actualizada.");
+        setMessage(coverFiles.length > 0 ? "Portada actualizada." : "Portada quitada.");
+      } else {
+        setMessage("No se pudo guardar la portada.");
       }
       return ok;
     } finally {
@@ -380,7 +385,7 @@ export function BrandKitPanel({
           uploadingKey={uploadingKey}
           onUpdate={(next) => updateCardById(activeCard.id, () => next)}
           onUpload={(groupId, files) => void uploadToGroup(activeCard.id, groupId, files)}
-          onSaveCover={(nextCard) => saveCoverForCard(activeCard.id, nextCard)}
+          onSaveCover={(coverFiles) => saveCoverForCard(activeCard.id, coverFiles)}
           onCoverPreviewChange={(previewUrl) => {
             setCoverPreviewByCard((prev) => {
               if (!previewUrl) {
@@ -433,7 +438,7 @@ function CardEditor({
   uploadingKey: string | null;
   onUpdate: (next: BrandKitCard) => void;
   onUpload: (groupId: string, files: FileList | null) => void;
-  onSaveCover: (next: BrandKitCard) => Promise<boolean>;
+  onSaveCover: (coverFiles: BrandKitAssetFile[]) => Promise<boolean>;
   onCoverPreviewChange?: (previewUrl: string | null) => void;
   onCoverUploadActivityChange?: (active: boolean) => void;
   onRemove: () => void;
@@ -441,6 +446,7 @@ function CardEditor({
 }) {
   const def = getBrandKitCardDef(card.key);
   const isCustom = isCustomBrandKitCardKey(card.key);
+  const filesUploading = Boolean(uploadingKey?.startsWith(`${card.id}-`));
 
   return (
     <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: brandUi.border }}>
@@ -484,6 +490,7 @@ function CardEditor({
 
       <BrandKitCardCoverField
         card={card}
+        disabled={filesUploading}
         onPreviewChange={onCoverPreviewChange}
         onSaveCover={onSaveCover}
         onUploadActivityChange={onCoverUploadActivityChange}
@@ -943,6 +950,11 @@ function FileGroupEditor({
         {card.key === "trama" && (
           <span className="text-[10px]" style={{ color: brandUi.textFaint }}>
             Podés subir varios cuadraditos a la vez
+          </span>
+        )}
+        {card.key !== "tipografias" && (
+          <span className="text-[10px]" style={{ color: brandUi.textFaint }}>
+            {BRAND_ASSET_FORMAT_HINT}
           </span>
         )}
       </div>

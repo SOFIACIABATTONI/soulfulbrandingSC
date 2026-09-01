@@ -5,6 +5,7 @@ import {
   ADMIN_IMAGE_ALLOWED_CONTENT_TYPES,
   ADMIN_IMAGE_MAX_BYTES,
   BRAND_ASSET_ALLOWED_CONTENT_TYPES,
+  BRAND_ASSET_FORMAT_HINT,
   BRAND_ASSET_MAX_BYTES,
   buildAdminImagePathname,
   buildBrandAssetPathname,
@@ -247,31 +248,24 @@ function useServerBlobUpload(file: File): boolean {
 export async function uploadBrandAssetFile(
   file: File,
 ): Promise<{ url: string; fileName: string; mime: string }> {
-  const prepared = await prepareFileForVercelUpload(file);
-  const mime = resolveBrandAssetMime(prepared);
+  const mime = resolveBrandAssetMime(file);
   if (!mime) {
-    throw new Error("Tipo no permitido. Usá imagen, PDF, ZIP o fuente (.woff, .woff2, .otf, .ttf).");
+    throw new Error(`Tipo no permitido. Formatos: ${BRAND_ASSET_FORMAT_HINT}`);
   }
-  if (prepared.size > BRAND_ASSET_MAX_BYTES) {
+  if (file.size > BRAND_ASSET_MAX_BYTES) {
     throw new Error("Máximo 20MB por archivo.");
   }
 
-  if (useServerBlobUpload(prepared)) {
-    const isImage = mime.startsWith("image/");
-    const endpoint = isImage ? "/api/upload" : "/api/admin/brand-asset-upload";
-    const j = await postFormUpload(
-      endpoint,
-      prepared,
-      isImage ? { context: "brand" } : undefined,
-    );
-    return { url: j.url, fileName: j.fileName ?? prepared.name, mime: j.mime ?? mime };
+  if (useServerBlobUpload(file)) {
+    const j = await postFormUpload("/api/admin/brand-asset-upload", file);
+    return { url: j.url, fileName: j.fileName ?? file.name, mime: j.mime ?? mime };
   }
 
-  const pathname = buildBrandAssetPathname(prepared.name, mime);
+  const pathname = buildBrandAssetPathname(file.name, mime);
   return uploadViaBlobClient(
     pathname,
-    prepared,
-    { kind: "brand", fileName: prepared.name, mime },
+    file,
+    { kind: "brand", fileName: file.name, mime },
     { contentType: mime },
   );
 }

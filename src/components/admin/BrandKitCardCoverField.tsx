@@ -6,23 +6,23 @@ import { uploadBrandAssetFile, type UploadProgressEvent } from "@/lib/admin-clie
 import { resolveBrandAssetMime } from "@/lib/admin-blob-upload";
 import { brandUi } from "@/lib/brand-ui";
 import {
-  cardPreviewImage,
+  cardCoverImage,
   createBrandKitId,
-  setCardCoverFiles,
   type BrandKitAssetFile,
   type BrandKitCard,
 } from "@/lib/brand-kit";
 
 type BrandKitCardCoverFieldProps = {
   card: BrandKitCard;
+  disabled?: boolean;
   onPreviewChange?: (previewUrl: string | null) => void;
-  onSaveCover: (card: BrandKitCard) => Promise<boolean>;
+  onSaveCover: (coverFiles: BrandKitAssetFile[]) => Promise<boolean>;
   onUploadActivityChange?: (active: boolean) => void;
 };
 
-/** Mismo flujo que ProjectPhaseCoverEditor: preview → subida → guardado ligero. */
 export function BrandKitCardCoverField({
   card,
+  disabled = false,
   onPreviewChange,
   onSaveCover,
   onUploadActivityChange,
@@ -34,9 +34,10 @@ export function BrandKitCardCoverField({
   const [uploadingFileSize, setUploadingFileSize] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const savedCover = cardPreviewImage(card);
+  const savedCover = cardCoverImage(card);
   const displayUrl = localPreview || savedCover || "";
   const hasCover = Boolean(displayUrl);
+  const busy = disabled || uploading;
 
   useEffect(() => {
     onUploadActivityChange?.(uploading);
@@ -50,7 +51,7 @@ export function BrandKitCardCoverField({
 
   useEffect(() => {
     if (!localPreview || localPreview.startsWith("blob:")) return;
-    const saved = cardPreviewImage(card);
+    const saved = cardCoverImage(card);
     if (saved && saved === localPreview) {
       setLocalPreview(null);
       onPreviewChange?.(null);
@@ -59,7 +60,7 @@ export function BrandKitCardCoverField({
 
   async function handleFile(fileList: FileList | null) {
     const file = fileList?.[0];
-    if (!file || uploading) return;
+    if (!file || busy) return;
 
     if (localPreview?.startsWith("blob:")) URL.revokeObjectURL(localPreview);
     const blobUrl = URL.createObjectURL(file);
@@ -84,8 +85,7 @@ export function BrandKitCardCoverField({
         fileName: uploaded.fileName || file.name,
         mime,
       };
-      const nextCard = setCardCoverFiles(card, [coverFile]);
-      const ok = await onSaveCover(nextCard);
+      const ok = await onSaveCover([coverFile]);
       if (!ok) {
         setUploadError("No se pudo guardar la portada en Brand ID.");
         setLocalPreview(null);
@@ -93,7 +93,6 @@ export function BrandKitCardCoverField({
         return;
       }
 
-      if (localPreview?.startsWith("blob:")) URL.revokeObjectURL(localPreview);
       setLocalPreview(uploaded.url);
       onPreviewChange?.(uploaded.url);
     } catch (e) {
@@ -108,13 +107,14 @@ export function BrandKitCardCoverField({
   }
 
   async function handleRemove() {
-    if (uploading) return;
+    if (busy) return;
     setUploading(true);
+    setUploadError(null);
     setUploadProgress({ loaded: 0, total: 1, percentage: 95, phase: "save" });
     try {
-      const ok = await onSaveCover(setCardCoverFiles(card, []));
+      const ok = await onSaveCover([]);
       if (!ok) {
-        window.alert("No se pudo quitar la portada.");
+        setUploadError("No se pudo quitar la portada.");
         return;
       }
       setLocalPreview(null);
@@ -135,7 +135,7 @@ export function BrandKitCardCoverField({
           <p className="text-[10px] mt-0.5" style={{ color: brandUi.textMuted }}>
             {uploading
               ? "La vista previa se ve al instante; la barra indica el progreso real."
-              : "Es lo que se ve en el grid y en el portal del cliente. Reemplazala cuando cambies de proyecto."}
+              : "Independiente de los archivos de abajo. Es lo que se ve en el grid y en el portal del cliente."}
           </p>
         </div>
         {hasCover && !uploading && (
@@ -163,8 +163,8 @@ export function BrandKitCardCoverField({
           className="aspect-[5/2] max-w-md rounded-lg border flex items-center justify-center"
           style={{ borderColor: brandUi.border, background: "rgba(50,63,246,0.04)" }}
         >
-          <span className="text-[10px]" style={{ color: brandUi.textFaint }}>
-            Sin portada — se usa la paleta de colores si hay
+          <span className="text-[10px] text-center px-3" style={{ color: brandUi.textFaint }}>
+            Sin portada propia — si no subís una acá, el grid puede usar un logo de los archivos de abajo
           </span>
         </div>
       )}
@@ -185,8 +185,14 @@ export function BrandKitCardCoverField({
         </p>
       ) : null}
 
+      {disabled && !uploading ? (
+        <p className="text-[10px]" style={{ color: brandUi.textMuted }}>
+          Esperá a que terminen de subir los archivos de la sección.
+        </p>
+      ) : null}
+
       <label
-        className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-medium border ${uploading ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
+        className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-medium border ${busy ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
         style={{ borderColor: brandUi.borderStrong, color: brandUi.text }}
       >
         {uploading ? "Subiendo…" : hasCover ? "Cambiar imagen" : "Subir imagen de portada"}
@@ -194,7 +200,7 @@ export function BrandKitCardCoverField({
           type="file"
           accept="image/*,.svg"
           className="sr-only"
-          disabled={uploading}
+          disabled={busy}
           onChange={(e) => {
             void handleFile(e.target.files);
             e.target.value = "";

@@ -10,11 +10,21 @@ const IMAGE_TYPES = new Set([
   "image/webp",
   "image/gif",
   "image/svg+xml",
+  "image/avif",
+  "image/heic",
+  "image/heif",
+  "image/vnd.adobe.photoshop",
 ]);
 
 export const BRAND_ASSET_TYPES = new Set([
   ...IMAGE_TYPES,
   "application/pdf",
+  "application/postscript",
+  "application/illustrator",
+  "application/vnd.adobe.illustrator",
+  "application/eps",
+  "application/epsf",
+  "application/x-eps",
   "application/zip",
   "application/x-zip-compressed",
   "font/woff",
@@ -33,13 +43,26 @@ export const BRAND_ASSET_TYPES = new Set([
   "application/vnd.ms-fontobject",
 ]);
 
+const MIME_ALIASES: Record<string, string> = {
+  "image/jpg": "image/jpeg",
+  "image/pjpeg": "image/jpeg",
+  "application/x-zip-compressed": "application/zip",
+};
+
 const EXT_TO_MIME: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
+  ".jfif": "image/jpeg",
   ".png": "image/png",
   ".webp": "image/webp",
   ".gif": "image/gif",
   ".svg": "image/svg+xml",
+  ".avif": "image/avif",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
+  ".psd": "image/vnd.adobe.photoshop",
+  ".eps": "application/postscript",
+  ".ai": "application/vnd.adobe.illustrator",
   ".pdf": "application/pdf",
   ".zip": "application/zip",
   ".woff": "font/woff",
@@ -50,6 +73,9 @@ const EXT_TO_MIME: Record<string, string> = {
   ".ttc": "font/collection",
 };
 
+export const BRAND_ASSET_FORMAT_HINT =
+  "PNG, JPG, SVG, PDF, ZIP, EPS, AI, PSD, HEIC, fuentes (.ttf, .otf, .woff) · máx. 20 MB";
+
 function extFromName(originalName: string): string {
   return path.extname(originalName).toLowerCase();
 }
@@ -59,8 +85,10 @@ export function resolveBrandAssetMime(file: Pick<File, "name" | "type">): string
   const fromExt = ext ? EXT_TO_MIME[ext] : undefined;
 
   const rawType = (file.type ?? "").trim().toLowerCase();
-  if (rawType && rawType !== "application/octet-stream") {
-    if (BRAND_ASSET_TYPES.has(rawType)) return rawType;
+  const normalizedType = rawType ? (MIME_ALIASES[rawType] ?? rawType) : "";
+
+  if (normalizedType && normalizedType !== "application/octet-stream") {
+    if (BRAND_ASSET_TYPES.has(normalizedType)) return normalizedType;
     if (fromExt) return fromExt;
     return null;
   }
@@ -77,6 +105,12 @@ export function extFromMime(mime: string, originalName: string): string {
     "image/webp": ".webp",
     "image/gif": ".gif",
     "image/svg+xml": ".svg",
+    "image/avif": ".avif",
+    "image/heic": ".heic",
+    "image/heif": ".heif",
+    "image/vnd.adobe.photoshop": ".psd",
+    "application/postscript": ".eps",
+    "application/vnd.adobe.illustrator": ".ai",
     "application/pdf": ".pdf",
     "application/zip": ".zip",
     "application/x-zip-compressed": ".zip",

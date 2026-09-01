@@ -557,20 +557,24 @@ export function cardColorCount(card: BrandKitCard): number {
   return card.colors.filter((c) => isValidHex(c.hex)).length;
 }
 
-export function cardPreviewImage(card: BrandKitCard): string | null {
-  const presentation = card.fileGroups.find((g) => g.label === "Presentación");
-  if (presentation) {
-    for (const file of presentation.files) {
-      if (!file.url.trim()) continue;
-      if (isImageAssetFile(file)) return file.url;
-    }
+export function cardCoverImage(card: BrandKitCard): string | null {
+  const presentation = card.fileGroups.find((g) => g.label === BRAND_KIT_PRESENTATION_GROUP);
+  if (!presentation) return null;
+  for (const file of presentation.files) {
+    if (!file.url.trim()) continue;
+    if (isImageAssetFile(file)) return file.url;
   }
+  return null;
+}
+
+/** Imagen de portada explícita (grupo Presentación). */
+export function cardPreviewImage(card: BrandKitCard): string | null {
+  const explicit = cardCoverImage(card);
+  if (explicit) return explicit;
   for (const group of card.fileGroups) {
     for (const file of group.files) {
       if (!file.url.trim()) continue;
-      if ((file.mime ?? "").startsWith("image/") || /\.(png|jpe?g|webp|gif|svg)$/i.test(file.fileName)) {
-        return file.url;
-      }
+      if (isImageAssetFile(file)) return file.url;
     }
   }
   return null;
