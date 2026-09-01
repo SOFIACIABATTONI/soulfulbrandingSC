@@ -44,6 +44,14 @@ function maskUrl(url: string): string {
 }
 
 async function counts(prisma: PrismaClient) {
+  const safeCount = async (fn: () => Promise<number>) => {
+    try {
+      return await fn();
+    } catch {
+      return -1;
+    }
+  };
+
   return {
     leads: await prisma.lead.count(),
     quotes: await prisma.quote.count(),
@@ -52,7 +60,7 @@ async function counts(prisma: PrismaClient) {
     invoices: await prisma.invoice.count(),
     tokens: await prisma.clientAccessToken.count(),
     contracts: await prisma.contractAcceptance.count(),
-    gallery: await prisma.portfolioGalleryItem.count(),
+    gallery: await safeCount(() => prisma.portfolioGalleryItem.count()),
     siteContent: await prisma.siteContent.count(),
     portfolio: await prisma.project.count(),
     contacts: await prisma.contactMessage.count(),
