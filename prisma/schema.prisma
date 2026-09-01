@@ -175,8 +175,13 @@ model Invoice {
   status    String        @default("pendiente")
   paidAt    DateTime?
   issuedAt  DateTime       @default(now())
+  /// Fecha límite de pago (recordatorios automáticos 7d / 1d / día de vencimiento)
+  dueAt     DateTime?
   /// Fecha en que se envió el mail al cliente (recibo / factura)
   emailSentAt DateTime?
+  reminder7dSentAt  DateTime?
+  reminder1dSentAt  DateTime?
+  reminderDueSentAt DateTime?
   notes     String         @default("")
   /// Hash SHA-256 del token público para ver el PDF desde el mail
   tokenHash String?        @unique

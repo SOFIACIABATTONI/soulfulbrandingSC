@@ -19,6 +19,7 @@ type InvoiceItem = {
   total: number;
   status: string;
   issuedAt: string;
+  dueAt: string | null;
   paidAt: string | null;
   emailSentAt: string | null;
   notes: string;
@@ -87,6 +88,17 @@ function defaultInvoiceTotal(
   return "";
 }
 
+function formatDateInput(d: string | null) {
+  if (!d) return "";
+  return new Date(d).toISOString().slice(0, 10);
+}
+
+function defaultDueAtFromIssued(issuedAt: string): string {
+  const base = new Date(`${issuedAt}T12:00:00`);
+  base.setDate(base.getDate() + 14);
+  return base.toISOString().slice(0, 10);
+}
+
 function formatDate(d: string | null) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("es-AR", { dateStyle: "short" });
@@ -116,6 +128,7 @@ const EMPTY_FORM = {
   status: "pendiente",
   notes: "",
   issuedAt: new Date().toISOString().slice(0, 10),
+  dueAt: defaultDueAtFromIssued(new Date().toISOString().slice(0, 10)),
 };
 
 // ── componente principal ───────────────────────────────────
@@ -139,6 +152,8 @@ export function InvoicesManager({
     Record<string, "sending" | "sent" | "failed">
   >({});
   const [linkingProject, setLinkingProject] = useState<string | null>(null);
+  const [updatingDueAt, setUpdatingDueAt] = useState<string | null>(null);
+  const [runningReminders, setRunningReminders] = useState(false);
   const autoOpenedRef = useRef(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -338,6 +353,46 @@ export function InvoicesManager({
     await load();
   }
 
+  async function updateDueAt(id: string, dueAt: string) {
+    setUpdatingDueAt(id);
+    await fetch(`/api/admin/invoices/${id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dueAt: dueAt || null }),
+    });
+    setUpdatingDueAt(null);
+    await load();
+  }
+
+  async function runDueReminders(dryRun: boolean) {
+    setRunningReminders(true);
+    const res = await fetch("/api/admin/invoices/due-reminders/run", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dryRun }),
+    });
+    setRunningReminders(false);
+    const j = (await res.json().catch(() => null)) as {
+      sent?: Array<{ number: string; kind: string }>;
+      skipped?: Array<{ number: string; reason: string }>;
+      scanned?: number;
+      error?: string;
+    } | null;
+    if (!res.ok) {
+      window.alert(j?.error ?? "No se pudieron procesar los recordatorios.");
+      return;
+    }
+    const sent = j?.sent?.length ?? 0;
+    const label = dryRun ? "Simulación" : "Envío";
+    window.alert(
+      `${label}: ${sent} recordatorio(s)${dryRun ? " listos para enviar" : " enviados"}.\n` +
+        `Facturas con vencimiento revisadas: ${j?.scanned ?? 0}.`,
+    );
+    if (!dryRun) await load();
+  }
+
   async function markPaid(id: string) {
     setMarkingPaid(id);
     await fetch(`/api/admin/invoices/${id}`, {
@@ -495,6 +550,15 @@ export function InvoicesManager({
           <option value="final">Factura final</option>
         </select>
         <span className="text-sm text-neutral-400">{filtered.length} de {items.length}</span>
+        <button
+          type="button"
+          disabled={runningReminders}
+          onClick={() => void runDueReminders(true)}
+          className="rounded border border-neutral-200 px-3 py-2 text-xs text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+          title="Ver qué recordatorios se enviarían hoy sin mandar mails"
+        >
+          {runningReminders ? "…" : "Simular recordatorios"}
+        </button>
         <div className="ml-auto flex flex-wrap gap-2">
           <button
             onClick={() => openNewInvoiceModal("sena")}
@@ -534,6 +598,7 @@ export function InvoicesManager({
               <th className="px-4 py-3">Total</th>
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Emisión</th>
+              <th className="px-4 py-3">Vencimiento</th>
               <th className="px-4 py-3">Pago</th>
               <th className="px-4 py-3"></th>
             </tr>
@@ -612,6 +677,20 @@ export function InvoicesManager({
                 </td>
                 <td className="px-4 py-3 text-xs text-neutral-400 whitespace-nowrap">
                   {formatDate(row.issuedAt)}
+                </td>
+                <td className="px-4 py-3 text-xs whitespace-nowrap">
+                  {row.status === "pendiente" ? (
+                    <input
+                      type="date"
+                      className="rounded border border-neutral-200 bg-white px-2 py-1 text-[11px] min-w-[118px]"
+                      value={formatDateInput(row.dueAt)}
+                      disabled={updatingDueAt === row.id}
+                      aria-label={`Vencimiento de ${row.number}`}
+                      onChange={(e) => void updateDueAt(row.id, e.target.value)}
+                    />
+                  ) : (
+                    <span className="text-neutral-400">{formatDate(row.dueAt)}</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-xs text-neutral-400 whitespace-nowrap">
                   {formatDate(row.paidAt)}
@@ -807,8 +886,26 @@ export function InvoicesManager({
                     type="date"
                     className="fv"
                     value={form.issuedAt}
-                    onChange={(e) => setForm({ ...form, issuedAt: e.target.value })}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        issuedAt: e.target.value,
+                        dueAt: form.dueAt || defaultDueAtFromIssued(e.target.value),
+                      })
+                    }
                   />
+                </Field>
+                <Field label="Fecha de vencimiento">
+                  <input
+                    type="date"
+                    className="fv"
+                    value={form.dueAt}
+                    onChange={(e) => setForm({ ...form, dueAt: e.target.value })}
+                  />
+                  <p className="mt-1 text-[10px]" style={{ color: "rgba(19,25,69,0.42)" }}>
+                    Recordatorios automáticos al cliente: 7 días antes, 1 día antes y el día de
+                    vencimiento (solo si está pendiente).
+                  </p>
                 </Field>
                 <div className="col-span-2">
                   <Field label="Notas">

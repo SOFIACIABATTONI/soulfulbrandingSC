@@ -15,6 +15,7 @@ const createSchema = z.object({
   status: z.enum(["pendiente", "pagado"]).optional().default("pendiente"),
   notes: z.string().optional().default(""),
   issuedAt: z.string().optional(), // ISO date string
+  dueAt: z.string().nullable().optional(),
 });
 
 /** Genera el siguiente número de factura: "2026-001" */
@@ -58,7 +59,7 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  const { issuedAt, projectId, ...rest } = parsed.data;
+  const { issuedAt, dueAt, projectId, ...rest } = parsed.data;
 
   let projectValue: number | undefined;
   let projectInvoices: { type: string; status: string; total: number; projectId: string | null }[] =
@@ -98,6 +99,7 @@ export async function POST(req: Request) {
       projectId: projectId ?? null,
       number,
       issuedAt: issuedAt ? new Date(issuedAt) : new Date(),
+      dueAt: dueAt ? new Date(`${dueAt}T12:00:00.000Z`) : null,
     },
     include: {
       client: { select: { id: true, name: true, company: true } },

@@ -11,6 +11,7 @@ const patchSchema = z.object({
   notes: z.string().optional(),
   paidAt: z.string().nullable().optional(),
   issuedAt: z.string().optional(),
+  dueAt: z.string().nullable().optional(),
   projectId: z.string().nullable().optional(),
 });
 
@@ -45,7 +46,7 @@ export async function PATCH(req: Request, ctx: RouteParams) {
       { status: 400 }
     );
   }
-  const { paidAt, issuedAt, projectId, ...rest } = parsed.data;
+  const { paidAt, issuedAt, dueAt, projectId, ...rest } = parsed.data;
 
   const existing = await prisma.invoice.findUnique({
     where: { id },
@@ -113,13 +114,26 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   }
 
   try {
+    const reminderReset =
+      dueAt !== undefined
+        ? {
+            reminder7dSentAt: null,
+            reminder1dSentAt: null,
+            reminderDueSentAt: null,
+          }
+        : {};
+
     const updated = await prisma.invoice.update({
       where: { id },
       data: {
         ...rest,
+        ...reminderReset,
         ...(projectId !== undefined ? { projectId } : {}),
         ...(paidAt !== undefined ? { paidAt: paidAt ? new Date(paidAt) : null } : {}),
         ...(issuedAt !== undefined ? { issuedAt: new Date(issuedAt) } : {}),
+        ...(dueAt !== undefined
+          ? { dueAt: dueAt ? new Date(`${dueAt}T12:00:00.000Z`) : null }
+          : {}),
         // si se paga, registrar fecha automáticamente
         ...(rest.status === "pagado" && !paidAt ? { paidAt: new Date() } : {}),
       },
