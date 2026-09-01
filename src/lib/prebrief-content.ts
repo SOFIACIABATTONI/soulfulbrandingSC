@@ -7,6 +7,8 @@ export type PrebriefField = {
   rows?: number;
   sectionTitle?: string;
   sectionIntro?: string;
+  /** Si true, no se muestra al cliente (útil para paquetes inicial / intermedio / completo). */
+  hidden?: boolean;
 };
 
 export const PREBRIEF_EMAIL_WELCOME = `# Bienvenido al proceso Soulful Branding®

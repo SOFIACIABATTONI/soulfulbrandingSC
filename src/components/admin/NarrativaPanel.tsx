@@ -285,7 +285,7 @@ export function NarrativaPanel({
         className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t"
         style={{ borderColor: brandUi.border }}
       >
-        <div className="text-xs space-y-0.5">
+        <div className="text-xs space-y-2 flex-1">
           {data?.narrativaSentAt ? (
             <p style={{ color: brandUi.textMuted }}>
               Enviado el{" "}
@@ -311,6 +311,14 @@ export function NarrativaPanel({
               cuando esté listo.
             </p>
           )}
+          <p
+            className="text-[11px] leading-relaxed rounded-lg border px-3 py-2"
+            style={{ borderColor: brandUi.border, background: "rgba(249,243,219,0.35)", color: brandUi.textMuted }}
+          >
+            <strong style={{ color: brandUi.text }}>Narrativa y calendario van por separado.</strong>{" "}
+            Enviá la narrativa primero; cuando quieras coordinar la llamada, usá «Enviar agenda» en
+            Deep Dive (abajo). Son dos mails distintos al cliente.
+          </p>
         </div>
         <button
           type="button"

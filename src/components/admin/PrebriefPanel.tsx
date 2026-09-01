@@ -30,7 +30,7 @@ export function PrebriefPanel({
   const [data, setData] = useState<PrebriefData | null>(null);
   const [template, setTemplate] = useState<PrebriefTemplate>(getDefaultPrebriefTemplate());
   const [personalNote, setPersonalNote] = useState("");
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -125,7 +125,7 @@ export function PrebriefPanel({
         <p className="text-xs flex-1" style={{ color: brandUi.textMuted }}>
           {submitted
             ? "Las respuestas del cliente están abajo."
-            : "Editá el cuestionario antes de enviar. El mail lleva solo la bienvenida + enlace; el formulario no repite ese texto."}
+            : "Podés agregar, quitar u ocultar preguntas (+ Pregunta / Eliminar / paquetes inicial·intermedio·completo). El mail lleva la bienvenida + enlace al formulario."}
         </p>
         <button
           type="button"

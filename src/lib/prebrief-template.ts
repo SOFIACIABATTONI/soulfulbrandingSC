@@ -20,6 +20,7 @@ const prebriefFieldSchema = z.object({
   rows: z.number().optional(),
   sectionTitle: z.string().optional(),
   sectionIntro: z.string().optional(),
+  hidden: z.boolean().optional(),
 });
 
 const prebriefTemplateStoredSchema = z.object({
@@ -174,6 +175,59 @@ export function createPrebriefSectionField(existing: PrebriefField[]): PrebriefF
     label: "Pregunta de la sección",
     hint: "",
     rows: 4,
+  };
+}
+
+/** Preguntas visibles en el formulario del cliente. */
+export function visiblePrebriefFields(fields: PrebriefField[]): PrebriefField[] {
+  return fields.filter((f) => !f.hidden);
+}
+
+export type PrebriefPackagePreset = "inicial" | "intermedio" | "completo";
+
+const PREBRIEF_PRESET_VISIBLE_IDS: Record<PrebriefPackagePreset, Set<string> | null> = {
+  inicial: new Set([
+    "q1",
+    "q2",
+    "q3",
+    "q4",
+    "q5",
+    "q6",
+    "resonancia_visual",
+  ]),
+  intermedio: new Set([
+    "q1",
+    "q2",
+    "q3",
+    "q4",
+    "q5",
+    "q6",
+    "q7",
+    "q8",
+    "q9",
+    "q10",
+    "resonancia_visual",
+  ]),
+  completo: null,
+};
+
+export function applyPrebriefPackagePreset(
+  template: PrebriefTemplate,
+  preset: PrebriefPackagePreset,
+): PrebriefTemplate {
+  const visible = PREBRIEF_PRESET_VISIBLE_IDS[preset];
+  if (!visible) {
+    return {
+      ...template,
+      fields: template.fields.map((f) => ({ ...f, hidden: false })),
+    };
+  }
+  return {
+    ...template,
+    fields: template.fields.map((f) => ({
+      ...f,
+      hidden: !visible.has(f.id),
+    })),
   };
 }
 

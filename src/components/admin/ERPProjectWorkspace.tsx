@@ -1172,31 +1172,47 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                         projectTitle={project.title}
                       />
                       <div
-                        className="rounded-2xl border bg-white p-4 flex flex-wrap items-center justify-between gap-3 text-sm"
+                        className="rounded-2xl border bg-white p-4 space-y-3 text-sm"
                         style={{ borderColor: "rgba(19,25,69,0.1)" }}
                       >
-                        <div>
-                          <p className="font-medium text-neutral-900">Recibos de seña</p>
-                          <p className="text-xs text-neutral-500 mt-0.5">
-                            {(() => {
-                              const senas = project.invoices.filter((i) => i.type === "sena");
-                              if (senas.length === 0) return "Sin recibos de seña vinculados aún.";
-                              const pagados = senas.filter((i) => i.status === "pagado");
-                              const pendientes = senas.length - pagados.length;
-                              if (pendientes === 0) {
-                                return `${senas.length} recibo(s) · todos pagados`;
-                              }
-                              return `${senas.length} recibo(s) · ${pagados.length} pagado(s), ${pendientes} pendiente(s)`;
-                            })()}
-                          </p>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-medium text-neutral-900">Recibos de seña y cobros</p>
+                            <p className="text-xs text-neutral-500 mt-0.5 max-w-xl">
+                              Podés emitir <strong>varios recibos de seña</strong> (pagos en cuotas) y
+                              al final una sola <strong>factura final</strong> con el saldo. La suma no
+                              puede superar el valor del proyecto.
+                            </p>
+                            <p className="text-xs text-neutral-500 mt-1">
+                              {(() => {
+                                const senas = project.invoices.filter((i) => i.type === "sena");
+                                if (senas.length === 0) return "Sin recibos de seña vinculados aún.";
+                                const pagados = senas.filter((i) => i.status === "pagado");
+                                const pendientes = senas.length - pagados.length;
+                                if (pendientes === 0) {
+                                  return `${senas.length} recibo(s) · todos pagados`;
+                                }
+                                return `${senas.length} recibo(s) · ${pagados.length} pagado(s), ${pendientes} pendiente(s)`;
+                              })()}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2 shrink-0">
+                            <Link
+                              href={`/admin/facturas?clientId=${project.client.id}&projectId=${project.id}`}
+                              className="rounded-full px-3 py-1.5 text-xs font-medium text-white"
+                              style={{ background: "#F03172" }}
+                            >
+                              + Recibo de seña
+                            </Link>
+                            <Link
+                              href={`/admin/facturas?clientId=${project.client.id}&projectId=${project.id}`}
+                              className="text-xs font-medium hover:underline self-center"
+                              style={{ color: "#323FF6" }}
+                            >
+                              Ver todos los cobros →
+                            </Link>
+                          </div>
                         </div>
-                        <Link
-                          href={`/admin/facturas?clientId=${project.client.id}&projectId=${project.id}`}
-                          className="text-xs font-medium hover:underline"
-                          style={{ color: "#F03172" }}
-                        >
-                          Gestionar cobros →
-                        </Link>
                       </div>
                     </>
                   )}

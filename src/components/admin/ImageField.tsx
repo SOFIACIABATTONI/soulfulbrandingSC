@@ -81,7 +81,7 @@ export function ImageField({ label, value, onChange, onSave, helpText, minWidth,
         return;
       }
 
-      const url = await uploadPortfolioImageFile(file, (event) => setUploadProgress(event));
+      const { url } = await uploadPortfolioImageFile(file, (event) => setUploadProgress(event));
       setUploadProgress({ loaded: file.size, total: file.size, percentage: 95, phase: "save" });
       if (onSave) {
         const ok = await onSave(url);

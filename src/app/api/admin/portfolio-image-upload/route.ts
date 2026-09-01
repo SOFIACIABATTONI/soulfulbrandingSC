@@ -13,10 +13,20 @@ import { savePublicDevUpload } from "@/lib/local-dev-upload-store";
 
 export const runtime = "nodejs";
 
-const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"]);
+const IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/svg+xml",
+]);
+const VIDEO_TYPES = new Set(["video/mp4", "video/webm"]);
+const ALLOWED = new Set([...IMAGE_TYPES, ...VIDEO_TYPES]);
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 48 * 1024 * 1024;
 const MAX_DIM = 8000;
 
-/** Imágenes del portfolio público — URL accesible sin login (grilla /portfolio). */
+/** Imágenes y videos del portfolio público — URL accesible sin login. */
 export async function POST(req: Request) {
   try {
     if (!(await isAdminRequest())) {
@@ -28,21 +38,47 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Archivo requerido" }, { status: 400 });
     }
     if (!ALLOWED.has(file.type)) {
-      return NextResponse.json({ error: "Tipo no permitido" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Tipo no permitido. Usá JPG, PNG, WEBP, GIF, SVG, MP4 o WebM." },
+        { status: 400 },
+      );
     }
+
+    const isVideo = VIDEO_TYPES.has(file.type);
+    const maxBytes = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
     const buf = Buffer.from(await file.arrayBuffer());
-    if (buf.length > 8 * 1024 * 1024) {
-      return NextResponse.json({ error: "Máximo 8MB" }, { status: 400 });
+    if (buf.length > maxBytes) {
+      return NextResponse.json(
+        { error: isVideo ? "Máximo 48MB para video." : "Máximo 8MB para imagen." },
+        { status: 400 },
+      );
     }
 
-    const meta = imageSize(buf);
-    const w = meta.width ?? 0;
-    const h = meta.height ?? 0;
-    if (w > MAX_DIM || h > MAX_DIM) {
-      return NextResponse.json({ error: "Imagen demasiado grande (máx. 8000px por lado)." }, { status: 400 });
+    if (!isVideo) {
+      try {
+        const meta = imageSize(buf);
+        const w = meta.width ?? 0;
+        const h = meta.height ?? 0;
+        if (w > MAX_DIM || h > MAX_DIM) {
+          return NextResponse.json(
+            { error: "Imagen demasiado grande (máx. 8000px por lado)." },
+            { status: 400 },
+          );
+        }
+      } catch {
+        return NextResponse.json({ error: "No se pudo leer la imagen." }, { status: 400 });
+      }
     }
 
-    const ext = path.extname(file.name) || (file.type === "image/png" ? ".png" : ".jpg");
+    const ext =
+      path.extname(file.name) ||
+      (file.type === "image/png"
+        ? ".png"
+        : file.type === "video/mp4"
+          ? ".mp4"
+          : file.type === "video/webm"
+            ? ".webm"
+            : ".jpg");
     const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
     const blobPath = `uploads/${name}`;
 
@@ -58,7 +94,7 @@ export async function POST(req: Request) {
             contentType: file.type || "application/octet-stream",
           }),
         );
-        return NextResponse.json({ url: blob.url });
+        return NextResponse.json({ url: blob.url, mime: file.type });
       } catch (error) {
         const cause = error instanceof Error ? error.message : String(error);
         console.error("[portfolio-image-upload] blob put failed", cause, blobStorageDiagnostics());
@@ -69,9 +105,9 @@ export async function POST(req: Request) {
     }
 
     const url = await savePublicDevUpload("portfolio", name, buf);
-    return NextResponse.json({ url });
+    return NextResponse.json({ url, mime: file.type });
   } catch (error) {
     console.error("[portfolio-image-upload] failed", error);
-    return NextResponse.json({ error: "No se pudo subir la imagen." }, { status: 500 });
+    return NextResponse.json({ error: "No se pudo subir el archivo." }, { status: 500 });
   }
 }

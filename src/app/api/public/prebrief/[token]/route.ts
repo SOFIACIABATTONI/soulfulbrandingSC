@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { findAccessTokenByPlain, isAccessTokenExpired } from "@/lib/access-service";
 import { getProjectPrebriefResponses } from "@/lib/prebrief-service";
-import { resolvePrebriefTemplate } from "@/lib/prebrief-template";
+import { resolvePrebriefTemplate, visiblePrebriefFields } from "@/lib/prebrief-template";
 import { notifyAdminPrebriefSubmitted } from "@/lib/send-project-milestone-email";
 
 type RouteParams = { params: Promise<{ token: string }> };
@@ -32,13 +32,14 @@ export async function GET(_req: Request, ctx: RouteParams) {
   }
 
   const template = resolvePrebriefTemplate(project.phases);
+  const clientFields = visiblePrebriefFields(template.fields);
   const { responses, submittedAt } = getProjectPrebriefResponses(project);
   const submitted = Boolean(submittedAt);
 
   return NextResponse.json({
     clientName: record.client.name,
     projectTitle: record.project.title,
-    fields: template.fields,
+    fields: clientFields,
     intro: {
       questionnaire: template.questionnaireIntro,
       outro: template.outro,

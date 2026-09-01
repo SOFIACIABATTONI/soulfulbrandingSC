@@ -190,36 +190,40 @@ export async function preparePhaseCoverFile(file: File): Promise<File> {
   if (!mime || !ADMIN_IMAGE_ALLOWED_CONTENT_TYPES.includes(mime)) return file;
   if (mime === "image/svg+xml" || mime === "image/gif") return file;
 
-  const bitmap = await createImageBitmap(file);
   try {
-    const maxSide = Math.max(bitmap.width, bitmap.height);
-    const needsResize = maxSide > PHASE_COVER_MAX_PX;
-    if (!needsResize && file.size <= PHASE_COVER_SKIP_BYTES) return file;
+    const bitmap = await createImageBitmap(file);
+    try {
+      const maxSide = Math.max(bitmap.width, bitmap.height);
+      const needsResize = maxSide > PHASE_COVER_MAX_PX;
+      if (!needsResize && file.size <= PHASE_COVER_SKIP_BYTES) return file;
 
-    const scale = needsResize ? PHASE_COVER_MAX_PX / maxSide : 1;
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
-    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const scale = needsResize ? PHASE_COVER_MAX_PX / maxSide : 1;
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return file;
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
 
-    const outputMime =
-      mime === "image/png" ? "image/jpeg" : mime === "image/webp" ? "image/webp" : "image/jpeg";
-    const quality = outputMime === "image/jpeg" ? PHASE_COVER_JPEG_QUALITY : 0.88;
+      const outputMime =
+        mime === "image/png" ? "image/jpeg" : mime === "image/webp" ? "image/webp" : "image/jpeg";
+      const quality = outputMime === "image/jpeg" ? PHASE_COVER_JPEG_QUALITY : 0.88;
 
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, outputMime, quality);
-    });
-    if (!blob) return file;
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, outputMime, quality);
+      });
+      if (!blob) return file;
 
-    const base = file.name.replace(/\.[^.]+$/, "");
-    const ext = outputMime === "image/jpeg" ? ".jpg" : outputMime === "image/webp" ? ".webp" : ".png";
-    const result = new File([blob], `${base}${ext}`, { type: outputMime });
-    if (result.size > file.size && !needsResize) return file;
-    return result;
-  } finally {
-    bitmap.close();
+      const base = file.name.replace(/\.[^.]+$/, "");
+      const ext = outputMime === "image/jpeg" ? ".jpg" : outputMime === "image/webp" ? ".webp" : ".png";
+      const result = new File([blob], `${base}${ext}`, { type: outputMime });
+      if (result.size > file.size && !needsResize) return file;
+      return result;
+    } finally {
+      bitmap.close();
+    }
+  } catch {
+    return file;
   }
 }
 
@@ -346,10 +350,11 @@ export async function uploadPhaseCoverImageFile(
 export async function uploadPortfolioImageFile(
   file: File,
   onProgress?: (event: UploadProgressEvent) => void,
-): Promise<string> {
+): Promise<{ url: string; mime: string }> {
   onProgress?.({ loaded: 0, total: file.size, percentage: 4, phase: "upload" });
 
-  const prepared = await preparePhaseCoverFile(file);
+  const isVideo = file.type.startsWith("video/");
+  const prepared = isVideo ? file : await preparePhaseCoverFile(file).catch(() => file);
   onProgress?.({
     loaded: Math.round(prepared.size * 0.2),
     total: prepared.size,
@@ -357,12 +362,21 @@ export async function uploadPortfolioImageFile(
     phase: "upload",
   });
 
-  const mime = resolveBrandAssetMime(prepared);
-  if (!mime || !ADMIN_IMAGE_ALLOWED_CONTENT_TYPES.includes(mime)) {
-    throw new Error("Tipo no permitido.");
-  }
-  if (prepared.size > ADMIN_IMAGE_MAX_BYTES) {
-    throw new Error("Máximo 8MB");
+  const mime = resolveBrandAssetMime(prepared) ?? prepared.type;
+  if (isVideo) {
+    if (!mime.startsWith("video/")) {
+      throw new Error("Tipo de video no permitido. Usá MP4 o WebM.");
+    }
+    if (prepared.size > 48 * 1024 * 1024) {
+      throw new Error("Máximo 48MB para video.");
+    }
+  } else {
+    if (!mime || !ADMIN_IMAGE_ALLOWED_CONTENT_TYPES.includes(mime)) {
+      throw new Error("Tipo no permitido.");
+    }
+    if (prepared.size > ADMIN_IMAGE_MAX_BYTES) {
+      throw new Error("Máximo 8MB");
+    }
   }
 
   const mapUploadProgress = (event: UploadProgressEvent) => {
@@ -379,7 +393,7 @@ export async function uploadPortfolioImageFile(
     mapUploadProgress,
   );
   onProgress?.({ loaded: prepared.size, total: prepared.size, percentage: 95, phase: "save" });
-  return j.url;
+  return { url: j.url, mime: j.mime ?? mime };
 }
 
 export async function uploadAdminImageFile(

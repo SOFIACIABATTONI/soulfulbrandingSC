@@ -32,21 +32,31 @@ export function PortfolioCaseEditor({ slug }: Props) {
   const [msg, setMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/projects?all=1", { credentials: "include" });
-    const list = (await res.json()) as Project[];
-    const found = list.find((p) => p.slug === slug) ?? null;
-    setProject(found);
+    try {
+      const res = await fetch("/api/projects?all=1", { credentials: "include" });
+      if (!res.ok) throw new Error("projects fetch failed");
+      const list = (await res.json()) as Project[];
+      if (!Array.isArray(list)) throw new Error("invalid projects response");
+      const found = list.find((p) => p.slug === slug) ?? null;
+      setProject(found);
 
-    if (found) {
-      const gRes = await fetch(`/api/admin/portfolio-gallery/${encodeURIComponent(slug)}`, {
-        credentials: "include",
-      });
-      if (gRes.ok) {
-        const j = (await gRes.json()) as { items: GalleryItem[] };
-        setGallery(j.items);
+      if (found) {
+        const gRes = await fetch(`/api/admin/portfolio-gallery/${encodeURIComponent(slug)}`, {
+          credentials: "include",
+        });
+        if (gRes.ok) {
+          const j = (await gRes.json()) as { items: GalleryItem[] };
+          setGallery(Array.isArray(j.items) ? j.items : []);
+        }
+      } else {
+        setGallery([]);
       }
+    } catch (err) {
+      console.error("[PortfolioCaseEditor] load", err);
+      setMsg("No se pudo cargar el editor. Recargá la página.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [slug]);
 
   useEffect(() => {
@@ -138,13 +148,22 @@ export function PortfolioCaseEditor({ slug }: Props) {
     setUploadingGallery(true);
     setMsg(null);
     let added = 0;
+    const errors: string[] = [];
     try {
       for (const file of list) {
         setGalleryUploadProgress({ loaded: 0, total: file.size, percentage: 0, phase: "upload" });
         setGalleryUploadFileName(file.name);
         setGalleryUploadFileSize(file.size);
 
-        const url = await uploadPortfolioImageFile(file, (event) => setGalleryUploadProgress(event));
+        let uploaded: { url: string; mime: string };
+        try {
+          uploaded = await uploadPortfolioImageFile(file, (event) => setGalleryUploadProgress(event));
+        } catch (err) {
+          errors.push(`${file.name}: ${err instanceof Error ? err.message : "error"}`);
+          continue;
+        }
+
+        const { url, mime } = uploaded;
         if (project?.imageUrl?.trim() === url) {
           setMsg("Esa imagen ya es la portada. Elegí otra para la galería del caso.");
           continue;
@@ -158,19 +177,28 @@ export function PortfolioCaseEditor({ slug }: Props) {
           body: JSON.stringify({
             url,
             fileName: file.name,
-            mime: file.type || "image/jpeg",
+            mime: mime || file.type || "image/jpeg",
           }),
         });
         if (!res.ok) {
           const j = (await res.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(j?.error ?? "upload failed");
+          errors.push(`${file.name}: ${j?.error ?? "no se guardó"}`);
+          continue;
         }
         added += 1;
       }
       await load();
-      setMsg(added === 1 ? "Imagen agregada al caso." : `${added} imágenes agregadas al caso.`);
+      if (added > 0) {
+        setMsg(added === 1 ? "Archivo agregado al caso." : `${added} archivos agregados al caso.`);
+      }
+      if (errors.length > 0) {
+        setMsg(
+          (added > 0 ? `${added} ok. ` : "") +
+            `No se subieron: ${errors.slice(0, 2).join("; ")}${errors.length > 2 ? "…" : ""}`,
+        );
+      }
     } catch {
-      setMsg(added > 0 ? "Algunas imágenes no se pudieron subir." : "No se pudo subir la imagen.");
+      setMsg(added > 0 ? "Algunos archivos no se pudieron subir." : "No se pudo subir el archivo.");
       if (added > 0) await load();
     } finally {
       setUploadingGallery(false);
@@ -385,15 +413,16 @@ export function PortfolioCaseEditor({ slug }: Props) {
       </section>
 
       <section className="mt-8 rounded-2xl border border-neutral-200 bg-white p-6">
-        <h2 className="font-semibold text-brand-navy">Imágenes del caso</h2>
+        <h2 className="font-semibold text-brand-navy">Medios del caso</h2>
         <p className="mt-1 text-sm text-neutral-600">
-          Solo las imágenes que subís acá. La portada va aparte (arriba) y no se repite en esta sección.
+          Imágenes (JPG, PNG, WEBP, GIF) y videos (MP4, WebM). La portada va aparte (arriba) y no se
+          repite en esta sección.
         </p>
 
         <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-neutral-300 px-4 py-3 text-sm hover:bg-neutral-50">
           <input
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,video/mp4,video/webm"
             multiple
             className="sr-only"
             disabled={uploadingGallery}
@@ -403,7 +432,7 @@ export function PortfolioCaseEditor({ slug }: Props) {
               e.target.value = "";
             }}
           />
-          {uploadingGallery ? "Subiendo…" : "+ Agregar imágenes"}
+          {uploadingGallery ? "Subiendo…" : "+ Agregar imágenes o videos"}
         </label>
 
         {uploadingGallery && galleryUploadProgress ? (
@@ -426,8 +455,19 @@ export function PortfolioCaseEditor({ slug }: Props) {
             <ul className="flex flex-col">
               {caseImages.map((g, i) => (
                 <li key={g.id} className="group relative border-b border-neutral-200 last:border-b-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={g.url} alt="" className="block h-auto w-full bg-white" loading="lazy" />
+                  {g.mime.startsWith("video/") ? (
+                    <video
+                      src={g.url}
+                      controls
+                      muted
+                      playsInline
+                      className="block h-auto w-full bg-black"
+                      preload="metadata"
+                    />
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={g.url} alt="" className="block h-auto w-full bg-white" loading="lazy" />
+                  )}
                   <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 bg-gradient-to-b from-black/55 to-transparent p-3">
                     <span className="rounded bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-brand-navy">
                       {i + 1} / {caseImages.length}

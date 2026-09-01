@@ -5,9 +5,11 @@ import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { Button } from "@/components/admin/ui/Button";
 import type { PrebriefField } from "@/lib/prebrief-content";
 import {
+  applyPrebriefPackagePreset,
   createPrebriefQuestionField,
   createPrebriefSectionField,
   getDefaultPrebriefTemplate,
+  visiblePrebriefFields,
   type PrebriefTemplate,
 } from "@/lib/prebrief-template";
 import { brandUi, clientFrame } from "@/lib/brand-ui";
@@ -253,10 +255,29 @@ export function PrebriefTemplateEditor({
       <div className="space-y-4 rounded-xl border p-4" style={{ borderColor: brandUi.border }}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-medium uppercase tracking-wider" style={{ color: brandUi.text }}>
-            Preguntas ({draft.fields.length})
+            Preguntas ({visiblePrebriefFields(draft.fields).length} visibles · {draft.fields.length}{" "}
+            total)
           </p>
           {!disabled && (
             <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["inicial", "Paquete inicial"],
+                  ["intermedio", "Intermedio"],
+                  ["completo", "Completo"],
+                ] as const
+              ).map(([preset, label]) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => updateDraft(applyPrebriefPackagePreset(draft, preset))}
+                  className="rounded-full px-3 py-1 text-[10px] font-medium border transition-colors hover:bg-neutral-50"
+                  style={{ borderColor: brandUi.border, color: brandUi.blue }}
+                  title="Mostrar u ocultar preguntas según el paquete"
+                >
+                  {label}
+                </button>
+              ))}
               <button
                 type="button"
                 onClick={() => addQuestion()}
@@ -332,6 +353,18 @@ export function PrebriefTemplateEditor({
               value={field.label}
               onChange={(label) => updateField(index, { label })}
             />
+            {!disabled && (
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!field.hidden}
+                  onChange={(e) => updateField(index, { hidden: !e.target.checked })}
+                />
+                <span style={{ color: brandUi.textMuted }}>
+                  Incluir en el formulario del cliente
+                </span>
+              </label>
+            )}
             <label className="block">
               <span
                 className="text-[9px] font-medium uppercase tracking-widest"
