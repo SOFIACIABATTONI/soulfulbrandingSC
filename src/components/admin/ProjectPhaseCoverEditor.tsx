@@ -25,14 +25,23 @@ export function ProjectPhaseCoverEditor({
   const [uploadProgress, setUploadProgress] = useState<UploadProgressEvent | null>(null);
   const [uploadingFileName, setUploadingFileName] = useState("");
   const [uploadingFileSize, setUploadingFileSize] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const displayUrl = coverUrl.trim() || localPreview || "";
   const hasCover = Boolean(displayUrl);
 
   useEffect(() => {
     return () => {
-      if (localPreview) URL.revokeObjectURL(localPreview);
+      if (localPreview?.startsWith("blob:")) URL.revokeObjectURL(localPreview);
     };
   }, [localPreview]);
+
+  useEffect(() => {
+    if (!localPreview || localPreview.startsWith("blob:")) return;
+    if (coverUrl.trim() === localPreview) {
+      setLocalPreview(null);
+      onPreviewChange?.(null);
+    }
+  }, [coverUrl, localPreview, onPreviewChange]);
 
   async function persistCover(url: string) {
     setUploadProgress((prev) =>
@@ -40,7 +49,7 @@ export function ProjectPhaseCoverEditor({
     );
     const ok = onSave ? await onSave(url) : true;
     if (!ok) {
-      window.alert("No se pudo guardar la portada en el proyecto.");
+      setUploadError("No se pudo guardar la portada en el proyecto.");
       return false;
     }
     onChange?.(url);
@@ -51,11 +60,12 @@ export function ProjectPhaseCoverEditor({
     const file = fileList?.[0];
     if (!file || uploading) return;
 
-    if (localPreview) URL.revokeObjectURL(localPreview);
+    if (localPreview?.startsWith("blob:")) URL.revokeObjectURL(localPreview);
     const blobUrl = URL.createObjectURL(file);
     setLocalPreview(blobUrl);
     onPreviewChange?.(blobUrl);
     setUploading(true);
+    setUploadError(null);
     setUploadProgress({ loaded: 0, total: file.size, percentage: 0, phase: "upload" });
     setUploadingFileName(file.name);
     setUploadingFileSize(file.size);
@@ -64,13 +74,16 @@ export function ProjectPhaseCoverEditor({
       const url = await uploadPhaseCoverImageFile(file, (event) => setUploadProgress(event));
       const saved = await persistCover(url);
       if (saved) {
+        setLocalPreview(url);
+        onPreviewChange?.(url);
+      } else {
         setLocalPreview(null);
         onPreviewChange?.(null);
       }
     } catch (e) {
       setLocalPreview(null);
       onPreviewChange?.(null);
-      window.alert(e instanceof Error ? e.message : "No se pudo subir la imagen.");
+      setUploadError(e instanceof Error ? e.message : "No se pudo subir la imagen.");
     } finally {
       URL.revokeObjectURL(blobUrl);
       setUploading(false);
@@ -81,11 +94,12 @@ export function ProjectPhaseCoverEditor({
   async function handleRemove() {
     if (uploading) return;
     setUploading(true);
+    setUploadError(null);
     setUploadProgress({ loaded: 0, total: 1, percentage: 95, phase: "save" });
     try {
       const ok = onSave ? await onSave("") : true;
       if (!ok) {
-        window.alert("No se pudo quitar la portada.");
+        setUploadError("No se pudo quitar la portada.");
         return;
       }
       setLocalPreview(null);
@@ -135,6 +149,11 @@ export function ProjectPhaseCoverEditor({
             savingLabel="Guardando portada en el proyecto…"
           />
         )}
+        {uploadError ? (
+          <p className="text-[10px] mt-1" style={{ color: brandUi.accent }}>
+            {uploadError}
+          </p>
+        ) : null}
       </div>
       <div className="flex flex-wrap gap-2 shrink-0">
         <label
@@ -144,7 +163,7 @@ export function ProjectPhaseCoverEditor({
           {hasCover ? "Cambiar imagen" : "Subir imagen"}
           <input
             type="file"
-            accept="image/*,.jpg,.jpeg,.png,.webp"
+            accept="image/*,.jpg,.jpeg,.png,.webp,.svg"
             className="sr-only"
             disabled={uploading}
             onChange={(e) => {

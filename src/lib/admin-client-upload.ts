@@ -311,13 +311,8 @@ export async function uploadPhaseCoverImageFile(
 ): Promise<string> {
   onProgress?.({ loaded: 0, total: file.size, percentage: 4, phase: "upload" });
 
-  const prepared = await preparePhaseCoverFile(file);
-  onProgress?.({
-    loaded: Math.round(prepared.size * 0.2),
-    total: prepared.size,
-    percentage: 18,
-    phase: "upload",
-  });
+  // Sin compresión en el cliente: createImageBitmap bloquea el hilo principal en fotos grandes.
+  const prepared = file;
 
   const mime = resolveBrandAssetMime(prepared);
   if (!mime || !ADMIN_IMAGE_ALLOWED_CONTENT_TYPES.includes(mime)) {
@@ -330,7 +325,7 @@ export async function uploadPhaseCoverImageFile(
   const mapUploadProgress = (event: UploadProgressEvent) => {
     onProgress?.({
       ...event,
-      percentage: 18 + Math.round(event.percentage * 0.7),
+      percentage: 12 + Math.round(event.percentage * 0.76),
     });
   };
 
