@@ -78,7 +78,12 @@ export function BrandKitPanel({
     const localSerialized = serializeBrandKit(kitRef.current);
 
     if (awaitingPropSyncRef.current) {
-      if (incomingSerialized === lastPersistedRef.current || incomingSerialized === localSerialized) {
+      const rawMatch = brandKitJson === lastPersistedRef.current;
+      if (
+        rawMatch ||
+        incomingSerialized === lastPersistedRef.current ||
+        incomingSerialized === localSerialized
+      ) {
         awaitingPropSyncRef.current = false;
       } else {
         return;
@@ -230,20 +235,25 @@ export function BrandKitPanel({
       clearTimeout(saveTimer.current);
       saveTimer.current = null;
     }
-    const nextKit: BrandKit = {
-      ...kitRef.current,
-      cards: kitRef.current.cards.map((c) => (c.id === cardId ? nextCard : c)),
-    };
-    kitRef.current = nextKit;
-    setKit(nextKit);
-    const serialized = serializeBrandKit(nextKit);
-    const ok = await onSave(serialized);
-    if (ok) {
-      lastPersistedRef.current = serialized;
-      awaitingPropSyncRef.current = true;
-      setMessage("Portada actualizada.");
+    setManualSaving(true);
+    try {
+      const nextKit: BrandKit = {
+        ...kitRef.current,
+        cards: kitRef.current.cards.map((c) => (c.id === cardId ? nextCard : c)),
+      };
+      kitRef.current = nextKit;
+      setKit(nextKit);
+      const serialized = serializeBrandKit(nextKit);
+      const ok = await onSave(serialized);
+      if (ok) {
+        lastPersistedRef.current = serialized;
+        awaitingPropSyncRef.current = true;
+        setMessage("Portada actualizada.");
+      }
+      return ok;
+    } finally {
+      setManualSaving(false);
     }
-    return ok;
   }
 
   function addCustomCard() {

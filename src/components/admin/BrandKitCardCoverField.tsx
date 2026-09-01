@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AdminUploadProgress } from "@/components/admin/AdminUploadProgress";
-import {
-  uploadBrandAssetFile,
-  uploadPhaseCoverImageFile,
-  type UploadProgressEvent,
-} from "@/lib/admin-client-upload";
+import { uploadBrandAssetFile, type UploadProgressEvent } from "@/lib/admin-client-upload";
 import { resolveBrandAssetMime } from "@/lib/admin-blob-upload";
 import { brandUi } from "@/lib/brand-ui";
 import {
@@ -52,6 +48,15 @@ export function BrandKitCardCoverField({
     };
   }, [localPreview]);
 
+  useEffect(() => {
+    if (!localPreview || localPreview.startsWith("blob:")) return;
+    const saved = cardPreviewImage(card);
+    if (saved && saved === localPreview) {
+      setLocalPreview(null);
+      onPreviewChange?.(null);
+    }
+  }, [card, localPreview, onPreviewChange]);
+
   async function handleFile(fileList: FileList | null) {
     const file = fileList?.[0];
     if (!file || uploading) return;
@@ -67,18 +72,16 @@ export function BrandKitCardCoverField({
     setUploadingFileSize(file.size);
 
     try {
-      const mime = resolveBrandAssetMime(file) ?? file.type ?? "image/jpeg";
-      const url =
-        mime.startsWith("image/") && mime !== "image/svg+xml"
-          ? await uploadPhaseCoverImageFile(file, (event) => setUploadProgress(event))
-          : (await uploadBrandAssetFile(file)).url;
+      setUploadProgress({ loaded: Math.round(file.size * 0.15), total: file.size, percentage: 20, phase: "upload" });
+      const uploaded = await uploadBrandAssetFile(file);
+      const mime = uploaded.mime || resolveBrandAssetMime(file) || file.type || "image/jpeg";
 
-      setUploadProgress({ loaded: file.size, total: file.size, percentage: 95, phase: "save" });
+      setUploadProgress({ loaded: file.size, total: file.size, percentage: 92, phase: "save" });
 
       const coverFile: BrandKitAssetFile = {
         id: createBrandKitId(),
-        url,
-        fileName: file.name,
+        url: uploaded.url,
+        fileName: uploaded.fileName || file.name,
         mime,
       };
       const nextCard = setCardCoverFiles(card, [coverFile]);
@@ -90,14 +93,15 @@ export function BrandKitCardCoverField({
         return;
       }
 
-      setLocalPreview(null);
-      onPreviewChange?.(null);
+      if (localPreview?.startsWith("blob:")) URL.revokeObjectURL(localPreview);
+      setLocalPreview(uploaded.url);
+      onPreviewChange?.(uploaded.url);
     } catch (e) {
       setLocalPreview(null);
       onPreviewChange?.(null);
       setUploadError(e instanceof Error ? e.message : "No se pudo subir la imagen.");
     } finally {
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
+      URL.revokeObjectURL(blobUrl);
       setUploading(false);
       setUploadProgress(null);
     }
