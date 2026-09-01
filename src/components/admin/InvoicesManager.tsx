@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   INVOICE_TYPE_SHORT,
@@ -17,7 +17,6 @@ import {
 import type { InvoiceReminderKind } from "@/lib/invoice-due-dates";
 import {
   buildInvoiceReminderSummary,
-  type ReminderStepState,
 } from "@/lib/invoice-reminder-status";
 
 // ── tipos ──────────────────────────────────────────────────
@@ -71,57 +70,70 @@ function invoiceSentLabel(type: string): string {
   return type === "final" ? "Factura enviada ✓" : "Recibo enviado ✓";
 }
 
-function reminderBadgeStyle(state: ReminderStepState): { background: string; color: string } {
-  switch (state) {
-    case "sent":
-      return { background: "rgba(26,107,26,0.12)", color: "#1a6b1a" };
-    case "today":
-      return { background: "rgba(255,160,0,0.2)", color: "#b45000" };
-    case "upcoming":
-      return { background: "rgba(50,63,246,0.1)", color: "#323FF6" };
-    case "missed":
-      return { background: "rgba(19,25,69,0.08)", color: "rgba(19,25,69,0.5)" };
-    default:
-      return { background: "rgba(19,25,69,0.06)", color: "rgba(19,25,69,0.45)" };
+function cuotaLabelFromNotes(notes: string): string | null {
+  const match = notes.match(/Cuota\s+(\d+)\s*\/\s*(\d+)/i);
+  return match ? `Cuota ${match[1]}/${match[2]}` : null;
+}
+
+type InvoiceDisplayBlock =
+  | {
+      kind: "group";
+      key: string;
+      project: { id: string; title: string } | null;
+      client: InvoiceItem["client"];
+      rows: InvoiceItem[];
+    }
+  | { kind: "single"; row: InvoiceItem };
+
+function buildInvoiceDisplayBlocks(items: InvoiceItem[]): InvoiceDisplayBlock[] {
+  const byKey = new Map<string, InvoiceItem[]>();
+  for (const row of items) {
+    const key = row.project?.id ?? `__none__:${row.client.id}`;
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key)!.push(row);
   }
+
+  const seen = new Set<string>();
+  const blocks: InvoiceDisplayBlock[] = [];
+  for (const row of items) {
+    const key = row.project?.id ?? `__none__:${row.client.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const rows = [...(byKey.get(key) ?? [])].sort((a, b) => a.number.localeCompare(b.number));
+    if (rows.length >= 2) {
+      blocks.push({
+        kind: "group",
+        key,
+        project: row.project,
+        client: row.client,
+        rows,
+      });
+    } else {
+      blocks.push({ kind: "single", row: rows[0] });
+    }
+  }
+  return blocks;
 }
 
 function renderReminderStatus(row: InvoiceItem) {
   const summary = buildInvoiceReminderSummary(row);
-  if (summary.steps.length === 0) {
-    return <span className="text-[10px] text-neutral-400 leading-snug">{summary.headline}</span>;
-  }
+  const detail =
+    summary.steps.length > 0
+      ? summary.steps.map((step) => step.detail).join("\n")
+      : summary.headline;
+  const todayStep = summary.steps.find((step) => step.state === "today");
   return (
-    <div className="w-[150px]">
-      <p
-        className="text-[10px] font-medium leading-snug text-neutral-700 line-clamp-2"
-        title={summary.headline}
-      >
-        {summary.headline}
-      </p>
-      <div className="mt-1 flex flex-col gap-0.5">
-        {summary.steps.map((step) => {
-          const style = reminderBadgeStyle(step.state);
-          const shortKind =
-            step.kind === "7d" ? "7 días" : step.kind === "1d" ? "1 día" : "Vence";
-          return (
-            <div
-              key={step.kind}
-              className="flex items-center justify-between gap-1 text-[9px]"
-              title={step.detail}
-            >
-              <span className="text-neutral-500 shrink-0">{shortKind}</span>
-              <span
-                className="shrink-0 rounded px-1 py-px font-medium whitespace-nowrap"
-                style={{ background: style.background, color: style.color }}
-              >
-                {step.state === "sent" ? "Enviado" : step.badge}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <span className="text-[10px] leading-snug text-neutral-600 block max-w-[132px]" title={detail}>
+      {todayStep && (
+        <span
+          className="mr-1 inline-block rounded px-1 py-px font-medium text-amber-900"
+          style={{ background: "rgba(255,160,0,0.2)" }}
+        >
+          Hoy
+        </span>
+      )}
+      <span className="line-clamp-2">{summary.headline}</span>
+    </span>
   );
 }
 
@@ -461,6 +473,11 @@ export function InvoicesManager({
     });
   }, [items, filterStatus, filterType, initialClientId]);
 
+  const displayBlocks = useMemo(
+    () => buildInvoiceDisplayBlocks(filtered),
+    [filtered],
+  );
+
   async function createInvoice(e: React.FormEvent) {
     e.preventDefault();
     const isPlan = form.type === "sena" && senaMode === "plan";
@@ -740,6 +757,198 @@ export function InvoicesManager({
   const modalValidation =
     form.type === "sena" && senaMode === "plan" ? planValidation : formValidation;
 
+  const tableColCount = initialClientId ? 9 : 10;
+
+  function renderInvoiceRow(row: InvoiceItem, grouped = false) {
+    const cuota = cuotaLabelFromNotes(row.notes);
+    return (
+      <tr
+        key={row.id}
+        className={`border-b border-neutral-100 hover:bg-brand-sky/30 transition-colors ${grouped ? "bg-white" : ""}`}
+      >
+        <td className="px-2 py-2 font-mono text-xs whitespace-nowrap align-top">
+          {cuota && (
+            <div className="text-[10px] font-medium mb-0.5" style={{ color: "rgba(19,25,69,0.45)" }}>
+              {cuota}
+            </div>
+          )}
+          <span className="font-medium">{row.number}</span>
+        </td>
+        {!initialClientId && (
+          <td className="px-2 py-2 max-w-[140px] align-top">
+            {grouped ? (
+              <span className="text-neutral-300">·</span>
+            ) : (
+              <>
+                <Link
+                  href={`/admin/clientes/${row.client.id}`}
+                  className="font-medium hover:underline"
+                  style={{ color: "#131945" }}
+                >
+                  {row.client.name}
+                </Link>
+                {row.client.company && (
+                  <div className="text-xs text-neutral-400 mt-0.5">{row.client.company}</div>
+                )}
+              </>
+            )}
+          </td>
+        )}
+        <td className="px-2 py-2 text-xs min-w-0 max-w-[160px] align-top">
+          {grouped ? (
+            <span className="text-neutral-300">·</span>
+          ) : (
+            <div className="space-y-1.5 min-w-0">
+              {row.project ? (
+                <Link
+                  href={`/admin/proyectos/${row.project.id}`}
+                  className="block font-medium leading-snug hover:underline truncate"
+                  style={{ color: "#131945" }}
+                  title={row.project.title}
+                >
+                  {row.project.title}
+                </Link>
+              ) : (
+                <span className="block text-neutral-400 italic">Sin proyecto</span>
+              )}
+              <div className="flex items-center gap-2 min-w-0">
+                <select
+                  className="rounded border border-neutral-200 bg-white px-2 py-1 text-[11px] w-full min-w-0 max-w-full"
+                  value={row.project?.id ?? ""}
+                  disabled={linkingProject === row.id}
+                  aria-label={`Proyecto de factura ${row.number}`}
+                  onChange={(e) => {
+                    void linkProject(row.id, e.target.value || null);
+                  }}
+                >
+                  <option value="">Sin proyecto</option>
+                  {projectsForClient(row.client.id).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title}
+                    </option>
+                  ))}
+                </select>
+                {linkingProject === row.id && (
+                  <span className="text-[10px] text-neutral-400 shrink-0">…</span>
+                )}
+              </div>
+            </div>
+          )}
+        </td>
+        <td className="px-2 py-2 whitespace-nowrap align-top">
+          {grouped ? (
+            <span className="text-neutral-300">·</span>
+          ) : (
+            <span
+              className="inline-block rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+              style={{ background: "rgba(19,25,69,0.08)", color: "#131945" }}
+            >
+              {INVOICE_TYPE_SHORT[row.type] ?? row.type}
+            </span>
+          )}
+        </td>
+        <td className="px-2 py-2 font-medium whitespace-nowrap align-top">
+          €{row.total.toLocaleString("es-AR")}
+        </td>
+        <td className="px-2 py-2 whitespace-nowrap align-top">
+          <StatusPill status={row.status} />
+          {row.status === "pagado" && row.paidAt && (
+            <div className="mt-1 text-[10px] text-neutral-400">Pagada {formatDate(row.paidAt)}</div>
+          )}
+        </td>
+        <td className="px-2 py-2 text-xs text-neutral-400 whitespace-nowrap align-top">
+          {grouped ? <span className="text-neutral-300">·</span> : formatDate(row.issuedAt)}
+        </td>
+        <td className="px-2 py-2 text-xs whitespace-nowrap align-top">
+          {row.status === "pendiente" ? (
+            <input
+              type="date"
+              className="rounded border border-neutral-200 bg-white px-2 py-1 text-[11px] min-w-[118px]"
+              value={formatDateInput(row.dueAt)}
+              disabled={updatingDueAt === row.id}
+              aria-label={`Vencimiento de ${row.number}`}
+              onChange={(e) => void updateDueAt(row.id, e.target.value)}
+            />
+          ) : (
+            <span className="text-neutral-400">{formatDate(row.dueAt)}</span>
+          )}
+        </td>
+        <td className="px-2 py-2 align-top">{renderReminderStatus(row)}</td>
+        <td
+          className="sticky right-0 z-10 px-2 py-2 align-top whitespace-nowrap shadow-[-8px_0_12px_-8px_rgba(19,25,69,0.12)]"
+          style={{ background: grouped ? "#FFFFFF" : "#FFFFFF" }}
+        >
+          <div className="flex flex-col gap-1 items-start min-w-[6.75rem]">
+            <a
+              href={`/api/admin/invoices/${row.id}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-medium hover:underline whitespace-nowrap"
+              style={{ color: "#323FF6" }}
+            >
+              PDF
+            </a>
+            {renderEmailAction(row)}
+            {row.status === "pendiente" && (
+              <button
+                type="button"
+                onClick={() => void markPaid(row.id)}
+                disabled={markingPaid === row.id}
+                className="text-xs font-medium hover:underline disabled:opacity-50 whitespace-nowrap text-left"
+                style={{ color: "#1a6b1a" }}
+              >
+                {markingPaid === row.id ? "…" : "Marcar pagada"}
+              </button>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
+  function renderGroupHeader(block: Extract<InvoiceDisplayBlock, { kind: "group" }>) {
+    const pending = block.rows
+      .filter((r) => r.status === "pendiente")
+      .reduce((acc, r) => acc + r.total, 0);
+    const issuedKey = formatDateInput(block.rows[0]?.issuedAt ?? null);
+    const allSameIssue = block.rows.every(
+      (r) => formatDateInput(r.issuedAt) === issuedKey,
+    );
+    return (
+      <tr key={`group-${block.key}`} style={{ background: "rgba(19,25,69,0.04)" }}>
+        <td colSpan={tableColCount} className="px-2 py-2 border-b border-neutral-200">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            {block.project ? (
+              <Link
+                href={`/admin/proyectos/${block.project.id}`}
+                className="font-semibold hover:underline"
+                style={{ color: "#131945" }}
+              >
+                {block.project.title}
+              </Link>
+            ) : (
+              <span className="italic text-neutral-400">Sin proyecto</span>
+            )}
+            {!initialClientId && (
+              <span className="text-neutral-500">{block.client.name}</span>
+            )}
+            <span className="text-neutral-500">
+              {block.rows.length} documentos · {INVOICE_TYPE_SHORT[block.rows[0]?.type] ?? ""}
+            </span>
+            {pending > 0 && (
+              <span className="font-medium" style={{ color: "#b45000" }}>
+                €{pending.toLocaleString("es-AR")} pendiente
+              </span>
+            )}
+            {allSameIssue && issuedKey && (
+              <span className="text-neutral-400">emitidos {formatDate(block.rows[0].issuedAt)}</span>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
   return (
     <div className="space-y-4 min-w-0 max-w-full">
       {/* ── Resumen ── */}
@@ -842,10 +1051,9 @@ export function InvoicesManager({
         className="rounded border px-3 py-2 text-[11px] leading-relaxed"
         style={{ borderColor: "rgba(19,25,69,0.1)", color: "rgba(19,25,69,0.55)", background: "#fff" }}
       >
-        <strong>Enviar recibo</strong> manda el PDF al cliente. La columna{" "}
-        <strong>Recordatorios</strong> muestra en qué situación está cada aviso automático (7 días
-        antes, 1 día antes y día de vencimiento). Si cambiás la fecha de vencimiento, los estados se
-        reinician.
+        <strong>Enviar recibo</strong> manda el PDF al cliente. Los documentos del mismo proyecto se{" "}
+        <strong>agrupan</strong>. En <strong>Recordatorios</strong>, pasá el mouse para ver el detalle
+        de los 3 avisos automáticos.
       </p>
 
       {/* ── Tabla ── */}
@@ -874,130 +1082,17 @@ export function InvoicesManager({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row) => (
-              <tr
-                key={row.id}
-                className="border-b border-neutral-100 hover:bg-brand-sky/30 transition-colors"
-              >
-                <td className="px-2 py-3 font-mono text-xs font-medium whitespace-nowrap">{row.number}</td>
-                {!initialClientId && (
-                  <td className="px-2 py-3 max-w-[140px]">
-                    <Link
-                      href={`/admin/clientes/${row.client.id}`}
-                      className="font-medium hover:underline"
-                      style={{ color: "#131945" }}
-                    >
-                      {row.client.name}
-                    </Link>
-                    {row.client.company && (
-                      <div className="text-xs text-neutral-400 mt-0.5">{row.client.company}</div>
-                    )}
-                  </td>
-                )}
-                <td className="px-2 py-3 text-xs min-w-0 max-w-[160px]">
-                  <div className="space-y-1.5 min-w-0">
-                    {row.project ? (
-                      <Link
-                        href={`/admin/proyectos/${row.project.id}`}
-                        className="block font-medium leading-snug hover:underline truncate"
-                        style={{ color: "#131945" }}
-                        title={row.project.title}
-                      >
-                        {row.project.title}
-                      </Link>
-                    ) : (
-                      <span className="block text-neutral-400 italic">Sin proyecto</span>
-                    )}
-                    <div className="flex items-center gap-2 min-w-0">
-                      <select
-                        className="rounded border border-neutral-200 bg-white px-2 py-1 text-[11px] w-full min-w-0 max-w-full"
-                        value={row.project?.id ?? ""}
-                        disabled={linkingProject === row.id}
-                        aria-label={`Proyecto de factura ${row.number}`}
-                        onChange={(e) => {
-                          void linkProject(row.id, e.target.value || null);
-                        }}
-                      >
-                        <option value="">Sin proyecto</option>
-                        {projectsForClient(row.client.id).map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.title}
-                          </option>
-                        ))}
-                      </select>
-                      {linkingProject === row.id && (
-                        <span className="text-[10px] text-neutral-400 shrink-0">…</span>
-                      )}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-2 py-3 whitespace-nowrap">
-                  <span
-                    className="inline-block rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
-                    style={{ background: "rgba(19,25,69,0.08)", color: "#131945" }}
-                  >
-                    {INVOICE_TYPE_SHORT[row.type] ?? row.type}
-                  </span>
-                </td>
-                <td className="px-2 py-3 font-medium whitespace-nowrap">
-                  €{row.total.toLocaleString("es-AR")} EUR
-                </td>
-                <td className="px-2 py-3 whitespace-nowrap">
-                  <StatusPill status={row.status} />
-                  {row.status === "pagado" && row.paidAt && (
-                    <div className="mt-1 text-[10px] text-neutral-400">
-                      Pagada {formatDate(row.paidAt)}
-                    </div>
-                  )}
-                </td>
-                <td className="px-2 py-3 text-xs text-neutral-400 whitespace-nowrap">
-                  {formatDate(row.issuedAt)}
-                </td>
-                <td className="px-2 py-3 text-xs whitespace-nowrap">
-                  {row.status === "pendiente" ? (
-                    <input
-                      type="date"
-                      className="rounded border border-neutral-200 bg-white px-2 py-1 text-[11px] min-w-[118px]"
-                      value={formatDateInput(row.dueAt)}
-                      disabled={updatingDueAt === row.id}
-                      aria-label={`Vencimiento de ${row.number}`}
-                      onChange={(e) => void updateDueAt(row.id, e.target.value)}
-                    />
-                  ) : (
-                    <span className="text-neutral-400">{formatDate(row.dueAt)}</span>
-                  )}
-                </td>
-                <td className="px-2 py-3 align-top">{renderReminderStatus(row)}</td>
-                <td
-                  className="sticky right-0 z-10 px-2 py-3 align-top whitespace-nowrap shadow-[-8px_0_12px_-8px_rgba(19,25,69,0.12)]"
-                  style={{ background: "#FFFFFF" }}
-                >
-                  <div className="flex flex-col gap-1 items-start min-w-[6.75rem]">
-                    <a
-                      href={`/api/admin/invoices/${row.id}/pdf`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-medium hover:underline whitespace-nowrap"
-                      style={{ color: "#323FF6" }}
-                    >
-                      PDF
-                    </a>
-                    {renderEmailAction(row)}
-                    {row.status === "pendiente" && (
-                      <button
-                        type="button"
-                        onClick={() => void markPaid(row.id)}
-                        disabled={markingPaid === row.id}
-                        className="text-xs font-medium hover:underline disabled:opacity-50 whitespace-nowrap text-left"
-                        style={{ color: "#1a6b1a" }}
-                      >
-                        {markingPaid === row.id ? "…" : "Marcar pagada"}
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {displayBlocks.map((block) => {
+              if (block.kind === "single") {
+                return renderInvoiceRow(block.row);
+              }
+              return (
+                <Fragment key={block.key}>
+                  {renderGroupHeader(block)}
+                  {block.rows.map((row) => renderInvoiceRow(row, true))}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
         {filtered.length === 0 && (
