@@ -36,6 +36,7 @@ export function BrandKitCardCoverField({
   const [uploadProgress, setUploadProgress] = useState<UploadProgressEvent | null>(null);
   const [uploadingFileName, setUploadingFileName] = useState("");
   const [uploadingFileSize, setUploadingFileSize] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const savedCover = cardPreviewImage(card);
   const displayUrl = localPreview || savedCover || "";
@@ -60,6 +61,7 @@ export function BrandKitCardCoverField({
     setLocalPreview(blobUrl);
     onPreviewChange?.(blobUrl);
     setUploading(true);
+    setUploadError(null);
     setUploadProgress({ loaded: 0, total: file.size, percentage: 0, phase: "upload" });
     setUploadingFileName(file.name);
     setUploadingFileSize(file.size);
@@ -82,7 +84,7 @@ export function BrandKitCardCoverField({
       const nextCard = setCardCoverFiles(card, [coverFile]);
       const ok = await onSaveCover(nextCard);
       if (!ok) {
-        window.alert("No se pudo guardar la portada en Brand ID.");
+        setUploadError("No se pudo guardar la portada en Brand ID.");
         setLocalPreview(null);
         onPreviewChange?.(null);
         return;
@@ -93,9 +95,9 @@ export function BrandKitCardCoverField({
     } catch (e) {
       setLocalPreview(null);
       onPreviewChange?.(null);
-      window.alert(e instanceof Error ? e.message : "No se pudo subir la imagen.");
+      setUploadError(e instanceof Error ? e.message : "No se pudo subir la imagen.");
     } finally {
-      URL.revokeObjectURL(blobUrl);
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
       setUploading(false);
       setUploadProgress(null);
     }
@@ -171,6 +173,12 @@ export function BrandKitCardCoverField({
           savingLabel="Guardando portada en Brand ID…"
           className="mt-0"
         />
+      ) : null}
+
+      {uploadError ? (
+        <p className="text-[10px]" style={{ color: brandUi.accent }}>
+          {uploadError}
+        </p>
       ) : null}
 
       <label

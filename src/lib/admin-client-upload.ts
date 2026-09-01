@@ -132,7 +132,12 @@ async function compressImageForServerUpload(file: File, maxBytes: number): Promi
   if (!mime || !ADMIN_IMAGE_ALLOWED_CONTENT_TYPES.includes(mime)) return file;
   if (mime === "image/svg+xml" || mime === "image/gif") return file;
 
-  const bitmap = await createImageBitmap(file);
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    return file;
+  }
   try {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");

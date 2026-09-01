@@ -568,7 +568,7 @@ export function cardPreviewImage(card: BrandKitCard): string | null {
   for (const group of card.fileGroups) {
     for (const file of group.files) {
       if (!file.url.trim()) continue;
-      if (file.mime.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg)$/i.test(file.fileName)) {
+      if ((file.mime ?? "").startsWith("image/") || /\.(png|jpe?g|webp|gif|svg)$/i.test(file.fileName)) {
         return file.url;
       }
     }
@@ -577,7 +577,7 @@ export function cardPreviewImage(card: BrandKitCard): string | null {
 }
 
 export function isImageAssetFile(file: BrandKitAssetFile): boolean {
-  if (file.mime.startsWith("image/")) return true;
+  if ((file.mime ?? "").startsWith("image/")) return true;
   return /\.(png|jpe?g|webp|gif|svg)$/i.test(file.fileName);
 }
 

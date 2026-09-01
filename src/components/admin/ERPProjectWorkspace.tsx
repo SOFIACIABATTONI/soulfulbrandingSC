@@ -311,6 +311,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   const [portfolioPrepError, setPortfolioPrepError] = useState<string | null>(null);
   const [brandKitUploading, setBrandKitUploading] = useState(false);
   const brandKitBusyRef = useRef(false);
+  const brandKitUploadingRef = useRef(false);
 
   const portfolioSlug =
     "portfolioSlug" in project
@@ -318,6 +319,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
       : "";
 
   const refreshPhaseStates = useCallback(async () => {
+    if (brandKitBusyRef.current) return;
     setSyncingPhases(true);
     try {
       const res = await fetch(`/api/admin/projects-erp/${project.id}/phases/sync`, {
@@ -439,6 +441,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   }
 
   useEffect(() => {
+    brandKitUploadingRef.current = brandKitUploading;
     brandKitBusyRef.current = brandKitUploading;
   }, [brandKitUploading]);
 
@@ -559,7 +562,9 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         console.error("[saveBrandKitJson]", res.status, body?.error ?? res.statusText);
         return false;
       } finally {
-        brandKitBusyRef.current = false;
+        if (!brandKitUploadingRef.current) {
+          brandKitBusyRef.current = false;
+        }
       }
     },
     [project.id, activePhaseKey, phaseSessionKey],
@@ -582,7 +587,9 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                 : prev[phaseKey]?.state,
         },
       }));
-      void refreshPhaseStates();
+      if (!brandKitBusyRef.current) {
+        void refreshPhaseStates();
+      }
     },
     [refreshPhaseStates],
   );

@@ -38,6 +38,14 @@ type BrandKitPanelProps = {
   onUploadActivityChange?: (active: boolean) => void;
 };
 
+function brandKitUploadedFileCount(kit: BrandKit): number {
+  return kit.cards.reduce(
+    (count, card) =>
+      count + card.fileGroups.reduce((groupCount, group) => groupCount + group.files.filter((f) => f.url.trim()).length, 0),
+    0,
+  );
+}
+
 export function BrandKitPanel({
   phaseLabel,
   brandKitJson,
@@ -64,7 +72,7 @@ export function BrandKitPanel({
   }, [kit]);
 
   useEffect(() => {
-    if (uploadingKey || coverFieldUploading) return;
+    if (uploadingKey || coverFieldUploading || manualSaving) return;
 
     const incomingSerialized = serializeBrandKit(parseBrandKit(brandKitJson));
     const localSerialized = serializeBrandKit(kitRef.current);
@@ -82,10 +90,15 @@ export function BrandKitPanel({
       return;
     }
 
+    const incomingKit = parseBrandKit(brandKitJson);
+    if (brandKitUploadedFileCount(kitRef.current) > brandKitUploadedFileCount(incomingKit)) {
+      return;
+    }
+
     const next = parseBrandKit(brandKitJson);
     setKit(next);
     lastPersistedRef.current = incomingSerialized;
-  }, [brandKitJson, uploadingKey, coverFieldUploading]);
+  }, [brandKitJson, uploadingKey, coverFieldUploading, manualSaving]);
 
   useEffect(() => {
     if (!awaitingPropSyncRef.current) return;
@@ -147,17 +160,32 @@ export function BrandKitPanel({
     if (!card) return;
     setUploadingKey(`${cardId}-${groupId}`);
     setMessage(null);
+    const uploaded: BrandKitAssetFile[] = [];
+    const errors: string[] = [];
     try {
-      const uploaded: BrandKitAssetFile[] = [];
       for (const file of Array.from(fileList)) {
-        const u = await uploadBrandAssetFile(file);
-        uploaded.push({
-          id: createBrandKitId(),
-          url: u.url,
-          fileName: u.fileName,
-          mime: u.mime,
-        });
+        try {
+          const u = await uploadBrandAssetFile(file);
+          uploaded.push({
+            id: createBrandKitId(),
+            url: u.url,
+            fileName: u.fileName,
+            mime: u.mime,
+          });
+        } catch (err) {
+          errors.push(`${file.name}: ${err instanceof Error ? err.message : "error"}`);
+        }
       }
+
+      if (uploaded.length === 0) {
+        setMessage(
+          errors.length > 0
+            ? `No se subieron archivos. ${errors.slice(0, 2).join("; ")}${errors.length > 2 ? "…" : ""}`
+            : "No se subieron archivos.",
+        );
+        return;
+      }
+
       if (saveTimer.current) {
         clearTimeout(saveTimer.current);
         saveTimer.current = null;
@@ -179,12 +207,19 @@ export function BrandKitPanel({
       setKit(nextKit);
       const ok = await persist(nextKit, { silent: true });
       if (ok) {
-        setMessage(`${uploaded.length} archivo(s) subido(s).`);
+        const okLabel =
+          uploaded.length === 1 ? "1 archivo subido." : `${uploaded.length} archivos subidos.`;
+        if (errors.length > 0) {
+          setMessage(
+            `${okLabel} No se subieron: ${errors.slice(0, 2).join("; ")}${errors.length > 2 ? "…" : ""}`,
+          );
+        } else {
+          setMessage(okLabel);
+        }
       }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Error al subir.";
       setMessage(errorMessage);
-      window.alert(errorMessage);
     } finally {
       setUploadingKey(null);
     }
@@ -249,12 +284,13 @@ export function BrandKitPanel({
           const preview = cardPreviewBackground(card);
           const filled = cardHasContent(card);
           const localCover = coverPreviewByCard[card.id];
-          const previewStyle = localCover
-            ? { background: `url("${localCover}") center/cover no-repeat` }
-            : preview.type === "image"
-              ? { background: `url("${preview.value}") center/cover no-repeat` }
-              : preview.type === "palette" || preview.type === "color"
-                ? { background: preview.value }
+          const imagePreviewUrl =
+            localCover || (preview.type === "image" ? preview.value : null);
+          const previewStyle =
+            preview.type === "palette" || preview.type === "color"
+              ? { background: preview.value }
+              : imagePreviewUrl
+                ? undefined
                 : { background: "linear-gradient(135deg, rgba(50,63,246,0.08), rgba(240,49,114,0.08))" };
           return (
             <button
@@ -268,7 +304,11 @@ export function BrandKitPanel({
               }}
               aria-expanded={activeCardId === card.id}
             >
-              <div className="h-20 flex items-center justify-center" style={previewStyle}>
+              <div className="relative h-20 flex items-center justify-center overflow-hidden" style={previewStyle}>
+                {imagePreviewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imagePreviewUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                ) : null}
                 {preview.type === "empty" && (
                   <span className="text-[10px] uppercase tracking-widest" style={{ color: brandUi.textFaint }}>
                     {filled ? "Con contenido" : "Vacío"}
