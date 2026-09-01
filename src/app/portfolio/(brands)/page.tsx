@@ -7,6 +7,8 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { PortfolioShowcase } from "@/components/site/PortfolioShowcase";
 import { PortfolioTestimonialsCarousel } from "@/components/site/PortfolioTestimonialsCarousel";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = buildPageMetadata({
   title: "Portfolio de Branding y Diseño Emocional | Sofía Ciabattoni",
   description:
