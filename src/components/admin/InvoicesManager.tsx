@@ -10,6 +10,10 @@ import {
   validateInvoiceCreate,
   type InvoiceLike,
 } from "@/lib/invoice-utils";
+import {
+  buildInstallmentPlan,
+  type InstallmentIntervalUnit,
+} from "@/lib/invoice-installment-plan";
 
 // ── tipos ──────────────────────────────────────────────────
 type InvoiceItem = {
@@ -131,6 +135,14 @@ const EMPTY_FORM = {
   dueAt: defaultDueAtFromIssued(new Date().toISOString().slice(0, 10)),
 };
 
+const EMPTY_PLAN_FORM = {
+  count: 3,
+  intervalValue: 1,
+  intervalUnit: "months" as InstallmentIntervalUnit,
+  firstDueDate: defaultDueAtFromIssued(new Date().toISOString().slice(0, 10)),
+  totalAmount: "",
+};
+
 // ── componente principal ───────────────────────────────────
 export function InvoicesManager({
   initialClientId,
@@ -161,6 +173,8 @@ export function InvoicesManager({
     clientId: initialClientId ?? "",
     projectId: initialProjectId ?? "",
   });
+  const [senaMode, setSenaMode] = useState<"single" | "plan">("single");
+  const [planForm, setPlanForm] = useState({ ...EMPTY_PLAN_FORM });
 
   const clientProjects = useMemo(
     () => projects.filter((p) => p.clientId === form.clientId),
@@ -169,6 +183,16 @@ export function InvoicesManager({
 
   function projectsForClient(clientId: string) {
     return projects.filter((p) => p.clientId === clientId);
+  }
+
+  function planTotalForProject(projectId: string, project?: ProjectOption) {
+    if (!projectId || !project) return "";
+    const remaining = suggestedRemainingTotal(
+      project.value,
+      projectInvoicesAsLike(items, projectId),
+      projectId,
+    );
+    return remaining > 0 ? String(remaining) : "";
   }
 
   function openNewInvoiceModal(preferredType?: "sena" | "final") {
@@ -193,6 +217,12 @@ export function InvoicesManager({
       projectId,
       type,
       total: defaultInvoiceTotal(project, type, projectId, items),
+    });
+    setSenaMode("single");
+    setPlanForm({
+      ...EMPTY_PLAN_FORM,
+      firstDueDate: defaultDueAtFromIssued(EMPTY_FORM.issuedAt),
+      totalAmount: planTotalForProject(projectId, project),
     });
     setModalOpen(true);
   }
@@ -229,6 +259,11 @@ export function InvoicesManager({
       type,
       total: defaultInvoiceTotal(project, type, projectId, items),
     }));
+    setPlanForm((p) => ({
+      ...p,
+      totalAmount: planTotalForProject(projectId, project),
+      firstDueDate: defaultDueAtFromIssued(form.issuedAt),
+    }));
   }
 
   function setInvoiceType(type: "sena" | "final") {
@@ -242,6 +277,7 @@ export function InvoicesManager({
     }
     const project = clientProjects.find((p) => p.id === form.projectId);
     setFormError(null);
+    if (type === "final") setSenaMode("single");
     setForm((f) => ({
       ...f,
       type,
@@ -265,6 +301,47 @@ export function InvoicesManager({
       },
     );
   }, [form.projectId, form.type, form.total, form.status, clientProjects, items]);
+
+  const planPreview = useMemo(() => {
+    if (form.type !== "sena" || senaMode !== "plan") return [];
+    const total = Number(planForm.totalAmount || form.total);
+    if (!Number.isFinite(total) || total <= 0 || !planForm.firstDueDate) return [];
+    return buildInstallmentPlan({
+      count: planForm.count,
+      totalAmount: total,
+      firstDueDate: planForm.firstDueDate,
+      intervalValue: planForm.intervalValue,
+      intervalUnit: planForm.intervalUnit,
+      issuedAt: form.issuedAt,
+    });
+  }, [form.type, form.total, form.issuedAt, senaMode, planForm]);
+
+  const planValidation = useMemo(() => {
+    if (form.type !== "sena" || senaMode !== "plan" || !form.projectId) {
+      return { ok: true as const };
+    }
+    const project = clientProjects.find((p) => p.id === form.projectId);
+    const total = Number(planForm.totalAmount || form.total);
+    if (!Number.isFinite(total) || total <= 0) {
+      return { ok: false as const, error: "Ingresá el monto total a repartir en cuotas." };
+    }
+    if (planForm.count < 1 || planForm.count > 24) {
+      return { ok: false as const, error: "La cantidad de cuotas debe ser entre 1 y 24." };
+    }
+    if (planForm.intervalValue < 1) {
+      return { ok: false as const, error: "El intervalo debe ser al menos 1." };
+    }
+    return validateInvoiceCreate(
+      "sena",
+      form.projectId,
+      project?.value,
+      projectInvoicesAsLike(items, form.projectId),
+      {
+        newTotal: total,
+        newStatus: form.status as "pendiente" | "pagado",
+      },
+    );
+  }, [form.type, form.projectId, form.total, form.status, senaMode, planForm, clientProjects, items]);
 
   async function load() {
     const [invRes, cliRes, projRes] = await Promise.all([
@@ -310,6 +387,68 @@ export function InvoicesManager({
 
   async function createInvoice(e: React.FormEvent) {
     e.preventDefault();
+    const isPlan = form.type === "sena" && senaMode === "plan";
+
+    if (isPlan) {
+      if (!planValidation.ok) {
+        setFormError(planValidation.error);
+        return;
+      }
+      if (planPreview.length === 0) {
+        setFormError("Revisá el monto total y las fechas del plan.");
+        return;
+      }
+      setSaving(true);
+      setFormError(null);
+      let created = 0;
+      const errors: string[] = [];
+      for (const line of planPreview) {
+        const res = await fetch("/api/admin/invoices", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientId: form.clientId,
+            projectId: form.projectId || undefined,
+            type: "sena",
+            total: line.total,
+            status: form.status,
+            notes: form.notes
+              ? `${form.notes} · Cuota ${line.index}/${planPreview.length}`
+              : `Cuota ${line.index}/${planPreview.length}`,
+            issuedAt: line.issuedAt,
+            dueAt: line.dueAt,
+          }),
+        });
+        if (res.ok) {
+          created += 1;
+        } else {
+          const j = (await res.json().catch(() => null)) as { error?: string } | null;
+          errors.push(`Cuota ${line.index}: ${j?.error ?? "no se creó"}`);
+        }
+      }
+      setSaving(false);
+      if (created > 0) {
+        setModalOpen(false);
+        setSenaMode("single");
+        setPlanForm({ ...EMPTY_PLAN_FORM });
+        setForm({
+          ...EMPTY_FORM,
+          clientId: initialClientId ?? "",
+          projectId: initialProjectId ?? "",
+        });
+        await load();
+      }
+      if (errors.length > 0) {
+        setFormError(
+          created > 0
+            ? `${created} recibo(s) creado(s). Fallaron: ${errors.slice(0, 3).join("; ")}${errors.length > 3 ? "…" : ""}`
+            : errors.slice(0, 3).join("; "),
+        );
+      }
+      return;
+    }
+
     if (!formValidation.ok) {
       setFormError(formValidation.error);
       return;
@@ -501,7 +640,13 @@ export function InvoicesManager({
     ? projectHasFinalInvoice(projectInvoicesAsLike(items, initialProjectId), initialProjectId)
     : false;
   const modalTitle =
-    form.type === "sena" ? "Nuevo recibo de seña" : "Nueva factura final";
+    form.type === "sena"
+      ? senaMode === "plan"
+        ? "Plan de recibos de seña"
+        : "Nuevo recibo de seña"
+      : "Nueva factura final";
+  const modalValidation =
+    form.type === "sena" && senaMode === "plan" ? planValidation : formValidation;
 
   return (
     <div className="space-y-4 min-w-0 max-w-full">
@@ -822,22 +967,167 @@ export function InvoicesManager({
                     </option>
                   </select>
                 </Field>
-                <Field label="Total (EUR)" required>
-                  <input
-                    required
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    className="fv"
-                    placeholder={
-                      form.type === "sena"
-                        ? "Monto acordado con el cliente"
-                        : "Saldo pendiente del proyecto"
-                    }
-                    value={form.total}
-                    onChange={(e) => setForm({ ...form, total: e.target.value })}
-                  />
-                </Field>
+                {form.type === "sena" && (
+                  <div className="col-span-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSenaMode("single")}
+                      className="flex-1 rounded border px-3 py-2 text-xs font-medium transition-colors"
+                      style={{
+                        borderColor: senaMode === "single" ? "#323FF6" : "rgba(19,25,69,0.15)",
+                        background: senaMode === "single" ? "rgba(50,63,246,0.08)" : "#fff",
+                        color: senaMode === "single" ? "#323FF6" : "rgba(19,25,69,0.55)",
+                      }}
+                    >
+                      Un recibo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSenaMode("plan");
+                        setPlanForm((p) => ({
+                          ...p,
+                          firstDueDate: form.dueAt || defaultDueAtFromIssued(form.issuedAt),
+                          totalAmount:
+                            p.totalAmount ||
+                            planTotalForProject(form.projectId, selectedProject) ||
+                            form.total,
+                        }));
+                      }}
+                      className="flex-1 rounded border px-3 py-2 text-xs font-medium transition-colors"
+                      style={{
+                        borderColor: senaMode === "plan" ? "#323FF6" : "rgba(19,25,69,0.15)",
+                        background: senaMode === "plan" ? "rgba(50,63,246,0.08)" : "#fff",
+                        color: senaMode === "plan" ? "#323FF6" : "rgba(19,25,69,0.55)",
+                      }}
+                    >
+                      Plan de cuotas
+                    </button>
+                  </div>
+                )}
+                {(form.type !== "sena" || senaMode === "single") && (
+                  <Field label="Total (EUR)" required>
+                    <input
+                      required
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="fv"
+                      placeholder={
+                        form.type === "sena"
+                          ? "Monto acordado con el cliente"
+                          : "Saldo pendiente del proyecto"
+                      }
+                      value={form.total}
+                      onChange={(e) => setForm({ ...form, total: e.target.value })}
+                    />
+                  </Field>
+                )}
+                {form.type === "sena" && senaMode === "plan" && (
+                  <>
+                    <Field label="Monto total a repartir (EUR)" required>
+                      <input
+                        required
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="fv"
+                        placeholder="Ej. saldo del proyecto"
+                        value={planForm.totalAmount}
+                        onChange={(e) =>
+                          setPlanForm((p) => ({ ...p, totalAmount: e.target.value }))
+                        }
+                      />
+                    </Field>
+                    <Field label="Cantidad de cuotas" required>
+                      <input
+                        required
+                        type="number"
+                        min="1"
+                        max="24"
+                        step="1"
+                        className="fv"
+                        value={planForm.count}
+                        onChange={(e) =>
+                          setPlanForm((p) => ({
+                            ...p,
+                            count: Math.max(1, Math.min(24, Number(e.target.value) || 1)),
+                          }))
+                        }
+                      />
+                    </Field>
+                    <Field label="Cada">
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          className="fv flex-1"
+                          value={planForm.intervalValue}
+                          onChange={(e) =>
+                            setPlanForm((p) => ({
+                              ...p,
+                              intervalValue: Math.max(1, Number(e.target.value) || 1),
+                            }))
+                          }
+                        />
+                        <select
+                          className="fv flex-1"
+                          value={planForm.intervalUnit}
+                          onChange={(e) =>
+                            setPlanForm((p) => ({
+                              ...p,
+                              intervalUnit: e.target.value as InstallmentIntervalUnit,
+                            }))
+                          }
+                        >
+                          <option value="days">días</option>
+                          <option value="months">meses</option>
+                        </select>
+                      </div>
+                    </Field>
+                    <Field label="Primer vencimiento" required>
+                      <input
+                        required
+                        type="date"
+                        className="fv"
+                        value={planForm.firstDueDate}
+                        onChange={(e) =>
+                          setPlanForm((p) => ({ ...p, firstDueDate: e.target.value }))
+                        }
+                      />
+                    </Field>
+                    {planPreview.length > 0 && (
+                      <div className="col-span-2 rounded border border-neutral-100 overflow-hidden">
+                        <p className="px-3 py-2 text-[10px] font-medium uppercase tracking-widest bg-neutral-50 text-neutral-500">
+                          Vista previa — {planPreview.length} recibos
+                        </p>
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-left text-neutral-400 border-b border-neutral-100">
+                              <th className="px-3 py-1.5 font-medium">#</th>
+                              <th className="px-3 py-1.5 font-medium">Monto</th>
+                              <th className="px-3 py-1.5 font-medium">Vence</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {planPreview.map((line) => (
+                              <tr key={line.index} className="border-b border-neutral-50 last:border-0">
+                                <td className="px-3 py-1.5">{line.index}</td>
+                                <td className="px-3 py-1.5 font-medium">
+                                  €{line.total.toLocaleString("es-AR")} EUR
+                                </td>
+                                <td className="px-3 py-1.5 text-neutral-500">
+                                  {formatDate(line.dueAt)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                )}
                 {selectedProject && (
                   <p className="col-span-2 text-[10px]" style={{ color: "rgba(19,25,69,0.42)" }}>
                     {form.type === "sena" ? (
@@ -865,8 +1155,8 @@ export function InvoicesManager({
                     )}
                   </p>
                 )}
-                {!formValidation.ok && (
-                  <p className="col-span-2 text-xs text-red-600">{formValidation.error}</p>
+                {!modalValidation.ok && (
+                  <p className="col-span-2 text-xs text-red-600">{modalValidation.error}</p>
                 )}
                 {formError && (
                   <p className="col-span-2 text-xs text-red-600">{formError}</p>
@@ -895,18 +1185,26 @@ export function InvoicesManager({
                     }
                   />
                 </Field>
-                <Field label="Fecha de vencimiento">
-                  <input
-                    type="date"
-                    className="fv"
-                    value={form.dueAt}
-                    onChange={(e) => setForm({ ...form, dueAt: e.target.value })}
-                  />
-                  <p className="mt-1 text-[10px]" style={{ color: "rgba(19,25,69,0.42)" }}>
-                    Recordatorios automáticos al cliente: 7 días antes, 1 día antes y el día de
-                    vencimiento (solo si está pendiente).
+                {!(form.type === "sena" && senaMode === "plan") && (
+                  <Field label="Fecha de vencimiento">
+                    <input
+                      type="date"
+                      className="fv"
+                      value={form.dueAt}
+                      onChange={(e) => setForm({ ...form, dueAt: e.target.value })}
+                    />
+                    <p className="mt-1 text-[10px]" style={{ color: "rgba(19,25,69,0.42)" }}>
+                      Recordatorios automáticos al cliente: 7 días antes, 1 día antes y el día de
+                      vencimiento (solo si está pendiente).
+                    </p>
+                  </Field>
+                )}
+                {form.type === "sena" && senaMode === "plan" && (
+                  <p className="col-span-2 text-[10px]" style={{ color: "rgba(19,25,69,0.42)" }}>
+                    Cada cuota tendrá su propio vencimiento. Los recordatorios se envían por cuota
+                    pendiente.
                   </p>
-                </Field>
+                )}
                 <div className="col-span-2">
                   <Field label="Notas">
                     <textarea
@@ -929,15 +1227,19 @@ export function InvoicesManager({
                 </button>
                 <button
                   type="submit"
-                  disabled={saving || !formValidation.ok}
+                  disabled={saving || !modalValidation.ok}
                   className="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                   style={{ background: "#F03172" }}
                 >
                   {saving
                     ? "Generando…"
-                    : form.type === "sena"
-                      ? "Generar recibo"
-                      : "Generar factura final"}
+                    : form.type === "sena" && senaMode === "plan"
+                      ? planPreview.length > 0
+                        ? `Generar ${planPreview.length} recibos`
+                        : "Generar recibos"
+                      : form.type === "sena"
+                        ? "Generar recibo"
+                        : "Generar factura final"}
                 </button>
               </div>
             </form>
