@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { PrebriefSetupModal } from "@/components/admin/prebrief/PrebriefSetupModal";
 import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
 import { Topbar } from "@/components/admin/ui/Topbar";
-import { PrebriefTemplateEditor } from "@/components/admin/PrebriefTemplateEditor";
-import { getDefaultPrebriefTemplate, type PrebriefTemplate } from "@/lib/prebrief-template";
+import { getDefaultPrebriefTemplate, visiblePrebriefFields, type PrebriefTemplate } from "@/lib/prebrief-template";
 import { brandUi } from "@/lib/brand-ui";
 
 type PrebriefPanelProps = {
@@ -30,7 +30,8 @@ export function PrebriefPanel({
   const [data, setData] = useState<PrebriefData | null>(null);
   const [template, setTemplate] = useState<PrebriefTemplate>(getDefaultPrebriefTemplate());
   const [personalNote, setPersonalNote] = useState("");
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [answersOpen, setAnswersOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -55,6 +56,7 @@ export function PrebriefPanel({
   const submitted = Boolean(data?.submittedAt);
   const hasAnswers = data?.answers && Object.values(data.answers).some((v) => v.trim());
   const fieldsForDisplay = template.fields;
+  const visibleCount = visiblePrebriefFields(template.fields).length;
 
   async function sendPrebrief() {
     if (submitted) return;
@@ -97,104 +99,87 @@ export function PrebriefPanel({
   }
 
   return (
-    <Card className={cardClass} frameVariant={embedded ? "client" : "default"}>
-      <Topbar
-        title="Brand Soul (cliente)"
-        subtitle={
-          submitted
-            ? `Recibido · ${new Date(data!.submittedAt!).toLocaleDateString("es-AR")}`
-            : `${clientName} · editar y enviar cuestionario`
-        }
-        actions={
-          <span
-            className="rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
-            style={{
-              background: submitted ? "#e3f2e3" : brandUi.navySoft,
-              color: submitted ? "#1a6b1a" : brandUi.textMuted,
-            }}
-          >
-            {submitted ? "Respondido" : "Pendiente"}
-          </span>
-        }
-      />
+    <>
+      <Card className={cardClass} frameVariant={embedded ? "client" : "default"}>
+        <Topbar
+          title="Brand Soul"
+          subtitle={
+            submitted
+              ? `Respondido por ${clientName} · ${new Date(data!.submittedAt!).toLocaleDateString("es-AR")}`
+              : `${clientName} · cuestionario para el cliente`
+          }
+          actions={
+            <span
+              className="rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+              style={{
+                background: submitted ? "#e3f2e3" : brandUi.navySoft,
+                color: submitted ? "#1a6b1a" : brandUi.textMuted,
+              }}
+            >
+              {submitted ? "Respondido" : "Pendiente"}
+            </span>
+          }
+        />
 
-      <div
-        className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t"
-        style={{ borderColor: brandUi.border }}
-      >
-        <p className="text-xs flex-1" style={{ color: brandUi.textMuted }}>
-          {submitted
-            ? "Las respuestas del cliente están abajo."
-            : "Podés agregar, quitar u ocultar preguntas (+ Pregunta / Eliminar / paquetes inicial·intermedio·completo). El mail lleva la bienvenida + enlace al formulario."}
-        </p>
-        <button
-          type="button"
-          onClick={() => setPanelOpen((v) => !v)}
-          className="text-xs font-medium uppercase tracking-wider hover:opacity-80"
-          style={{ color: brandUi.accent, background: "none", border: "none", cursor: "pointer" }}
-          aria-expanded={panelOpen}
-        >
-          {submitted ? "Ver respuestas" : "Editar / enviar"} {panelOpen ? "↑" : "↓"}
-        </button>
-      </div>
-
-      {submitted && hasAnswers && !panelOpen && (
-        <div
-          className="mt-4 rounded border p-4 space-y-3 max-h-48 overflow-y-auto text-sm"
-          style={{ borderColor: brandUi.border, background: "#FAFAFA" }}
-        >
-          {fieldsForDisplay.map((field) => {
-            const val = data?.answers[field.id]?.trim();
-            if (!val) return null;
-            return (
-              <div key={field.id}>
-                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: brandUi.textFaint }}>
-                  {field.label}
+        <div className="pt-4 space-y-4 border-t" style={{ borderColor: brandUi.border }}>
+          {!submitted ? (
+            <>
+              <div
+                className="rounded-xl border px-4 py-3"
+                style={{ borderColor: brandUi.border, background: "#FAFAFA" }}
+              >
+                <p className="text-sm font-medium" style={{ color: brandUi.text }}>
+                  {visibleCount} {visibleCount === 1 ? "pregunta activa" : "preguntas activas"}
                 </p>
-                <p className="leading-relaxed whitespace-pre-wrap" style={{ color: brandUi.text }}>
-                  {val}
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: brandUi.textMuted }}>
+                  Configurá qué incluye el cuestionario y después enviá el mail con el enlace a{" "}
+                  <strong>{clientEmail}</strong>.
                 </p>
               </div>
-            );
-          })}
-        </div>
-      )}
 
-      {panelOpen && (
-        <div className="mt-4 pt-4 border-t space-y-6" style={{ borderColor: brandUi.border }}>
-          {!submitted && (
-            <>
-              <PrebriefTemplateEditor
-                projectId={projectId}
-                template={template}
-                onSaved={setTemplate}
-              />
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => setSetupOpen(true)}>
+                  Configurar cuestionario
+                </Button>
+                <Button variant="primary" disabled={sending || visibleCount === 0} onClick={() => void sendPrebrief()}>
+                  {sending ? "Enviando…" : "Enviar por correo →"}
+                </Button>
+              </div>
 
               <label className="block">
                 <span
                   className="text-[9px] font-medium uppercase tracking-widest"
                   style={{ color: brandUi.textFaint }}
                 >
-                  Nota personalizada (mail)
+                  Nota personal en el mail (opcional)
                 </span>
                 <textarea
-                  className="mt-1 w-full rounded border p-2 text-sm min-h-[72px]"
+                  className="mt-1 w-full rounded border p-2 text-sm min-h-[64px]"
                   style={{ borderColor: brandUi.borderStrong, background: brandUi.surface }}
                   placeholder="Ej: Con mucho cariño para este proceso…"
                   value={personalNote}
                   onChange={(e) => setPersonalNote(e.target.value)}
                 />
               </label>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="primary" disabled={sending} onClick={() => void sendPrebrief()}>
-                  {sending ? "Enviando…" : "Enviar Brand Soul por correo →"}
-                </Button>
-              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm" style={{ color: brandUi.textMuted }}>
+                El cliente ya completó el cuestionario. Podés revisar las respuestas abajo.
+              </p>
+              <button
+                type="button"
+                onClick={() => setAnswersOpen((v) => !v)}
+                className="text-xs font-medium uppercase tracking-wider hover:opacity-80"
+                style={{ color: brandUi.accent, background: "none", border: "none", cursor: "pointer" }}
+              >
+                {answersOpen ? "Ocultar respuestas ↑" : "Ver respuestas ↓"}
+              </button>
             </>
           )}
 
-          {submitted && hasAnswers && (
-            <div className="space-y-4 max-h-[480px] overflow-y-auto">
+          {submitted && hasAnswers && answersOpen && (
+            <div className="space-y-3 max-h-[420px] overflow-y-auto">
               {fieldsForDisplay.map((field) => {
                 const val = data?.answers[field.id]?.trim();
                 if (!val) return null;
@@ -207,11 +192,6 @@ export function PrebriefPanel({
                     <p className="text-xs font-medium mb-2" style={{ color: brandUi.text }}>
                       {field.label}
                     </p>
-                    {field.hint && (
-                      <p className="text-[10px] italic mb-2" style={{ color: brandUi.textFaint }}>
-                        {field.hint}
-                      </p>
-                    )}
                     <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: brandUi.textMuted }}>
                       {val}
                     </p>
@@ -232,7 +212,16 @@ export function PrebriefPanel({
             </p>
           )}
         </div>
-      )}
-    </Card>
+      </Card>
+
+      <PrebriefSetupModal
+        open={setupOpen}
+        onClose={() => setSetupOpen(false)}
+        projectId={projectId}
+        template={template}
+        disabled={submitted}
+        onSaved={setTemplate}
+      />
+    </>
   );
 }
