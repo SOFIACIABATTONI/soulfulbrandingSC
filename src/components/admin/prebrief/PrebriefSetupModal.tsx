@@ -77,10 +77,22 @@ export function PrebriefSetupModal({
   const [textsOpen, setTextsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftRef = useRef(template);
+  const wasOpenRef = useRef(false);
 
   useEffect(() => {
-    if (open) setDraft(mergePrebriefTemplateWithDefaults(template));
+    draftRef.current = draft;
+  }, [draft]);
+
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      const merged = mergePrebriefTemplateWithDefaults(template);
+      setDraft(merged);
+      draftRef.current = merged;
+      setEditingId(null);
+      setMessage(null);
+    }
+    wasOpenRef.current = open;
   }, [open, template]);
 
   useEffect(() => {
@@ -92,40 +104,42 @@ export function PrebriefSetupModal({
     };
   }, [open]);
 
-  useEffect(() => {
-    return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-    };
-  }, []);
-
   function updateDraft(next: PrebriefTemplate) {
     const withFormat: PrebriefTemplate = { ...next, contentFormat: "html" };
     setDraft(withFormat);
+    draftRef.current = withFormat;
     setMessage(null);
-    if (disabled) return;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => void persist(withFormat, true), 1200);
   }
 
-  async function persist(next = draft, silent = false) {
+  async function persist(next: PrebriefTemplate, silent = false) {
     if (disabled) return false;
     setSaving(true);
-    const payload: PrebriefTemplate = { ...next, contentFormat: "html" };
-    const res = await fetch(`/api/admin/projects-erp/${projectId}/prebrief`, {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ template: payload }),
-    });
-    setSaving(false);
-    if (res.ok) {
-      const j = (await res.json()) as { template: PrebriefTemplate };
-      onSaved(j.template);
-      if (!silent) setMessage("Guardado.");
-      return true;
+    try {
+      const payload: PrebriefTemplate = { ...next, contentFormat: "html" };
+      const res = await fetch(`/api/admin/projects-erp/${projectId}/prebrief`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template: payload }),
+      });
+      if (res.ok) {
+        const j = (await res.json()) as { template: PrebriefTemplate };
+        const merged = mergePrebriefTemplateWithDefaults(j.template);
+        onSaved(merged);
+        setDraft(merged);
+        draftRef.current = merged;
+        if (!silent) setMessage("Guardado.");
+        return true;
+      }
+      const j = (await res.json().catch(() => null)) as { error?: string } | null;
+      setMessage(j?.error ?? "No se pudo guardar. Probá de nuevo.");
+      return false;
+    } catch {
+      setMessage("Error de conexión al guardar.");
+      return false;
+    } finally {
+      setSaving(false);
     }
-    if (!silent) setMessage("No se pudo guardar.");
-    return false;
   }
 
   async function restoreDefault() {
@@ -152,7 +166,7 @@ export function PrebriefSetupModal({
   }
 
   async function saveAndClose() {
-    const ok = await persist(draft, false);
+    const ok = await persist(draftRef.current, false);
     if (ok) onClose();
   }
 
@@ -260,7 +274,7 @@ export function PrebriefSetupModal({
           <span className="text-[11px] flex-1 min-w-[120px]" style={{ color: brandUi.textMuted }}>
             {saving ? "Guardando…" : message ?? `${visibleCount} preguntas listas`}
           </span>
-          <Button variant="secondary" disabled={disabled || saving} onClick={() => void persist()}>
+          <Button variant="secondary" disabled={disabled || saving} onClick={() => void persist(draftRef.current)}>
             Guardar
           </Button>
           <Button variant="primary" disabled={disabled || saving} onClick={() => void saveAndClose()}>

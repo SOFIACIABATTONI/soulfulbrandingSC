@@ -119,13 +119,13 @@ export function resolvePrebriefTemplate(phasesRaw: unknown): PrebriefTemplate {
       ? mergePrebriefFields(defaults.fields, stored.fields)
       : defaults.fields;
 
-  return {
+  return mergePrebriefTemplateWithDefaults({
     contentFormat: format,
     emailWelcome: resolveBlock(stored.emailWelcome, defaults.emailWelcome),
     questionnaireIntro: resolveQuestionnaireIntro(stored, defaults),
     outro: resolveBlock(stored.outro, defaults.outro),
     fields,
-  };
+  });
 }
 
 function mergePrebriefFields(
