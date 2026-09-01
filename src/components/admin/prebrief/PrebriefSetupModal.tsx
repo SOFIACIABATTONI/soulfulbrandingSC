@@ -6,6 +6,7 @@ import { Button } from "@/components/admin/ui/Button";
 import { PrebriefQuestionList } from "@/components/admin/prebrief/PrebriefQuestionList";
 import {
   getDefaultPrebriefTemplate,
+  mergePrebriefTemplateWithDefaults,
   visiblePrebriefFields,
   type PrebriefTemplate,
 } from "@/lib/prebrief-template";
@@ -79,7 +80,7 @@ export function PrebriefSetupModal({
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (open) setDraft(template);
+    if (open) setDraft(mergePrebriefTemplateWithDefaults(template));
   }, [open, template]);
 
   useEffect(() => {
@@ -180,8 +181,7 @@ export function PrebriefSetupModal({
               Configurar Brand Soul
             </h2>
             <p className="text-xs mt-1" style={{ color: brandUi.textMuted }}>
-              Elegí el paquete, activá o quitá preguntas y editá los textos. El cliente recibe un mail
-              con el enlace al formulario.
+              Tildá las preguntas que van al cliente, agregá las tuyas si hace falta y listo.
             </p>
           </div>
           <button

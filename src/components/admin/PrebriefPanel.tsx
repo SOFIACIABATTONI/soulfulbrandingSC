@@ -132,8 +132,8 @@ export function PrebriefPanel({
                   {visibleCount} {visibleCount === 1 ? "pregunta activa" : "preguntas activas"}
                 </p>
                 <p className="text-xs mt-1 leading-relaxed" style={{ color: brandUi.textMuted }}>
-                  Configurá qué incluye el cuestionario y después enviá el mail con el enlace a{" "}
-                  <strong>{clientEmail}</strong>.
+                  Tildá las que querés enviar en <strong>Configurar cuestionario</strong>. Después mandá
+                  el mail con el enlace a <strong>{clientEmail}</strong>.
                 </p>
               </div>
 

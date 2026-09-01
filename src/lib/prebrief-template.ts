@@ -183,6 +183,31 @@ export function visiblePrebriefFields(fields: PrebriefField[]): PrebriefField[] 
   return fields.filter((f) => !f.hidden);
 }
 
+const DEFAULT_FIELD_IDS = new Set(PREBRIEF_FIELDS.map((f) => f.id));
+
+export function isCustomPrebriefFieldId(id: string): boolean {
+  return !DEFAULT_FIELD_IDS.has(id);
+}
+
+/** Asegura que todas las preguntas oficiales estén en la plantilla (una sola lista). */
+export function mergePrebriefTemplateWithDefaults(template: PrebriefTemplate): PrebriefTemplate {
+  const defaults = getDefaultPrebriefTemplate();
+  const existingById = new Map(template.fields.map((f) => [f.id, f]));
+  const mergedDefaults = defaults.fields.map((def) => {
+    const existing = existingById.get(def.id);
+    if (!existing) return { ...def, hidden: false };
+    return {
+      ...def,
+      ...existing,
+      id: def.id,
+      sectionTitle: existing.sectionTitle ?? def.sectionTitle,
+      sectionIntro: existing.sectionIntro ?? def.sectionIntro,
+    };
+  });
+  const custom = template.fields.filter((f) => !DEFAULT_FIELD_IDS.has(f.id));
+  return { ...template, fields: [...mergedDefaults, ...custom] };
+}
+
 export type PrebriefPackagePreset = "inicial" | "intermedio" | "completo";
 
 const PREBRIEF_PRESET_VISIBLE_IDS: Record<PrebriefPackagePreset, Set<string> | null> = {
