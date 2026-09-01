@@ -442,9 +442,6 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
 
   useEffect(() => {
     brandKitUploadingRef.current = brandKitUploading;
-    if (brandKitUploading) {
-      brandKitBusyRef.current = true;
-    }
   }, [brandKitUploading]);
 
   // Sync de estados solo al volver a la pestaña y en vista grilla (no al montar ni en detalle).
@@ -564,9 +561,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
         console.error("[saveBrandKitJson]", res.status, body?.error ?? res.statusText);
         return false;
       } finally {
-        if (!brandKitUploadingRef.current) {
-          brandKitBusyRef.current = false;
-        }
+        brandKitBusyRef.current = false;
       }
     },
     [project.id, activePhaseKey, phaseSessionKey],

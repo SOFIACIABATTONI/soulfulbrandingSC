@@ -81,6 +81,8 @@ async function postFormUpload(
       resolve({ url: j.url, fileName: j.fileName, mime: j.mime, error: j.error });
     };
 
+    xhr.timeout = 120_000;
+    xhr.ontimeout = () => reject(new Error("La subida tardó demasiado. Probá con un archivo más liviano."));
     xhr.onerror = () => reject(new Error("Error de red al subir el archivo."));
     xhr.onabort = () => reject(new Error("Subida cancelada."));
 
@@ -247,7 +249,10 @@ function useServerBlobUpload(file: File): boolean {
 
 export async function uploadBrandAssetFile(
   file: File,
+  onProgress?: (event: UploadProgressEvent) => void,
 ): Promise<{ url: string; fileName: string; mime: string }> {
+  onProgress?.({ loaded: 0, total: file.size, percentage: 4, phase: "upload" });
+
   const mime = resolveBrandAssetMime(file);
   if (!mime) {
     throw new Error(`Tipo no permitido. Formatos: ${BRAND_ASSET_FORMAT_HINT}`);
@@ -256,18 +261,28 @@ export async function uploadBrandAssetFile(
     throw new Error("Máximo 20MB por archivo.");
   }
 
+  const mapProgress = (event: UploadProgressEvent) => {
+    onProgress?.({
+      ...event,
+      percentage: 8 + Math.round(event.percentage * 0.82),
+    });
+  };
+
   if (useServerBlobUpload(file)) {
-    const j = await postFormUpload("/api/admin/brand-asset-upload", file);
+    const j = await postFormUpload("/api/admin/brand-asset-upload", file, undefined, mapProgress);
+    onProgress?.({ loaded: file.size, total: file.size, percentage: 92, phase: "upload" });
     return { url: j.url, fileName: j.fileName ?? file.name, mime: j.mime ?? mime };
   }
 
   const pathname = buildBrandAssetPathname(file.name, mime);
-  return uploadViaBlobClient(
+  const uploaded = await uploadViaBlobClient(
     pathname,
     file,
     { kind: "brand", fileName: file.name, mime },
-    { contentType: mime },
+    { contentType: mime, onProgress: mapProgress },
   );
+  onProgress?.({ loaded: file.size, total: file.size, percentage: 92, phase: "upload" });
+  return uploaded;
 }
 
 export async function uploadManualPdfFile(

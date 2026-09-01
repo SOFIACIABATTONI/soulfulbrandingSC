@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, startTransition } from "react";
 import { brandUi, clientFrame } from "@/lib/brand-ui";
 import { uploadBrandAssetFile } from "@/lib/admin-client-upload";
 import { BrandKitCardCoverField } from "@/components/admin/BrandKitCardCoverField";
@@ -73,24 +73,36 @@ export function BrandKitPanel({
   useEffect(() => {
     if (uploadingKey || coverFieldUploading || manualSaving) return;
 
-    const incomingSerialized = serializeBrandKit(parseBrandKit(brandKitJson));
     const localSerialized = serializeBrandKit(kitRef.current);
 
     if (awaitingPropSyncRef.current) {
-      const rawMatch = brandKitJson === lastPersistedRef.current;
+      const rawMatch =
+        brandKitJson === lastPersistedRef.current || brandKitJson === localSerialized;
+      if (rawMatch) {
+        awaitingPropSyncRef.current = false;
+        lastPersistedRef.current = brandKitJson;
+        return;
+      }
+      const incomingSerialized = serializeBrandKit(parseBrandKit(brandKitJson));
       if (
-        rawMatch ||
         incomingSerialized === lastPersistedRef.current ||
         incomingSerialized === localSerialized
       ) {
         awaitingPropSyncRef.current = false;
-      } else {
+        lastPersistedRef.current = brandKitJson;
         return;
       }
+      return;
     }
 
+    if (brandKitJson === localSerialized || brandKitJson === lastPersistedRef.current) {
+      lastPersistedRef.current = brandKitJson;
+      return;
+    }
+
+    const incomingSerialized = serializeBrandKit(parseBrandKit(brandKitJson));
     if (incomingSerialized === localSerialized) {
-      lastPersistedRef.current = incomingSerialized;
+      lastPersistedRef.current = brandKitJson;
       return;
     }
 
@@ -99,9 +111,11 @@ export function BrandKitPanel({
       return;
     }
 
-    const next = parseBrandKit(brandKitJson);
-    setKit(next);
-    lastPersistedRef.current = incomingSerialized;
+    startTransition(() => {
+      const next = parseBrandKit(brandKitJson);
+      setKit(next);
+      lastPersistedRef.current = incomingSerialized;
+    });
   }, [brandKitJson, uploadingKey, coverFieldUploading, manualSaving]);
 
   useEffect(() => {
@@ -245,7 +259,7 @@ export function BrandKitPanel({
         cards: kitRef.current.cards.map((c) => (c.id === cardId ? nextCard : c)),
       };
       kitRef.current = nextKit;
-      setKit(nextKit);
+      startTransition(() => setKit(nextKit));
       const serialized = serializeBrandKit(nextKit);
       const ok = await onSave(serialized);
       if (ok) {
@@ -278,6 +292,18 @@ export function BrandKitPanel({
     if (activeCardId === cardId) setActiveCardId(null);
     setMessage("Sección eliminada.");
   }
+
+  const handleCoverPreviewChange = useCallback((cardId: string, previewUrl: string | null) => {
+    setCoverPreviewByCard((prev) => {
+      if (!previewUrl) {
+        if (!prev[cardId]) return prev;
+        const next = { ...prev };
+        delete next[cardId];
+        return next;
+      }
+      return { ...prev, [cardId]: previewUrl };
+    });
+  }, []);
 
   return (
     <div
@@ -386,17 +412,7 @@ export function BrandKitPanel({
           onUpdate={(next) => updateCardById(activeCard.id, () => next)}
           onUpload={(groupId, files) => void uploadToGroup(activeCard.id, groupId, files)}
           onSaveCover={(coverFiles) => saveCoverForCard(activeCard.id, coverFiles)}
-          onCoverPreviewChange={(previewUrl) => {
-            setCoverPreviewByCard((prev) => {
-              if (!previewUrl) {
-                if (!prev[activeCard.id]) return prev;
-                const next = { ...prev };
-                delete next[activeCard.id];
-                return next;
-              }
-              return { ...prev, [activeCard.id]: previewUrl };
-            });
-          }}
+          onCoverPreviewChange={(previewUrl) => handleCoverPreviewChange(activeCard.id, previewUrl)}
           onCoverUploadActivityChange={setCoverFieldUploading}
           onRemove={() => removeCustomCard(activeCard.id)}
           onClose={() => setActiveCardId(null)}

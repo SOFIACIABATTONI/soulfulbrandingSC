@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AdminUploadProgress } from "@/components/admin/AdminUploadProgress";
 import { uploadPhaseCoverImageFile, type UploadProgressEvent } from "@/lib/admin-client-upload";
 import { brandUi } from "@/lib/brand-ui";
@@ -26,6 +26,16 @@ export function ProjectPhaseCoverEditor({
   const [uploadingFileName, setUploadingFileName] = useState("");
   const [uploadingFileSize, setUploadingFileSize] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const onPreviewChangeRef = useRef(onPreviewChange);
+  const onChangeRef = useRef(onChange);
+  const onSaveRef = useRef(onSave);
+
+  useEffect(() => {
+    onPreviewChangeRef.current = onPreviewChange;
+    onChangeRef.current = onChange;
+    onSaveRef.current = onSave;
+  });
+
   const displayUrl = coverUrl.trim() || localPreview || "";
   const hasCover = Boolean(displayUrl);
 
@@ -35,24 +45,16 @@ export function ProjectPhaseCoverEditor({
     };
   }, [localPreview]);
 
-  useEffect(() => {
-    if (!localPreview || localPreview.startsWith("blob:")) return;
-    if (coverUrl.trim() === localPreview) {
-      setLocalPreview(null);
-      onPreviewChange?.(null);
-    }
-  }, [coverUrl, localPreview, onPreviewChange]);
-
   async function persistCover(url: string) {
     setUploadProgress((prev) =>
       prev ? { ...prev, percentage: 95, phase: "save" } : { loaded: 0, total: 1, percentage: 95, phase: "save" },
     );
-    const ok = onSave ? await onSave(url) : true;
+    const ok = onSaveRef.current ? await onSaveRef.current(url) : true;
     if (!ok) {
       setUploadError("No se pudo guardar la portada en el proyecto.");
       return false;
     }
-    onChange?.(url);
+    onChangeRef.current?.(url);
     return true;
   }
 
@@ -63,7 +65,7 @@ export function ProjectPhaseCoverEditor({
     if (localPreview?.startsWith("blob:")) URL.revokeObjectURL(localPreview);
     const blobUrl = URL.createObjectURL(file);
     setLocalPreview(blobUrl);
-    onPreviewChange?.(blobUrl);
+    onPreviewChangeRef.current?.(blobUrl);
     setUploading(true);
     setUploadError(null);
     setUploadProgress({ loaded: 0, total: file.size, percentage: 0, phase: "upload" });
@@ -71,18 +73,20 @@ export function ProjectPhaseCoverEditor({
     setUploadingFileSize(file.size);
 
     try {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const url = await uploadPhaseCoverImageFile(file, (event) => setUploadProgress(event));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const saved = await persistCover(url);
       if (saved) {
         setLocalPreview(url);
-        onPreviewChange?.(url);
+        onPreviewChangeRef.current?.(url);
       } else {
         setLocalPreview(null);
-        onPreviewChange?.(null);
+        onPreviewChangeRef.current?.(null);
       }
     } catch (e) {
       setLocalPreview(null);
-      onPreviewChange?.(null);
+      onPreviewChangeRef.current?.(null);
       setUploadError(e instanceof Error ? e.message : "No se pudo subir la imagen.");
     } finally {
       URL.revokeObjectURL(blobUrl);
@@ -97,14 +101,14 @@ export function ProjectPhaseCoverEditor({
     setUploadError(null);
     setUploadProgress({ loaded: 0, total: 1, percentage: 95, phase: "save" });
     try {
-      const ok = onSave ? await onSave("") : true;
+      const ok = onSaveRef.current ? await onSaveRef.current("") : true;
       if (!ok) {
         setUploadError("No se pudo quitar la portada.");
         return;
       }
       setLocalPreview(null);
-      onPreviewChange?.(null);
-      onChange?.("");
+      onPreviewChangeRef.current?.(null);
+      onChangeRef.current?.("");
     } finally {
       setUploading(false);
       setUploadProgress(null);
