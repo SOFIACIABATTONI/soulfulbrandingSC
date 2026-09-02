@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "@/lib/prisma";
-import { seedTestimonialsFromMdIfEmpty } from "@/lib/testimonials-seed";
+import { syncTestimonialsFromMd } from "@/lib/testimonials-seed";
 
 export type Testimonial = {
   brand: string;
@@ -75,7 +75,7 @@ async function getTestimonialsFromFile(): Promise<Testimonial[]> {
 
 export async function getTestimonials(): Promise<Testimonial[]> {
   try {
-    await seedTestimonialsFromMdIfEmpty();
+    await syncTestimonialsFromMd();
     const rows = await prisma.testimonial.findMany({
       where: { published: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
