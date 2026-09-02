@@ -4,10 +4,9 @@ import Image from "next/image";
 export function GatewayLanding() {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <Link
-        href="/oraculo"
-        className="group relative flex min-h-[50vh] flex-1 overflow-hidden transition hover:brightness-[0.98] md:min-h-screen"
-        aria-label="Ir a Oráculo Raíz"
+      <div
+        className="relative flex min-h-[50vh] flex-1 cursor-default overflow-hidden md:min-h-screen"
+        aria-label="Oráculo Raíz — próximamente"
       >
         <Image
           src="/gateway/oraculo-raiz.gif"
@@ -18,7 +17,7 @@ export function GatewayLanding() {
           sizes="(max-width: 768px) 100vw, 50vw"
           priority
         />
-      </Link>
+      </div>
 
       <Link
         href="/creative-studio"
