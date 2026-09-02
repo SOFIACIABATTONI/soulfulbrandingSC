@@ -8,9 +8,11 @@ import { cn } from "@/lib/cn";
 
 type Props = {
   nav: NavItem[];
+  /** Base del sitio Creative Studio (anchors #about, etc.). Default: /creative-studio */
+  siteBasePath?: string;
 };
 
-export function SiteHeader({ nav }: Props) {
+export function SiteHeader({ nav, siteBasePath = "/creative-studio" }: Props) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const displayNav = nav.map((item) =>
@@ -20,13 +22,16 @@ export function SiteHeader({ nav }: Props) {
   );
   const resolveHref = (href: string) => {
     if (!href.startsWith("#")) return href;
-    return pathname === "/" ? href : `/${href}`;
+    const onStudio =
+      pathname === siteBasePath || pathname.startsWith(`${siteBasePath}/`);
+    if (onStudio) return href;
+    return `${siteBasePath}${href}`;
   };
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-[#333130]/95 text-white backdrop-blur">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-3 sm:px-6 md:py-3 lg:px-10 xl:px-14 lg:py-4">
-        <Link href="/" className="flex shrink-0 items-center self-center" onClick={() => setOpen(false)}>
+        <Link href={siteBasePath} className="flex shrink-0 items-center self-center" onClick={() => setOpen(false)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/brand/logoclaro.png"

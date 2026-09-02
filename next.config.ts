@@ -25,6 +25,7 @@ const nextConfig: NextConfig = {
     return [
       { source: "/login/admin", destination: "/admin/login", permanent: false },
       { source: "/login/admin/:path*", destination: "/admin/:path*", permanent: false },
+      { source: "/studio", destination: "/creative-studio", permanent: true },
     ];
   },
 };

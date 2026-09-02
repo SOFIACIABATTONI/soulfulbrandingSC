@@ -10,6 +10,18 @@ const STATIC_PAGES: MetadataRoute.Sitemap = [
     priority: 1,
   },
   {
+    url: `${SITE_URL}/creative-studio`,
+    lastModified: new Date(),
+    changeFrequency: "weekly",
+    priority: 0.95,
+  },
+  {
+    url: `${SITE_URL}/oraculo`,
+    lastModified: new Date(),
+    changeFrequency: "monthly",
+    priority: 0.85,
+  },
+  {
     url: `${SITE_URL}/about`,
     lastModified: new Date(),
     changeFrequency: "monthly",
