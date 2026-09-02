@@ -34,13 +34,29 @@ export function TestimonialsAdmin() {
 
   async function load() {
     setLoading(true);
-    const res = await fetch("/api/admin/testimonials", { credentials: "include" });
-    const j = (await res.json()) as { items?: TestimonialRow[]; portfolioOptions?: PortfolioOption[] };
-    if (res.ok) {
-      setItems(j.items ?? []);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/admin/testimonials", { credentials: "include" });
+      const text = await res.text();
+      let j: { items?: TestimonialRow[]; portfolioOptions?: PortfolioOption[]; error?: string } = {};
+      try {
+        j = text ? (JSON.parse(text) as typeof j) : {};
+      } catch {
+        setMsg("Respuesta inválida del servidor al cargar testimonios.");
+        return;
+      }
+      if (res.ok) {
+        setItems(j.items ?? []);
+        setPortfolioOptions(j.portfolioOptions ?? []);
+        return;
+      }
+      setMsg(j.error ?? `No se pudieron cargar los testimonios (${res.status}).`);
       setPortfolioOptions(j.portfolioOptions ?? []);
+    } catch {
+      setMsg("Error de conexión al cargar testimonios.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => {

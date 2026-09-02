@@ -114,9 +114,21 @@ export async function syncTestimonialsFromMd(): Promise<number> {
 
 /** Limpieza + orden estable al abrir el admin. */
 export async function prepareTestimonialsForAdmin(): Promise<void> {
-  await dedupeTestimonials();
-  await syncTestimonialsFromMd();
-  await normalizeTestimonialSortOrder();
+  try {
+    await dedupeTestimonials();
+  } catch (error) {
+    console.error("[testimonials] dedupe failed", error);
+  }
+  try {
+    await syncTestimonialsFromMd();
+  } catch (error) {
+    console.error("[testimonials] sync failed", error);
+  }
+  try {
+    await normalizeTestimonialSortOrder();
+  } catch (error) {
+    console.error("[testimonials] normalize sort failed", error);
+  }
 }
 
 /** @deprecated Usar prepareTestimonialsForAdmin */
