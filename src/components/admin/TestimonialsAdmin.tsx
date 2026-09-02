@@ -26,6 +26,7 @@ export function TestimonialsAdmin() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [reordering, setReordering] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -92,28 +93,33 @@ export function TestimonialsAdmin() {
     await load();
   }
 
+  async function reorder(nextItems: TestimonialRow[]) {
+    setReordering(true);
+    setMsg(null);
+    const res = await fetch("/api/admin/testimonials/reorder", {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: nextItems.map((row) => row.id) }),
+    });
+    setReordering(false);
+    if (res.ok) {
+      setItems(nextItems);
+      return;
+    }
+    setMsg("No se pudo guardar el orden.");
+    await load();
+  }
+
   async function move(id: string, dir: -1 | 1) {
     const index = items.findIndex((t) => t.id === id);
     if (index < 0) return;
     const swapIndex = index + dir;
     if (swapIndex < 0 || swapIndex >= items.length) return;
-    const a = items[index]!;
-    const b = items[swapIndex]!;
-    await Promise.all([
-      fetch(`/api/admin/testimonials/${a.id}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sortOrder: b.sortOrder }),
-      }),
-      fetch(`/api/admin/testimonials/${b.id}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sortOrder: a.sortOrder }),
-      }),
-    ]);
-    await load();
+    const next = [...items];
+    const [removed] = next.splice(index, 1);
+    next.splice(swapIndex, 0, removed!);
+    await reorder(next);
   }
 
   function startEdit(row: TestimonialRow) {
@@ -134,9 +140,11 @@ export function TestimonialsAdmin() {
         <h1 className="font-serif text-3xl text-brand-navy">Testimonios</h1>
         <p className="mt-2 max-w-2xl text-sm text-neutral-600">
           Carrusel en <code className="text-xs">/portfolio</code> (desktop) y desplegable en fichas de caso cuando
-          vinculás un slug.
+          vinculás un slug. Usá ↑ ↓ para definir el orden del carrusel. Los nuevos se agregan al final.
         </p>
       </div>
+
+      {reordering && <p className="mt-4 text-sm text-neutral-500">Guardando orden…</p>}
 
       <ul className="mt-8 space-y-4">
         {items.map((row, index) => (
@@ -210,18 +218,20 @@ export function TestimonialsAdmin() {
                     <button
                       type="button"
                       onClick={() => void move(row.id, -1)}
-                      disabled={index === 0}
+                      disabled={index === 0 || reordering}
                       className="rounded border border-neutral-300 px-2 py-1 text-xs disabled:opacity-40"
                       aria-label="Subir"
+                      title="Subir en el carrusel"
                     >
                       ↑
                     </button>
                     <button
                       type="button"
                       onClick={() => void move(row.id, 1)}
-                      disabled={index === items.length - 1}
+                      disabled={index === items.length - 1 || reordering}
                       className="rounded border border-neutral-300 px-2 py-1 text-xs disabled:opacity-40"
                       aria-label="Bajar"
+                      title="Bajar en el carrusel"
                     >
                       ↓
                     </button>

@@ -2,7 +2,6 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { DEFAULT_TESTIMONIALS } from "@/data/default-testimonials";
 import { prisma } from "@/lib/prisma";
-import { syncTestimonialsFromMd } from "@/lib/testimonials-seed";
 
 export type Testimonial = {
   brand: string;
@@ -77,7 +76,6 @@ async function getTestimonialsFromFile(): Promise<Testimonial[]> {
 
 export async function getTestimonials(): Promise<Testimonial[]> {
   try {
-    await syncTestimonialsFromMd();
     const rows = await prisma.testimonial.findMany({
       where: { published: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
