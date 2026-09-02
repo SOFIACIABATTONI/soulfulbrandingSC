@@ -1110,6 +1110,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
               <div className="border-b px-5 py-4 md:px-6" style={{ borderColor: "rgba(19,25,69,0.08)" }}>
                 <ProjectPhaseCoverEditor
                   label={ph.title}
+                  phaseKey={ph.key}
                   coverUrl={pc.coverUrl}
                   onPreviewChange={(previewUrl) => {
                     setPreviewCoverByPhase((prev) => {

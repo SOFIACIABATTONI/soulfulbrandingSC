@@ -1,11 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, startTransition } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, startTransition } from "react";
 import { brandUi, clientFrame } from "@/lib/brand-ui";
 import { uploadBrandAssetFile } from "@/lib/admin-client-upload";
 import { BrandKitCardCoverField } from "@/components/admin/BrandKitCardCoverField";
 import { isLocalAdminUploadHost, isLocalDevUploadUrl, BRAND_ASSET_FORMAT_HINT } from "@/lib/admin-blob-upload";
 import { isLegacyLocalUploadPath } from "@/lib/admin-media-url";
+import {
+  consumeRememberedBrandKitCard,
+  getErpProjectIdFromPath,
+  reloadAdminWorkspacePreserveContext,
+} from "@/lib/admin-reload";
 import {
   cardHasContent,
   cardPreviewBackground,
@@ -68,6 +73,15 @@ export function BrandKitPanel({
   useEffect(() => {
     kitRef.current = kit;
   }, [kit]);
+
+  useLayoutEffect(() => {
+    const projectId = getErpProjectIdFromPath();
+    if (!projectId) return;
+    const cardId = consumeRememberedBrandKitCard(projectId);
+    if (!cardId) return;
+    if (!kitRef.current.cards.some((c) => c.id === cardId)) return;
+    setActiveCardId(cardId);
+  }, []);
 
   useEffect(() => {
     if (uploadingKey || coverFieldUploading || manualSaving) return;
@@ -198,15 +212,11 @@ export function BrandKitPanel({
       setKit(nextKit);
       const ok = await persist(nextKit, { silent: true });
       if (ok) {
-        const okLabel =
-          uploaded.length === 1 ? "1 archivo subido." : `${uploaded.length} archivos subidos.`;
-        if (errors.length > 0) {
-          setMessage(
-            `${okLabel} No se subieron: ${errors.slice(0, 2).join("; ")}${errors.length > 2 ? "…" : ""}`,
-          );
-        } else {
-          setMessage(okLabel);
-        }
+        reloadAdminWorkspacePreserveContext({
+          phaseKey: "identidad",
+          brandKitCardId: cardId,
+        });
+        return;
       }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Error al subir.";

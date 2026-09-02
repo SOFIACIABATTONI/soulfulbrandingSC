@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { AdminUploadProgress } from "@/components/admin/AdminUploadProgress";
 import { uploadPhaseCoverImageFile, type UploadProgressEvent } from "@/lib/admin-client-upload";
+import { reloadAdminWorkspacePreserveContext } from "@/lib/admin-reload";
 import { brandUi } from "@/lib/brand-ui";
 
 type ProjectPhaseCoverEditorProps = {
   label: string;
   coverUrl: string;
+  phaseKey?: string;
   onPreviewChange?: (previewUrl: string | null) => void;
   onChange?: (coverUrl: string) => void;
   onSave?: (coverUrl: string) => Promise<boolean>;
@@ -16,6 +18,7 @@ type ProjectPhaseCoverEditorProps = {
 export function ProjectPhaseCoverEditor({
   label,
   coverUrl,
+  phaseKey,
   onPreviewChange,
   onChange,
   onSave,
@@ -77,8 +80,9 @@ export function ProjectPhaseCoverEditor({
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const saved = await persistCover(url);
       if (saved) {
-        setLocalPreview(url);
-        onPreviewChangeRef.current?.(url);
+        setUploadProgress({ loaded: file.size, total: file.size, percentage: 100, phase: "save" });
+        reloadAdminWorkspacePreserveContext({ phaseKey });
+        return;
       } else {
         setLocalPreview(null);
         onPreviewChangeRef.current?.(null);
@@ -105,9 +109,7 @@ export function ProjectPhaseCoverEditor({
         setUploadError("No se pudo quitar la portada.");
         return;
       }
-      setLocalPreview(null);
-      onPreviewChangeRef.current?.(null);
-      onChangeRef.current?.("");
+      reloadAdminWorkspacePreserveContext({ phaseKey });
     } finally {
       setUploading(false);
       setUploadProgress(null);
@@ -155,6 +157,11 @@ export function ProjectPhaseCoverEditor({
         {uploadError ? (
           <p className="text-[10px] mt-1" style={{ color: brandUi.accent }}>
             {uploadError}
+          </p>
+        ) : null}
+        {uploading && uploadProgress && uploadProgress.percentage >= 98 ? (
+          <p className="text-[10px] mt-1" style={{ color: brandUi.textMuted }}>
+            Guardado — actualizando vista…
           </p>
         ) : null}
       </div>

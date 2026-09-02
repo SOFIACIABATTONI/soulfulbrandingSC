@@ -5,6 +5,7 @@ import { AdminUploadProgress } from "@/components/admin/AdminUploadProgress";
 import { uploadBrandAssetFile, type UploadProgressEvent } from "@/lib/admin-client-upload";
 import { resolveBrandAssetMime } from "@/lib/admin-blob-upload";
 import { brandUi } from "@/lib/brand-ui";
+import { reloadAdminWorkspacePreserveContext } from "@/lib/admin-reload";
 import {
   cardCoverImage,
   createBrandKitId,
@@ -94,8 +95,9 @@ export function BrandKitCardCoverField({
         return;
       }
 
-      setLocalPreview(uploaded.url);
-      onPreviewChangeRef.current?.(uploaded.url);
+      setUploadProgress({ loaded: file.size, total: file.size, percentage: 100, phase: "save" });
+      reloadAdminWorkspacePreserveContext({ brandKitCardId: card.id, phaseKey: "identidad" });
+      return;
     } catch (e) {
       setLocalPreview(null);
       onPreviewChangeRef.current?.(null);
@@ -118,8 +120,7 @@ export function BrandKitCardCoverField({
         setUploadError("No se pudo quitar la portada.");
         return;
       }
-      setLocalPreview(null);
-      onPreviewChangeRef.current?.(null);
+      reloadAdminWorkspacePreserveContext({ brandKitCardId: card.id, phaseKey: "identidad" });
     } finally {
       setUploading(false);
       setUploadProgress(null);
@@ -178,6 +179,12 @@ export function BrandKitCardCoverField({
           savingLabel="Guardando portada en Brand ID…"
           className="mt-0"
         />
+      ) : null}
+
+      {uploading && uploadProgress && uploadProgress.percentage >= 98 ? (
+        <p className="text-[10px]" style={{ color: brandUi.textMuted }}>
+          Guardado — actualizando vista…
+        </p>
       ) : null}
 
       {uploadError ? (

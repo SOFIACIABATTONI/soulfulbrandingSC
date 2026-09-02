@@ -8,6 +8,7 @@ import { AdminUploadProgress } from "@/components/admin/AdminUploadProgress";
 import { slugifyPortfolioTitle } from "@/lib/portfolio-slug";
 import { filterPortfolioGalleryExcludeCover } from "@/lib/portfolio-gallery-db";
 import { uploadPortfolioImageFile, type UploadProgressEvent } from "@/lib/admin-client-upload";
+import { reloadAdminPage } from "@/lib/admin-reload";
 
 type GalleryItem = {
   id: string;
@@ -187,9 +188,9 @@ export function PortfolioCaseEditor({ slug }: Props) {
         }
         added += 1;
       }
-      await load();
       if (added > 0) {
-        setMsg(added === 1 ? "Archivo agregado al caso." : `${added} archivos agregados al caso.`);
+        reloadAdminPage();
+        return;
       }
       if (errors.length > 0) {
         setMsg(

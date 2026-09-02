@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AdminUploadProgress } from "@/components/admin/AdminUploadProgress";
 import { uploadPortfolioImageFile, type UploadProgressEvent } from "@/lib/admin-client-upload";
+import { reloadAdminPage } from "@/lib/admin-reload";
 
 type Props = {
   label: string;
@@ -92,7 +93,7 @@ export function ImageField({ label, value, onChange, onSave, helpText, minWidth,
         }
       }
       onChange(url);
-      setLocalPreview(null);
+      reloadAdminPage();
     } catch (x) {
       setLocalPreview(null);
       setErr(x instanceof Error ? x.message : "Error al subir la imagen.");

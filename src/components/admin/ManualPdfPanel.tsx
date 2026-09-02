@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { brandUi, clientFrame } from "@/lib/brand-ui";
 import { uploadManualPdfFile, type UploadProgressEvent } from "@/lib/admin-client-upload";
+import { reloadAdminWorkspacePreserveContext } from "@/lib/admin-reload";
 import { MANUAL_PDF_MAX_BYTES } from "@/lib/admin-blob-upload";
 import type { ManualPdfMeta } from "@/lib/manual-pdf";
 import type { PhaseClientSendActionsProps } from "@/components/admin/PhaseClientSendActions";
@@ -119,7 +120,11 @@ export function ManualPdfPanel({ pdf, saving = false, onSave, clientSend }: Manu
       setUploadProgress({ loaded: file.size, total: file.size, percentage: 95, phase: "save" });
       const ok = await onSave(meta);
       setUploadProgress({ loaded: file.size, total: file.size, percentage: 100, phase: "save" });
-      setMessage(ok ? "PDF del manual guardado." : "No se pudo guardar.");
+      if (ok) {
+        reloadAdminWorkspacePreserveContext({ phaseKey: "manual" });
+        return;
+      }
+      setMessage("No se pudo guardar.");
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Error al subir.");
     } finally {
@@ -134,7 +139,11 @@ export function ManualPdfPanel({ pdf, saving = false, onSave, clientSend }: Manu
     if (!window.confirm("¿Quitar el PDF del manual?")) return;
     setMessage(null);
     const ok = await onSave(null);
-    setMessage(ok ? "PDF eliminado." : "No se pudo eliminar.");
+    if (ok) {
+      reloadAdminWorkspacePreserveContext({ phaseKey: "manual" });
+      return;
+    }
+    setMessage("No se pudo eliminar.");
   }
 
   const busy = uploading || saving;
