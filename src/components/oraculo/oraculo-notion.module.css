@@ -1,0 +1,115 @@
+.oraculoPage {
+  min-height: 100vh;
+  background: #fff;
+  color: rgb(55, 53, 47);
+  font-family: Helvetica Neue, Helvetica, Segoe UI, Roboto, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.notionBody {
+  max-width: 708px;
+  margin: 0 auto;
+  padding: 96px 96px 120px;
+}
+
+@media (max-width: 768px) {
+  .notionBody {
+    padding: 48px 24px 80px;
+  }
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 0.25em;
+  color: rgb(55, 53, 47);
+}
+
+.subHeader {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1.4em 0 2px;
+  white-space: pre-wrap;
+}
+
+.subSubHeader {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1.4em 0 2px;
+  white-space: pre-wrap;
+}
+
+.textBlock {
+  margin: 1px 0;
+  padding: 3px 2px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.textBlock strong {
+  font-weight: 600;
+}
+
+.textBlock a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bulletItem {
+  display: flex;
+  gap: 2px;
+  margin: 1px 0;
+  padding: 3px 2px;
+}
+
+.bulletItem::before {
+  content: "•";
+  user-select: none;
+  width: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  line-height: 1.5;
+}
+
+.mediaBlock {
+  margin: 8px 0 12px;
+}
+
+.mediaBlock img,
+.mediaBlock video {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.caption {
+  margin-top: 6px;
+  font-size: 14px;
+  color: rgba(55, 53, 47, 0.65);
+  text-align: center;
+  white-space: pre-wrap;
+}
+
+.formSection {
+  margin: 2em 0;
+}
+
+.formTitle {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 1rem;
+}
+
+.audio {
+  width: 100%;
+  margin: 8px 0 12px;
+}
