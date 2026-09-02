@@ -34,14 +34,6 @@ export function ContentAdminNav() {
             );
           })}
         </nav>
-        <div className="mt-4 hidden border-t border-neutral-100 pt-4 lg:block">
-          <Link
-            href="/admin/testimonials"
-            className="text-xs font-medium text-brand-blue hover:underline"
-          >
-            Testimonios →
-          </Link>
-        </div>
       </div>
     </aside>
   );

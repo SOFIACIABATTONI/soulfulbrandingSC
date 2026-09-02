@@ -1,5 +1,5 @@
-import { TestimonialsAdmin } from "@/components/admin/TestimonialsAdmin";
+import { redirect } from "next/navigation";
 
-export default function AdminTestimonialsPage() {
-  return <TestimonialsAdmin />;
+export default function AdminTestimonialsRedirectPage() {
+  redirect("/admin/content/testimonials");
 }

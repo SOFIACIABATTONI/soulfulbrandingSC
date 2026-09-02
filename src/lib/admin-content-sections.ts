@@ -7,7 +7,8 @@ export type ContentSectionId =
   | "method"
   | "stages"
   | "services"
-  | "contact";
+  | "contact"
+  | "testimonials";
 
 export type ContentSection = {
   id: ContentSectionId;
@@ -71,6 +72,12 @@ export const CONTENT_SECTIONS: ContentSection[] = [
     label: "Contacto",
     description: "Formulario, redes y pie",
     scope: "Home — Contacto y footer",
+  },
+  {
+    id: "testimonials",
+    label: "Testimonios",
+    description: "Carrusel en /portfolio y fichas de caso",
+    scope: "/portfolio — carrusel y desplegable en casos",
   },
 ];
 

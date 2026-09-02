@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type TestimonialRow = {
@@ -131,17 +130,12 @@ export function TestimonialsAdmin() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <div className="flex flex-col gap-3 border-b border-neutral-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="font-serif text-3xl text-brand-navy">Testimonios</h1>
-          <p className="mt-2 max-w-2xl text-sm text-neutral-600">
-            Carrusel en <code className="text-xs">/portfolio</code> (desktop) y desplegable en fichas de caso cuando
-            vinculás un slug.
-          </p>
-        </div>
-        <Link href="/admin/content/general" className="text-sm font-medium text-brand-blue hover:underline">
-          ← Contenido del sitio
-        </Link>
+      <div className="border-b border-neutral-200 pb-6">
+        <h1 className="font-serif text-3xl text-brand-navy">Testimonios</h1>
+        <p className="mt-2 max-w-2xl text-sm text-neutral-600">
+          Carrusel en <code className="text-xs">/portfolio</code> (desktop) y desplegable en fichas de caso cuando
+          vinculás un slug.
+        </p>
       </div>
 
       <ul className="mt-8 space-y-4">
