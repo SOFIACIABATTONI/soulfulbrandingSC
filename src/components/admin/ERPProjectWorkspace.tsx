@@ -7,9 +7,11 @@ import { useRouter } from "next/navigation";
 import {
   ADMIN_PHASE_NAVIGATE_EVENT,
   navigateAdminToPhaseHash,
+  restoreAdminScrollPosition,
   scrollAdminMainToTop,
   waitForAdminScrollToHash,
 } from "@/lib/admin-main-scroll";
+import { peekAdminUploadReloadPending, signalAdminUploadReloadReady } from "@/lib/admin-reload-overlay";
 import { PhaseDocumentEditor } from "@/components/admin/PhaseDocumentEditor";
 import { PhaseManualStatusBar } from "@/components/admin/PhaseManualStatusBar";
 import { AdminPanelErrorBoundary } from "@/components/admin/AdminPanelErrorBoundary";
@@ -373,6 +375,9 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
       } catch {
         /* ignore */
       }
+      if (!peekAdminUploadReloadPending()) {
+        requestAnimationFrame(() => waitForAdminScrollToHash(hash, "auto"));
+      }
       return;
     }
     try {
@@ -385,6 +390,21 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
       /* ignore */
     }
   }, [phaseSessionKey]);
+
+  useEffect(() => {
+    if (!activePhaseKey) return;
+    const pending = peekAdminUploadReloadPending();
+    if (!pending) return;
+
+    const run = () => {
+      restoreAdminScrollPosition(project.id);
+      if (!pending.brandKitCardId) {
+        signalAdminUploadReloadReady();
+      }
+    };
+
+    requestAnimationFrame(() => requestAnimationFrame(run));
+  }, [activePhaseKey, project.id]);
 
   useEffect(() => {
     function readHashFromUrl() {
@@ -406,13 +426,6 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
       window.removeEventListener(ADMIN_PHASE_NAVIGATE_EVENT, onPhaseNavigate);
     };
   }, []);
-
-  useLayoutEffect(() => {
-    if (!activePhaseKey) return;
-    const resolved = phaseList.find((p) => p.key === activePhaseKey);
-    if (!resolved) return;
-    scrollAdminMainToTop("auto");
-  }, [activePhaseKey, phaseList]);
 
   function openPhaseDetail(phaseKey: string) {
     setActivePhaseKey(phaseKey);

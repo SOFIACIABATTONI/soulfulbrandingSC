@@ -4,6 +4,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AdminSidebar } from "./AdminSidebar";
+import { AdminUploadResumeOverlay } from "./AdminUploadResumeOverlay";
 import { brandUi } from "@/lib/brand-ui";
 import adminLoginBg from "../../../assets/images/shared/about1.png";
 
@@ -88,6 +89,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="erp-admin relative flex h-screen overflow-hidden bg-brand-page font-sans text-brand-navy">
+      <AdminUploadResumeOverlay />
       <div
         className="flex-shrink-0 h-full overflow-hidden transition-[width] duration-200 ease-out"
         style={{ width: menuOpen ? 216 : 0 }}

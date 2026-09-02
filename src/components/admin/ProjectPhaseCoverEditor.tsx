@@ -81,7 +81,11 @@ export function ProjectPhaseCoverEditor({
       const saved = await persistCover(url);
       if (saved) {
         setUploadProgress({ loaded: file.size, total: file.size, percentage: 100, phase: "save" });
-        reloadAdminWorkspacePreserveContext({ phaseKey });
+        reloadAdminWorkspacePreserveContext({
+          phaseKey,
+          message: "Portada guardada",
+          detail: "Volviendo al mismo lugar del proyecto…",
+        });
         return;
       } else {
         setLocalPreview(null);
@@ -109,7 +113,11 @@ export function ProjectPhaseCoverEditor({
         setUploadError("No se pudo quitar la portada.");
         return;
       }
-      reloadAdminWorkspacePreserveContext({ phaseKey });
+      reloadAdminWorkspacePreserveContext({
+        phaseKey,
+        message: "Portada quitada",
+        detail: "Volviendo al mismo lugar del proyecto…",
+      });
     } finally {
       setUploading(false);
       setUploadProgress(null);
@@ -157,11 +165,6 @@ export function ProjectPhaseCoverEditor({
         {uploadError ? (
           <p className="text-[10px] mt-1" style={{ color: brandUi.accent }}>
             {uploadError}
-          </p>
-        ) : null}
-        {uploading && uploadProgress && uploadProgress.percentage >= 98 ? (
-          <p className="text-[10px] mt-1" style={{ color: brandUi.textMuted }}>
-            Guardado — actualizando vista…
           </p>
         ) : null}
       </div>

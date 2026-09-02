@@ -121,7 +121,11 @@ export function ManualPdfPanel({ pdf, saving = false, onSave, clientSend }: Manu
       const ok = await onSave(meta);
       setUploadProgress({ loaded: file.size, total: file.size, percentage: 100, phase: "save" });
       if (ok) {
-        reloadAdminWorkspacePreserveContext({ phaseKey: "manual" });
+        reloadAdminWorkspacePreserveContext({
+          phaseKey: "manual",
+          message: "Manual guardado",
+          detail: "Volviendo al mismo lugar del proyecto…",
+        });
         return;
       }
       setMessage("No se pudo guardar.");
@@ -140,7 +144,11 @@ export function ManualPdfPanel({ pdf, saving = false, onSave, clientSend }: Manu
     setMessage(null);
     const ok = await onSave(null);
     if (ok) {
-      reloadAdminWorkspacePreserveContext({ phaseKey: "manual" });
+      reloadAdminWorkspacePreserveContext({
+        phaseKey: "manual",
+        message: "Manual actualizado",
+        detail: "Volviendo al mismo lugar del proyecto…",
+      });
       return;
     }
     setMessage("No se pudo eliminar.");

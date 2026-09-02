@@ -87,3 +87,70 @@ export function scheduleAdminScrollToHash(hash: string): void {
   if (!hash.startsWith("#")) return;
   waitForAdminScrollToHash(hash, "auto");
 }
+
+const SCROLL_RESTORE_PREFIX = "erp-upload-scroll:";
+
+/** Guarda scroll del panel `main` antes de un reload post-subida. */
+export function rememberAdminScrollForReload(projectId: string): void {
+  if (typeof window === "undefined") return;
+  const main = getAdminScrollContainer();
+  if (!main) return;
+  try {
+    sessionStorage.setItem(`${SCROLL_RESTORE_PREFIX}${projectId}`, String(Math.round(main.scrollTop)));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function consumeAdminScrollForReload(projectId: string): number | null {
+  try {
+    const raw = sessionStorage.getItem(`${SCROLL_RESTORE_PREFIX}${projectId}`);
+    sessionStorage.removeItem(`${SCROLL_RESTORE_PREFIX}${projectId}`);
+    if (!raw) return null;
+    const top = Number(raw);
+    return Number.isFinite(top) ? top : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Restaura el scroll del panel admin tras un reload post-subida. */
+export function restoreAdminScrollPosition(projectId: string): boolean {
+  const top = consumeAdminScrollForReload(projectId);
+  if (top == null) return false;
+  const main = getAdminScrollContainer();
+  if (!main) return false;
+  main.scrollTo({ top, behavior: "auto" });
+  return true;
+}
+
+/** Guarda scroll genérico (portfolio admin, etc.). */
+export function rememberAdminScrollForPageReload(): void {
+  if (typeof window === "undefined") return;
+  const main = getAdminScrollContainer();
+  const top = main ? main.scrollTop : window.scrollY;
+  try {
+    sessionStorage.setItem(`${SCROLL_RESTORE_PREFIX}page`, String(Math.round(top)));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function restoreAdminScrollPositionForPage(): boolean {
+  try {
+    const raw = sessionStorage.getItem(`${SCROLL_RESTORE_PREFIX}page`);
+    sessionStorage.removeItem(`${SCROLL_RESTORE_PREFIX}page`);
+    if (!raw) return false;
+    const top = Number(raw);
+    if (!Number.isFinite(top)) return false;
+    const main = getAdminScrollContainer();
+    if (main) {
+      main.scrollTo({ top, behavior: "auto" });
+    } else {
+      window.scrollTo({ top, behavior: "auto" });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}

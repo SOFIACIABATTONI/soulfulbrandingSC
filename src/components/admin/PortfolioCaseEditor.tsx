@@ -9,6 +9,8 @@ import { slugifyPortfolioTitle } from "@/lib/portfolio-slug";
 import { filterPortfolioGalleryExcludeCover } from "@/lib/portfolio-gallery-db";
 import { uploadPortfolioImageFile, type UploadProgressEvent } from "@/lib/admin-client-upload";
 import { reloadAdminPage } from "@/lib/admin-reload";
+import { peekAdminUploadReloadPending, signalAdminUploadReloadReady } from "@/lib/admin-reload-overlay";
+import { restoreAdminScrollPositionForPage } from "@/lib/admin-main-scroll";
 
 type GalleryItem = {
   id: string;
@@ -63,6 +65,15 @@ export function PortfolioCaseEditor({ slug }: Props) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!peekAdminUploadReloadPending()) return;
+    requestAnimationFrame(() => {
+      restoreAdminScrollPositionForPage();
+      signalAdminUploadReloadReady();
+    });
+  }, [loading]);
 
   async function saveProject(next?: Partial<Project>) {
     if (!project) return;
@@ -189,7 +200,10 @@ export function PortfolioCaseEditor({ slug }: Props) {
         added += 1;
       }
       if (added > 0) {
-        reloadAdminPage();
+        reloadAdminPage({
+          message: "Archivo agregado",
+          detail: "Volviendo al mismo lugar del editor…",
+        });
         return;
       }
       if (errors.length > 0) {

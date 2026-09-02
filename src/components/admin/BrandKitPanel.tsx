@@ -11,6 +11,8 @@ import {
   getErpProjectIdFromPath,
   reloadAdminWorkspacePreserveContext,
 } from "@/lib/admin-reload";
+import { peekAdminUploadReloadPending, signalAdminUploadReloadReady } from "@/lib/admin-reload-overlay";
+import { scrollAdminMainToElement } from "@/lib/admin-main-scroll";
 import {
   cardHasContent,
   cardPreviewBackground,
@@ -82,6 +84,21 @@ export function BrandKitPanel({
     if (!kitRef.current.cards.some((c) => c.id === cardId)) return;
     setActiveCardId(cardId);
   }, []);
+
+  useEffect(() => {
+    if (!activeCardId) return;
+    const pending = peekAdminUploadReloadPending();
+    if (!pending?.brandKitCardId || pending.brandKitCardId !== activeCardId) return;
+
+    const timer = window.setTimeout(() => {
+      const el = document.querySelector(`[data-brandkit-active-card="${activeCardId}"]`);
+      if (el instanceof HTMLElement) {
+        scrollAdminMainToElement(el, "auto");
+      }
+      signalAdminUploadReloadReady();
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [activeCardId]);
 
   useEffect(() => {
     if (uploadingKey || coverFieldUploading || manualSaving) return;
@@ -215,6 +232,8 @@ export function BrandKitPanel({
         reloadAdminWorkspacePreserveContext({
           phaseKey: "identidad",
           brandKitCardId: cardId,
+          message: "Archivos subidos",
+          detail: "Volviendo a la misma card y posición…",
         });
         return;
       }
@@ -455,7 +474,11 @@ function CardEditor({
   const filesUploading = Boolean(uploadingKey?.startsWith(`${card.id}-`));
 
   return (
-    <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: brandUi.border }}>
+    <div
+      className="rounded-xl border p-4 space-y-4"
+      style={{ borderColor: brandUi.border }}
+      data-brandkit-active-card={card.id}
+    >
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
           {isCustom ? (

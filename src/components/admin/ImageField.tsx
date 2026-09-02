@@ -93,7 +93,10 @@ export function ImageField({ label, value, onChange, onSave, helpText, minWidth,
         }
       }
       onChange(url);
-      reloadAdminPage();
+      reloadAdminPage({
+        message: "Imagen guardada",
+        detail: "Volviendo al mismo lugar del editor…",
+      });
     } catch (x) {
       setLocalPreview(null);
       setErr(x instanceof Error ? x.message : "Error al subir la imagen.");

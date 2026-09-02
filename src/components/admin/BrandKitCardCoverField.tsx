@@ -96,7 +96,12 @@ export function BrandKitCardCoverField({
       }
 
       setUploadProgress({ loaded: file.size, total: file.size, percentage: 100, phase: "save" });
-      reloadAdminWorkspacePreserveContext({ brandKitCardId: card.id, phaseKey: "identidad" });
+      reloadAdminWorkspacePreserveContext({
+        brandKitCardId: card.id,
+        phaseKey: "identidad",
+        message: "Portada guardada",
+        detail: "Volviendo al mismo lugar del proyecto…",
+      });
       return;
     } catch (e) {
       setLocalPreview(null);
@@ -120,7 +125,12 @@ export function BrandKitCardCoverField({
         setUploadError("No se pudo quitar la portada.");
         return;
       }
-      reloadAdminWorkspacePreserveContext({ brandKitCardId: card.id, phaseKey: "identidad" });
+      reloadAdminWorkspacePreserveContext({
+        brandKitCardId: card.id,
+        phaseKey: "identidad",
+        message: "Portada actualizada",
+        detail: "Volviendo al mismo lugar del proyecto…",
+      });
     } finally {
       setUploading(false);
       setUploadProgress(null);
@@ -179,12 +189,6 @@ export function BrandKitCardCoverField({
           savingLabel="Guardando portada en Brand ID…"
           className="mt-0"
         />
-      ) : null}
-
-      {uploading && uploadProgress && uploadProgress.percentage >= 98 ? (
-        <p className="text-[10px]" style={{ color: brandUi.textMuted }}>
-          Guardado — actualizando vista…
-        </p>
       ) : null}
 
       {uploadError ? (

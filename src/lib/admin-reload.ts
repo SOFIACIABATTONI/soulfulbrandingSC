@@ -1,3 +1,12 @@
+import {
+  markAdminUploadReloadPending,
+  showAdminReloadOverlay,
+} from "@/lib/admin-reload-overlay";
+import {
+  rememberAdminScrollForPageReload,
+  rememberAdminScrollForReload,
+} from "@/lib/admin-main-scroll";
+
 const ERP_PHASE_SESSION_PREFIX = "erp-active-phase:";
 const ERP_BRAND_KIT_CARD_PREFIX = "erp-brandkit-card:";
 
@@ -28,17 +37,15 @@ export function consumeRememberedBrandKitCard(projectId: string): string | null 
 }
 
 type ReloadAdminWorkspaceOptions = {
-  /** Etapa ERP (`identidad`, `manual`, …). Por defecto: hash `#fase-*` o sessionStorage. */
   phaseKey?: string;
-  /** Card de Brand ID a reabrir tras el reload. */
   brandKitCardId?: string;
-  /** Breve pausa para mostrar el 100 % antes de recargar. */
+  message?: string;
+  detail?: string;
   delayMs?: number;
 };
 
 /**
- * F5 controlado: mantiene pathname, hash de etapa y (opcional) card activa en Brand ID.
- * Evita pantallas trabadas tras subir imágenes en el ERP.
+ * F5 controlado: mantiene etapa, card, scroll y muestra overlay durante la recarga.
  */
 export function reloadAdminWorkspacePreserveContext(opts?: ReloadAdminWorkspaceOptions): void {
   if (typeof window === "undefined") return;
@@ -51,31 +58,46 @@ export function reloadAdminWorkspacePreserveContext(opts?: ReloadAdminWorkspaceO
 
   if (projectId && phaseKey) {
     sessionStorage.setItem(`${ERP_PHASE_SESSION_PREFIX}${projectId}`, phaseKey);
+    rememberAdminScrollForReload(projectId);
   }
   if (projectId && opts?.brandKitCardId) {
     rememberBrandKitCardForReload(projectId, opts.brandKitCardId);
   }
 
+  const title = opts?.message ?? "Archivo guardado";
+  const detail =
+    opts?.detail ?? "Actualizando la vista y volviendo al mismo lugar del proyecto…";
+
+  markAdminUploadReloadPending({
+    message: title,
+    detail,
+    phaseKey: phaseKey ?? undefined,
+    brandKitCardId: opts?.brandKitCardId,
+  });
+  showAdminReloadOverlay(title, detail);
+
   const hash = phaseKey ? `#fase-${phaseKey}` : window.location.hash || "";
   const nextUrl = `${window.location.pathname}${window.location.search}${hash}`;
   window.history.replaceState(null, "", nextUrl);
 
-  const reload = () => {
-    window.location.reload();
-  };
-
-  const delay = opts?.delayMs ?? 450;
-  if (delay > 0) {
-    window.setTimeout(reload, delay);
-  } else {
-    reload();
-  }
+  const reload = () => window.location.reload();
+  const delay = opts?.delayMs ?? 120;
+  if (delay > 0) window.setTimeout(reload, delay);
+  else reload();
 }
 
-/** Recarga simple (portfolio admin, etc.) — conserva URL actual. */
-export function reloadAdminPage(delayMs = 450): void {
+/** Recarga simple (portfolio admin, etc.) — conserva URL y scroll. */
+export function reloadAdminPage(opts?: { message?: string; detail?: string; delayMs?: number }): void {
   if (typeof window === "undefined") return;
+
+  rememberAdminScrollForPageReload();
+  const title = opts?.message ?? "Archivo guardado";
+  const detail = opts?.detail ?? "Actualizando la vista…";
+  markAdminUploadReloadPending({ message: title, detail });
+  showAdminReloadOverlay(title, detail);
+
   const reload = () => window.location.reload();
-  if (delayMs > 0) window.setTimeout(reload, delayMs);
+  const delay = opts?.delayMs ?? 120;
+  if (delay > 0) window.setTimeout(reload, delay);
   else reload();
 }
