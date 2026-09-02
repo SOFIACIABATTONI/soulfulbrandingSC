@@ -24,7 +24,7 @@ export function HeroSection({ hero }: Props) {
     "brightness-0 invert opacity-[0.42] md:brightness-100 md:invert-0 md:opacity-100";
 
   return (
-    <section id="hero" className="relative overflow-x-hidden bg-brand-cream">
+    <section id="hero" className="relative overflow-x-hidden bg-brand-page">
       <div
         className="pointer-events-none absolute inset-0 opacity-100"
         style={{

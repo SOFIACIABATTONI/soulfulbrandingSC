@@ -282,23 +282,23 @@ export function AdminSidebar({
       </nav>
 
       <div
-        className="flex h-11 flex-shrink-0 items-center gap-2.5 px-4"
+        className="grid h-12 shrink-0 grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-x-2.5 px-4"
         style={{ borderTop: `1px solid ${brandUi.border}` }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/brand/sc-so-logo.svg"
-          alt="SO — Soulful Branding"
-          width={125}
-          height={113}
-          className="block h-5 w-auto max-w-[52px] shrink-0 object-contain object-center"
-          decoding="async"
-        />
-        <div className="min-w-0 flex-1 leading-none">
-          <div className="truncate text-[10px] leading-none" style={{ color: brandUi.textMuted }}>
-            Sofia Ciabattoni
-          </div>
+        <div className="flex h-5 items-center justify-start">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/sc-so-logo.svg"
+            alt="SO — Soulful Branding"
+            width={125}
+            height={113}
+            className="block h-[18px] w-auto max-w-[44px] object-contain object-left"
+            decoding="async"
+          />
         </div>
+        <p className="truncate text-[10px] leading-5" style={{ color: brandUi.textMuted }}>
+          Sofia Ciabattoni
+        </p>
         <LogoutSbButton />
       </div>
     </div>
@@ -314,7 +314,7 @@ function LogoutSbButton() {
     <button
       type="button"
       onClick={() => void handleLogout()}
-      className="shrink-0 self-center border-0 bg-transparent p-0 text-[9px] uppercase leading-none tracking-wider transition-opacity hover:opacity-80"
+      className="flex h-5 items-center border-0 bg-transparent p-0 text-[9px] uppercase leading-5 tracking-wider transition-opacity hover:opacity-80"
       style={{ color: brandUi.textFaint, cursor: "pointer" }}
       title="Cerrar sesión"
     >

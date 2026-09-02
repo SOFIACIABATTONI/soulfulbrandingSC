@@ -1,7 +1,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { DEFAULT_TESTIMONIALS } from "@/data/default-testimonials";
 import { prisma } from "@/lib/prisma";
-import { inferProjectSlugFromBrand, parseTestimonialsMd } from "@/lib/testimonials";
+import { inferProjectSlugFromBrand, parseTestimonialsMd, type Testimonial } from "@/lib/testimonials";
 
 const FILE = "testimonials.md";
 
@@ -15,18 +16,19 @@ function brandKey(brand: string): string {
     .trim();
 }
 
-async function readTestimonialsMd(): Promise<ReturnType<typeof parseTestimonialsMd>> {
+async function readTestimonialsMd(): Promise<Testimonial[]> {
   const filePath = path.join(process.cwd(), "testimonials", FILE);
   try {
     const raw = await readFile(filePath, "utf-8");
-    return parseTestimonialsMd(raw);
+    const parsed = parseTestimonialsMd(raw);
+    return parsed.length > 0 ? parsed : DEFAULT_TESTIMONIALS;
   } catch {
-    return [];
+    return DEFAULT_TESTIMONIALS;
   }
 }
 
 /**
- * Asegura que los testimonios del .md legacy existan en BD.
+ * Asegura que los testimonios legacy existan en BD.
  * No borra ni pisa los que ya están (p. ej. creados desde el panel).
  */
 export async function syncTestimonialsFromMd(): Promise<number> {

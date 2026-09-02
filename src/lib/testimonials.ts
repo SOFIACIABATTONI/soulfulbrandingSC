@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { DEFAULT_TESTIMONIALS } from "@/data/default-testimonials";
 import { prisma } from "@/lib/prisma";
 import { syncTestimonialsFromMd } from "@/lib/testimonials-seed";
 
@@ -67,9 +68,10 @@ async function getTestimonialsFromFile(): Promise<Testimonial[]> {
   const filePath = path.join(process.cwd(), "testimonials", FILE);
   try {
     const raw = await readFile(filePath, "utf-8");
-    return parseTestimonialsMd(raw);
+    const parsed = parseTestimonialsMd(raw);
+    return parsed.length > 0 ? parsed : DEFAULT_TESTIMONIALS;
   } catch {
-    return [];
+    return DEFAULT_TESTIMONIALS;
   }
 }
 

@@ -1,7 +1,7 @@
 import { getSiteContent } from "@/lib/content";
 import { buildPageMetadata } from "@/lib/site-metadata";
 import { SiteHeader } from "@/components/site/SiteHeader";
-import { HeroSection } from "@/components/site/HeroSection";
+import { HeroSection, HERO_PAPER_TEXTURE_URL } from "@/components/site/HeroSection";
 import { EssenceSection } from "@/components/site/EssenceSection";
 import { AboutSection } from "@/components/site/AboutSection";
 import { StagesSection } from "@/components/site/StagesSection";
@@ -42,6 +42,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   return (
     <>
+      <link rel="preload" as="image" href={HERO_PAPER_TEXTURE_URL} />
       <SiteHeader nav={c.nav} />
       <main>
         <HeroSection hero={c.hero} />
