@@ -27,7 +27,6 @@ export function TestimonialsAdmin() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -118,26 +117,6 @@ export function TestimonialsAdmin() {
     await load();
   }
 
-  async function importFromMd() {
-    if (!confirm("Importar testimonios desde testimonials/testimonials.md? Solo funciona si la base está vacía.")) {
-      return;
-    }
-    setImporting(true);
-    setMsg(null);
-    const res = await fetch("/api/admin/testimonials/import-md", {
-      method: "POST",
-      credentials: "include",
-    });
-    setImporting(false);
-    const j = (await res.json().catch(() => null)) as { error?: string; count?: number } | null;
-    if (res.ok) {
-      setMsg(`Importados ${j?.count ?? 0} testimonios.`);
-      await load();
-      return;
-    }
-    setMsg(j?.error ?? "No se pudo importar.");
-  }
-
   function startEdit(row: TestimonialRow) {
     setEditingId(row.id);
     setEditForm({
@@ -164,20 +143,6 @@ export function TestimonialsAdmin() {
           ← Contenido del sitio
         </Link>
       </div>
-
-      {items.length === 0 && (
-        <div className="mt-6 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-5 text-sm text-neutral-700">
-          <p>No hay testimonios en la base todavía.</p>
-          <button
-            type="button"
-            onClick={() => void importFromMd()}
-            disabled={importing}
-            className="mt-3 rounded-md bg-brand-navy px-4 py-2 text-sm font-semibold text-white hover:bg-brand-navyDark disabled:opacity-60"
-          >
-            {importing ? "Importando…" : "Importar desde testimonials.md"}
-          </button>
-        </div>
-      )}
 
       <ul className="mt-8 space-y-4">
         {items.map((row, index) => (

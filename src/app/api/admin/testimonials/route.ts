@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
+import { seedTestimonialsFromMdIfEmpty } from "@/lib/testimonials-seed";
 import { PORTFOLIO_SHOWCASE } from "@/lib/portfolio-showcase";
 
 const createSchema = z.object({
@@ -16,6 +17,7 @@ export async function GET() {
   if (!(await isAdminRequest())) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+  await seedTestimonialsFromMdIfEmpty();
   const [items, dbProjects] = await Promise.all([
     prisma.testimonial.findMany({
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
