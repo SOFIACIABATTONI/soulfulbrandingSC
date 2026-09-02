@@ -56,36 +56,39 @@ export function OraculoOrderForm() {
   }
 
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="mx-auto max-w-lg space-y-4 rounded-xl border border-neutral-300 bg-white/80 p-6 shadow-sm">
-      <h3 className="font-serif text-xl text-neutral-900">Oráculo Raíz—</h3>
+    <form
+      onSubmit={(e) => void onSubmit(e)}
+      className="mx-auto max-w-lg space-y-4 rounded-xl border border-brand-navy/15 bg-white p-6 shadow-sm"
+    >
+      <h3 className="font-serif text-xl font-medium text-brand-navy">Oráculo Raíz—</h3>
 
       <div>
-        <label className="block text-sm font-medium text-neutral-800">Nombre y Apellido</label>
+        <label className="block text-sm font-medium text-brand-navy">Nombre y Apellido</label>
         <input
           required
-          className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-brand-navy/20 px-3 py-2 font-sans text-sm text-brand-navy"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-neutral-800">
-          Email <span className="font-normal text-neutral-500">(recibirás el material de descarga)</span>
+        <label className="block text-sm font-medium text-brand-navy">
+          Email <span className="font-normal text-brand-navy/55">(recibirás el material de descarga)</span>
         </label>
         <input
           type="email"
           required
-          className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-brand-navy/20 px-3 py-2 font-sans text-sm text-brand-navy"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-neutral-800">País de pago</label>
+        <label className="block text-sm font-medium text-brand-navy">País de pago</label>
         <select
-          className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-brand-navy/20 px-3 py-2 font-sans text-sm text-brand-navy"
           value={country}
           onChange={(e) => setCountry(e.target.value as "ar" | "es")}
         >
@@ -95,14 +98,14 @@ export function OraculoOrderForm() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-neutral-800">Comprobante de pago</label>
-        <p className="mt-0.5 text-xs text-neutral-500">JPG, PNG o PDF · máx. 10 MB</p>
+        <label className="block text-sm font-medium text-brand-navy">Comprobante de pago</label>
+        <p className="mt-0.5 text-xs text-brand-navy/55">JPG, PNG o PDF · máx. 10 MB</p>
         <input
           ref={fileRef}
           type="file"
           required
           accept="image/jpeg,image/png,image/webp,application/pdf"
-          className="mt-2 block w-full text-sm"
+          className="mt-2 block w-full font-sans text-sm text-brand-navy"
           onChange={(e) => setReceipt(e.target.files?.[0] ?? null)}
         />
       </div>
@@ -110,23 +113,23 @@ export function OraculoOrderForm() {
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-md bg-neutral-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+        className="w-full rounded-md bg-brand-navy px-4 py-3 font-sans text-sm font-semibold text-white disabled:opacity-60"
       >
         {submitting ? "Enviando…" : "Enviar comprobante"}
       </button>
 
       {msg && (
-        <p className={`text-sm ${msg.type === "ok" ? "text-green-800" : "text-red-700"}`}>{msg.text}</p>
+        <p className={`font-sans text-sm ${msg.type === "ok" ? "text-green-800" : "text-brand-magenta"}`}>
+          {msg.text}
+        </p>
       )}
     </form>
   );
 }
 
-export function OraculoPresentation() {
-  const videoUrl = ORACULO_MEDIA.presentationVideo;
-
+export function OraculoPresentation({ videoUrl }: { videoUrl: string }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <audio controls className="mx-auto w-full max-w-md" src={ORACULO_MEDIA.bienvenidaAudio} preload="metadata">
         <track kind="captions" />
       </audio>
@@ -135,22 +138,20 @@ export function OraculoPresentation() {
         <video
           controls
           playsInline
-          className="mx-auto w-full max-w-3xl rounded-lg shadow-md"
-          poster={ORACULO_MEDIA.salpicadoCartas}
+          className="mx-auto w-full max-w-3xl rounded-lg bg-black shadow-md"
           preload="metadata"
-        >
-          <source src={videoUrl} type="video/mp4" />
-          <source src={videoUrl} type="video/quicktime" />
-        </video>
+          src={videoUrl}
+        />
       ) : (
-        <div className="mx-auto max-w-3xl overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={ORACULO_MEDIA.salpicadoCartas} alt="Oráculo Raíz — cartas" className="w-full" />
-          <p className="p-4 text-center text-sm text-neutral-600">
-            Video de presentación en preparación. Mientras tanto podés escuchar la bienvenida arriba.
-          </p>
-        </div>
+        <p className="mx-auto max-w-3xl text-center font-sans text-sm text-brand-navy/60">
+          Video de presentación en preparación. Mientras tanto podés escuchar la bienvenida arriba.
+        </p>
       )}
+
+      <div className="mx-auto max-w-3xl overflow-hidden rounded-lg">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={ORACULO_MEDIA.salpicadoCartas} alt="" className="w-full" />
+      </div>
     </div>
   );
 }
