@@ -39,9 +39,7 @@ export async function POST(req: Request) {
     if (!(file instanceof File) || file.size === 0) {
       return NextResponse.json({ error: "Archivo requerido" }, { status: 400 });
     }
-    // Los assets de Brand ID reutilizan esta ruta pero el navegador a veces no
-    // reporta el mime correcto (p. ej. .svg en Windows); resolvemos por extensión.
-    const resolvedMime = isBrandAsset ? resolveBrandAssetMime(file) : file.type;
+    const resolvedMime = resolveBrandAssetMime(file) ?? (isBrandAsset ? null : file.type || null);
     if (!resolvedMime || !ALLOWED.has(resolvedMime)) {
       return NextResponse.json({ error: "Tipo no permitido" }, { status: 400 });
     }

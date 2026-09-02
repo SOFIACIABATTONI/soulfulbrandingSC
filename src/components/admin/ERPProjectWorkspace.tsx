@@ -31,6 +31,7 @@ import {
   type CustomPhaseDefinition,
 } from "@/lib/project-phase-layout";
 import { getPhaseClientMeta, type PhaseClientMeta } from "@/lib/phase-client-store";
+import { cssBackgroundUrl, isLegacyLocalUploadPath } from "@/lib/admin-media-url";
 import type { WorkspacePhaseKey } from "@/lib/project-phase-sync";
 import {
   PHASE_DOCUMENT_HINTS,
@@ -247,12 +248,13 @@ function phaseCoverImage(
   previewUrl?: string,
 ): string | undefined {
   const url = previewUrl?.trim() || content?.coverUrl?.trim();
-  if (!url) return undefined;
-  return `url("${url}")`;
+  if (!url || isLegacyLocalUploadPath(url)) return undefined;
+  return cssBackgroundUrl(url);
 }
 
 function phaseHasCover(content?: Pick<PhaseContent, "coverUrl">, previewUrl?: string): boolean {
-  return Boolean(previewUrl?.trim() || content?.coverUrl?.trim());
+  const url = previewUrl?.trim() || content?.coverUrl?.trim();
+  return Boolean(url && !isLegacyLocalUploadPath(url));
 }
 
 function formatPhaseDateLabel(iso: string): string {

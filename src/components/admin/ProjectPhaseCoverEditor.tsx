@@ -65,7 +65,6 @@ export function ProjectPhaseCoverEditor({
     if (localPreview?.startsWith("blob:")) URL.revokeObjectURL(localPreview);
     const blobUrl = URL.createObjectURL(file);
     setLocalPreview(blobUrl);
-    onPreviewChangeRef.current?.(blobUrl);
     setUploading(true);
     setUploadError(null);
     setUploadProgress({ loaded: 0, total: file.size, percentage: 0, phase: "upload" });

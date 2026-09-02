@@ -8,6 +8,7 @@ import {
   blobStorageErrorMessage,
   hasBlobCredentials,
   resolveBlobPutOptions,
+  resolveBrandAssetMime,
 } from "@/lib/admin-blob-upload";
 import { savePublicDevUpload } from "@/lib/local-dev-upload-store";
 
@@ -37,24 +38,33 @@ export async function POST(req: Request) {
     if (!(file instanceof File) || file.size === 0) {
       return NextResponse.json({ error: "Archivo requerido" }, { status: 400 });
     }
-    if (!ALLOWED.has(file.type)) {
+
+    const resolvedMime = (resolveBrandAssetMime(file) ?? file.type ?? "").trim();
+    const isVideoFile =
+      VIDEO_TYPES.has(resolvedMime) || /\.(mp4|webm)$/i.test(file.name);
+    if (!isVideoFile && (!resolvedMime || !IMAGE_TYPES.has(resolvedMime))) {
       return NextResponse.json(
         { error: "Tipo no permitido. Usá JPG, PNG, WEBP, GIF, SVG, MP4 o WebM." },
         { status: 400 },
       );
     }
-
-    const isVideo = VIDEO_TYPES.has(file.type);
-    const maxBytes = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
-    const buf = Buffer.from(await file.arrayBuffer());
-    if (buf.length > maxBytes) {
+    if (isVideoFile && resolvedMime && !VIDEO_TYPES.has(resolvedMime)) {
       return NextResponse.json(
-        { error: isVideo ? "Máximo 48MB para video." : "Máximo 8MB para imagen." },
+        { error: "Tipo de video no permitido. Usá MP4 o WebM." },
         { status: 400 },
       );
     }
 
-    if (!isVideo) {
+    const maxBytes = isVideoFile ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    const buf = Buffer.from(await file.arrayBuffer());
+    if (buf.length > maxBytes) {
+      return NextResponse.json(
+        { error: isVideoFile ? "Máximo 48MB para video." : "Máximo 8MB para imagen." },
+        { status: 400 },
+      );
+    }
+
+    if (!isVideoFile) {
       try {
         const meta = imageSize(buf);
         const w = meta.width ?? 0;
@@ -72,11 +82,13 @@ export async function POST(req: Request) {
 
     const ext =
       path.extname(file.name) ||
-      (file.type === "image/png"
+      (resolvedMime === "image/png"
         ? ".png"
-        : file.type === "video/mp4"
+        : resolvedMime === "image/svg+xml"
+          ? ".svg"
+        : resolvedMime === "video/mp4"
           ? ".mp4"
-          : file.type === "video/webm"
+          : resolvedMime === "video/webm"
             ? ".webm"
             : ".jpg");
     const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
@@ -91,10 +103,10 @@ export async function POST(req: Request) {
           buf,
           await resolveBlobPutOptions({
             access: "public",
-            contentType: file.type || "application/octet-stream",
+            contentType: resolvedMime || "application/octet-stream",
           }),
         );
-        return NextResponse.json({ url: blob.url, mime: file.type });
+        return NextResponse.json({ url: blob.url, mime: resolvedMime });
       } catch (error) {
         const cause = error instanceof Error ? error.message : String(error);
         console.error("[portfolio-image-upload] blob put failed", cause, blobStorageDiagnostics());
@@ -105,7 +117,7 @@ export async function POST(req: Request) {
     }
 
     const url = await savePublicDevUpload("portfolio", name, buf);
-    return NextResponse.json({ url, mime: file.type });
+    return NextResponse.json({ url, mime: resolvedMime });
   } catch (error) {
     console.error("[portfolio-image-upload] failed", error);
     return NextResponse.json({ error: "No se pudo subir el archivo." }, { status: 500 });

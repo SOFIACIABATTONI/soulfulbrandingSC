@@ -145,7 +145,7 @@ export function ImageField({ label, value, onChange, onSave, helpText, minWidth,
           {uploading ? "Subiendo…" : "Seleccionar archivo"}
           <input
             type="file"
-            accept="image/*,.jpg,.jpeg,.png,.webp"
+            accept="image/*,.jpg,.jpeg,.png,.webp,.svg"
             className="sr-only"
             disabled={uploading}
             onChange={(e) => {

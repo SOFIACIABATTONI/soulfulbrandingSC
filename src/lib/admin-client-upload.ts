@@ -17,6 +17,7 @@ import {
   resolveBrandAssetMime,
   VERCEL_SERVER_UPLOAD_MAX_BYTES,
 } from "@/lib/admin-blob-upload";
+import { assertPublicUploadUrl } from "@/lib/admin-media-url";
 
 const BLOB_UPLOAD_URL = "/api/admin/blob-upload";
 const LARGE_UPLOAD_HINT =
@@ -78,7 +79,16 @@ async function postFormUpload(
         reject(new Error(j.error ?? "Respuesta inválida del servidor al subir."));
         return;
       }
-      resolve({ url: j.url, fileName: j.fileName, mime: j.mime, error: j.error });
+      try {
+        resolve({
+          url: assertPublicUploadUrl(j.url),
+          fileName: j.fileName,
+          mime: j.mime,
+          error: j.error,
+        });
+      } catch (validationError) {
+        reject(validationError instanceof Error ? validationError : new Error(String(validationError)));
+      }
     };
 
     xhr.timeout = 120_000;
@@ -119,7 +129,11 @@ async function uploadViaBlobClient(
           }
         : undefined,
     });
-    return { url: blob.url, fileName: payload.fileName, mime: payload.mime };
+    return {
+      url: assertPublicUploadUrl(blob.url),
+      fileName: payload.fileName,
+      mime: payload.mime,
+    };
   } catch (error) {
     const raw = error instanceof Error ? error.message : "";
     if (raw.includes("HTTP 500") || raw.includes("Failed to retrieve")) {
@@ -318,40 +332,21 @@ export async function uploadPhaseCoverImageFile(
   file: File,
   onProgress?: (event: UploadProgressEvent) => void,
 ): Promise<string> {
-  onProgress?.({ loaded: 0, total: file.size, percentage: 4, phase: "upload" });
-
-  // Sin compresión en el cliente: createImageBitmap bloquea el hilo principal en fotos grandes.
-  const prepared = file;
-
-  const mime = resolveBrandAssetMime(prepared);
+  const mime = resolveBrandAssetMime(file);
   if (!mime || !ADMIN_IMAGE_ALLOWED_CONTENT_TYPES.includes(mime)) {
     throw new Error("Tipo no permitido.");
   }
-  if (prepared.size > ADMIN_IMAGE_MAX_BYTES) {
+  if (file.size > ADMIN_IMAGE_MAX_BYTES) {
     throw new Error("Máximo 8MB");
   }
 
-  const mapUploadProgress = (event: UploadProgressEvent) => {
+  const uploaded = await uploadBrandAssetFile(file, (event) => {
     onProgress?.({
       ...event,
-      percentage: 12 + Math.round(event.percentage * 0.76),
+      percentage: 8 + Math.round(event.percentage * 0.84),
     });
-  };
-
-  if (useServerBlobUpload(prepared)) {
-    const j = await postFormUpload("/api/upload", prepared, undefined, mapUploadProgress);
-    onProgress?.({ loaded: prepared.size, total: prepared.size, percentage: 90, phase: "save" });
-    return j.url;
-  }
-
-  const pathname = buildAdminImagePathname(prepared.name, mime);
-  const uploaded = await uploadViaBlobClient(
-    pathname,
-    prepared,
-    { kind: "image", fileName: prepared.name, mime },
-    { contentType: mime, onProgress: mapUploadProgress },
-  );
-  onProgress?.({ loaded: prepared.size, total: prepared.size, percentage: 90, phase: "save" });
+  });
+  onProgress?.({ loaded: file.size, total: file.size, percentage: 96, phase: "save" });
   return uploaded.url;
 }
 
@@ -362,12 +357,12 @@ export async function uploadPortfolioImageFile(
 ): Promise<{ url: string; mime: string }> {
   onProgress?.({ loaded: 0, total: file.size, percentage: 4, phase: "upload" });
 
-  const isVideo = file.type.startsWith("video/");
-  const prepared = isVideo ? file : await preparePhaseCoverFile(file).catch(() => file);
+  const isVideo = file.type.startsWith("video/") || /\.(mp4|webm)$/i.test(file.name);
+  const prepared = file;
   onProgress?.({
-    loaded: Math.round(prepared.size * 0.2),
+    loaded: Math.round(prepared.size * 0.12),
     total: prepared.size,
-    percentage: 18,
+    percentage: 12,
     phase: "upload",
   });
 

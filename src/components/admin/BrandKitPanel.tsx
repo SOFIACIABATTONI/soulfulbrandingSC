@@ -5,6 +5,7 @@ import { brandUi, clientFrame } from "@/lib/brand-ui";
 import { uploadBrandAssetFile } from "@/lib/admin-client-upload";
 import { BrandKitCardCoverField } from "@/components/admin/BrandKitCardCoverField";
 import { isLocalAdminUploadHost, isLocalDevUploadUrl, BRAND_ASSET_FORMAT_HINT } from "@/lib/admin-blob-upload";
+import { isLegacyLocalUploadPath } from "@/lib/admin-media-url";
 import {
   cardHasContent,
   cardPreviewBackground,
@@ -63,8 +64,6 @@ export function BrandKitPanel({
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPersistedRef = useRef(serializeBrandKit(parseBrandKit(brandKitJson)));
   const kitRef = useRef(kit);
-  /** Tras guardar OK, ignorar props del padre hasta que reflejen lo persistido (evita pantalla en blanco). */
-  const awaitingPropSyncRef = useRef(false);
 
   useEffect(() => {
     kitRef.current = kit;
@@ -74,57 +73,32 @@ export function BrandKitPanel({
     if (uploadingKey || coverFieldUploading || manualSaving) return;
 
     const localSerialized = serializeBrandKit(kitRef.current);
-
-    if (awaitingPropSyncRef.current) {
-      const rawMatch =
-        brandKitJson === lastPersistedRef.current || brandKitJson === localSerialized;
-      if (rawMatch) {
-        awaitingPropSyncRef.current = false;
-        lastPersistedRef.current = brandKitJson;
-        return;
-      }
-      const incomingSerialized = serializeBrandKit(parseBrandKit(brandKitJson));
-      if (
-        incomingSerialized === lastPersistedRef.current ||
-        incomingSerialized === localSerialized
-      ) {
-        awaitingPropSyncRef.current = false;
-        lastPersistedRef.current = brandKitJson;
-        return;
-      }
-      return;
-    }
-
-    if (brandKitJson === localSerialized || brandKitJson === lastPersistedRef.current) {
+    if (brandKitJson === localSerialized) {
       lastPersistedRef.current = brandKitJson;
       return;
     }
+    if (brandKitJson === lastPersistedRef.current) return;
 
-    const incomingSerialized = serializeBrandKit(parseBrandKit(brandKitJson));
+    const incomingKit = parseBrandKit(brandKitJson);
+    const incomingSerialized = serializeBrandKit(incomingKit);
     if (incomingSerialized === localSerialized) {
       lastPersistedRef.current = brandKitJson;
       return;
     }
 
-    const incomingKit = parseBrandKit(brandKitJson);
     if (brandKitUploadedFileCount(kitRef.current) > brandKitUploadedFileCount(incomingKit)) {
       return;
     }
 
+    if (lastPersistedRef.current === localSerialized && incomingSerialized !== localSerialized) {
+      return;
+    }
+
     startTransition(() => {
-      const next = parseBrandKit(brandKitJson);
-      setKit(next);
+      setKit(incomingKit);
       lastPersistedRef.current = incomingSerialized;
     });
   }, [brandKitJson, uploadingKey, coverFieldUploading, manualSaving]);
-
-  useEffect(() => {
-    if (!awaitingPropSyncRef.current) return;
-    const timer = window.setTimeout(() => {
-      awaitingPropSyncRef.current = false;
-    }, 4000);
-    return () => window.clearTimeout(timer);
-  }, [brandKitJson]);
 
   useEffect(() => () => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -144,7 +118,6 @@ export function BrandKitPanel({
       const ok = await onSave(serialized);
       if (ok) {
         lastPersistedRef.current = serialized;
-        awaitingPropSyncRef.current = true;
         if (!opts?.silent) setMessage("Brand ID guardado.");
       } else if (!opts?.silent) {
         setMessage("No se pudo guardar.");
@@ -264,7 +237,6 @@ export function BrandKitPanel({
       const ok = await onSave(serialized);
       if (ok) {
         lastPersistedRef.current = serialized;
-        awaitingPropSyncRef.current = true;
         setMessage(coverFiles.length > 0 ? "Portada actualizada." : "Portada quitada.");
       } else {
         setMessage("No se pudo guardar la portada.");
@@ -325,8 +297,10 @@ export function BrandKitPanel({
           const preview = cardPreviewBackground(card);
           const filled = cardHasContent(card);
           const localCover = coverPreviewByCard[card.id];
-          const imagePreviewUrl =
+          const rawImageUrl =
             localCover || (preview.type === "image" ? preview.value : null);
+          const imagePreviewUrl =
+            rawImageUrl && !isLegacyLocalUploadPath(rawImageUrl) ? rawImageUrl : null;
           const previewStyle =
             preview.type === "palette" || preview.type === "color"
               ? { background: preview.value }
@@ -348,7 +322,13 @@ export function BrandKitPanel({
               <div className="relative h-20 flex items-center justify-center overflow-hidden" style={previewStyle}>
                 {imagePreviewUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={imagePreviewUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                  <img
+                    src={imagePreviewUrl}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
                 ) : null}
                 {preview.type === "empty" && (
                   <span className="text-[10px] uppercase tracking-widest" style={{ color: brandUi.textFaint }}>
@@ -883,7 +863,9 @@ function FileGroupEditor({
   const hasStaleLocalUrls =
     typeof window !== "undefined" &&
     !isLocalAdminUploadHost(window.location.hostname) &&
-    group.files.some((file) => isLocalDevUploadUrl(file.url));
+    group.files.some(
+      (file) => isLocalDevUploadUrl(file.url) || isLegacyLocalUploadPath(file.url),
+    );
 
   return (
     <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: brandUi.border }}>
