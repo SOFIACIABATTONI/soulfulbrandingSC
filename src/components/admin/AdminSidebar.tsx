@@ -44,6 +44,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/projects", label: "Trabajos publicados" },
       { href: "/admin/content", label: "Contenido del sitio" },
+      { href: "/admin/testimonials", label: "Testimonios" },
     ],
   },
   {
@@ -282,22 +283,20 @@ export function AdminSidebar({
       </nav>
 
       <div
-        className="flex items-center gap-2.5 px-4 py-3 flex-shrink-0"
+        className="flex h-11 flex-shrink-0 items-center gap-2.5 px-4"
         style={{ borderTop: `1px solid ${brandUi.border}` }}
       >
-        <div className="flex-shrink-0 flex items-center justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/sc-so-logo.svg"
-            alt="SO — Soulful Branding"
-            width={125}
-            height={113}
-            className="block h-5 w-auto max-w-[52px] object-contain"
-            decoding="async"
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[10px] truncate" style={{ color: brandUi.textMuted }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/sc-so-logo.svg"
+          alt="SO — Soulful Branding"
+          width={125}
+          height={113}
+          className="block h-5 w-auto max-w-[52px] shrink-0 object-contain object-center"
+          decoding="async"
+        />
+        <div className="min-w-0 flex-1 leading-none">
+          <div className="truncate text-[10px] leading-none" style={{ color: brandUi.textMuted }}>
             Sofia Ciabattoni
           </div>
         </div>
@@ -314,9 +313,10 @@ function LogoutSbButton() {
   }
   return (
     <button
+      type="button"
       onClick={() => void handleLogout()}
-      className="text-[9px] uppercase tracking-wider hover:opacity-80 transition-opacity"
-      style={{ color: brandUi.textFaint, background: "none", border: "none", cursor: "pointer" }}
+      className="shrink-0 self-center border-0 bg-transparent p-0 text-[9px] uppercase leading-none tracking-wider transition-opacity hover:opacity-80"
+      style={{ color: brandUi.textFaint, cursor: "pointer" }}
       title="Cerrar sesión"
     >
       Salir

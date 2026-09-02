@@ -79,12 +79,14 @@ export default async function ProjectDetailPage(ctx: PageProps) {
 
   const { images } = await getDbPortfolioGalleryContent(slug);
   const gallery = filterPortfolioGalleryExcludeCover(images, project.imageUrl);
+  const allTestimonials = await getTestimonials();
+  const testimonial = findTestimonialForProjectSlug(slug, allTestimonials);
 
   return (
     <>
       <SiteHeader nav={c.nav} />
       <main className="min-h-screen bg-brand-page pb-10 pt-10">
-        <PortfolioPublishedCase project={project} gallery={gallery} />
+        <PortfolioPublishedCase project={project} gallery={gallery} testimonial={testimonial} />
       </main>
     </>
   );

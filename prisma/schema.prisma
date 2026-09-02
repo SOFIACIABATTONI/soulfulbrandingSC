@@ -151,6 +151,19 @@ model ClientProject {
   updatedAt DateTime            @updatedAt
 }
 
+/// Testimonios del carrusel en /portfolio y fichas de caso (admin editable)
+model Testimonial {
+  id          String   @id @default(cuid())
+  brand       String
+  body        String   @default("")
+  sortOrder   Int      @default(0)
+  published   Boolean  @default(true)
+  /// Slug de ficha en /portfolio/[slug] (opcional, para el desplegable en la ficha)
+  projectSlug String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 /// Imágenes adicionales de un caso publicado en Brand's (slug = Project.slug)
 model PortfolioGalleryItem {
   id        String   @id @default(cuid())

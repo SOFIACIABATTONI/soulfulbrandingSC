@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { ContentSectionId } from "@/lib/admin-content-sections";
 import type { SiteContentData } from "@/lib/site-content";
 import { defaultSiteContent } from "@/lib/site-content";
 import { ImageField } from "@/components/admin/ImageField";
@@ -12,7 +13,19 @@ function splitLines(value: string): string[] {
     .filter(Boolean);
 }
 
-export function ContentEditor() {
+type ContentEditorProps = {
+  activeSection: ContentSectionId;
+  sectionLabel: string;
+  sectionDescription: string;
+  sectionScope: string;
+};
+
+export function ContentEditor({
+  activeSection,
+  sectionLabel,
+  sectionDescription,
+  sectionScope,
+}: ContentEditorProps) {
   const [data, setData] = useState<SiteContentData>(defaultSiteContent());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,11 +62,13 @@ export function ContentEditor() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="font-serif text-3xl">Contenido del sitio</h1>
-      <p className="mt-2 text-sm text-neutral-600">Los cambios se reflejan en la portada al guardar.</p>
+    <div className="mx-auto max-w-3xl px-4 py-8">
+      <h1 className="font-serif text-3xl">{sectionLabel}</h1>
+      <p className="mt-2 text-sm text-neutral-600">{sectionDescription}</p>
+      <p className="mt-1 text-xs text-neutral-500">Visible en: {sectionScope}</p>
 
-      <section className="mt-10 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+      {activeSection === "general" && (
+      <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">General</h2>
         <label className="block text-sm font-medium">Título del sitio (pestaña del navegador)</label>
         <input
@@ -62,7 +77,9 @@ export function ContentEditor() {
           onChange={(e) => setData({ ...data, meta: { ...data.meta, siteTitle: e.target.value } })}
         />
       </section>
+      )}
 
+      {activeSection === "hero" && (
       <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">Hero</h2>
         <label className="block text-sm font-medium">Línea superior (opcional)</label>
@@ -92,7 +109,9 @@ export function ContentEditor() {
         />
         <ImageField label="Imagen central (mujer)" value={data.hero.imageUrl} onChange={(url) => setData({ ...data, hero: { ...data.hero, imageUrl: url } })} />
       </section>
+      )}
 
+      {activeSection === "essence" && (
       <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">Esencia</h2>
         <label className="block text-sm font-medium">Titular</label>
@@ -153,7 +172,9 @@ export function ContentEditor() {
         <ImageField label="Imagen izquierda (desktop)" value={data.essence.imageLeftUrl} onChange={(url) => setData({ ...data, essence: { ...data.essence, imageLeftUrl: url } })} />
         <ImageField label="Imagen derecha" value={data.essence.imageRightUrl} onChange={(url) => setData({ ...data, essence: { ...data.essence, imageRightUrl: url } })} />
       </section>
+      )}
 
+      {activeSection === "about" && (
       <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">About</h2>
         <p className="text-xs text-neutral-500">
@@ -194,7 +215,9 @@ export function ContentEditor() {
           ratio="3:4 (vertical)"
         />
       </section>
+      )}
 
+      {activeSection === "about-more" && (
       <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">More About (página /about)</h2>
         <p className="text-xs text-neutral-500">
@@ -297,7 +320,9 @@ export function ContentEditor() {
           ratio="1:1"
         />
       </section>
+      )}
 
+      {activeSection === "method" && (
       <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">Método (página /about)</h2>
         <p className="text-xs text-neutral-500">
@@ -384,7 +409,9 @@ export function ContentEditor() {
           ratio="3:4 (vertical)"
         />
       </section>
+      )}
 
+      {activeSection === "stages" && (
       <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">Etapas</h2>
         <p className="text-xs text-neutral-500">
@@ -433,7 +460,9 @@ export function ContentEditor() {
           </div>
         ))}
       </section>
+      )}
 
+      {activeSection === "services" && (
       <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">Servicios</h2>
         <p className="text-xs text-neutral-500">
@@ -470,7 +499,9 @@ export function ContentEditor() {
           </div>
         ))}
       </section>
+      )}
 
+      {activeSection === "contact" && (
       <section className="mt-8 space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">Contacto</h2>
         <p className="text-xs text-neutral-500">
@@ -540,8 +571,9 @@ export function ContentEditor() {
         />
         <ImageField label="Imagen pie" value={data.contact.footerImageUrl} onChange={(url) => setData({ ...data, contact: { ...data.contact, footerImageUrl: url } })} />
       </section>
+      )}
 
-      <div className="mt-10 flex flex-wrap items-center gap-4">
+      <div className="mt-8 flex flex-wrap items-center gap-4 border-t border-neutral-200 pt-6">
         <button
           type="button"
           onClick={() => void save()}

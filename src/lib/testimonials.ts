@@ -1,13 +1,16 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { prisma } from "@/lib/prisma";
 
 export type Testimonial = {
   brand: string;
   body: string;
+  /** Solo en registros de BD; usado para enlazar con fichas de portfolio */
+  projectSlug?: string;
 };
 
 /**
- * Formato: bloques con título en `**Marca**` y cuerpo en líneas siguientes
+ * Formato legacy: bloques con título en `**Marca**` y cuerpo en líneas siguientes
  * (ver `testimonials/testimonials.md`).
  */
 export function parseTestimonialsMd(md: string): Testimonial[] {
@@ -38,17 +41,7 @@ export function parseTestimonialsMd(md: string): Testimonial[] {
 
 const FILE = "testimonials.md";
 
-export async function getTestimonials(): Promise<Testimonial[]> {
-  const filePath = path.join(process.cwd(), "testimonials", FILE);
-  try {
-    const raw = await readFile(filePath, "utf-8");
-    return parseTestimonialsMd(raw);
-  } catch {
-    return [];
-  }
-}
-
-/** Relación explícita slug de ficha → criterio sobre el título `**…**` del .md */
+/** Relación explícita slug de ficha → criterio sobre el título del .md (fallback legacy) */
 const SLUG_TESTIMONIAL_MATCH: { pattern: RegExp; matchBrand: (brand: string) => boolean }[] = [
   { pattern: /^cic-roasters$/, matchBrand: (b) => /cic/i.test(b) },
   { pattern: /^signa-lm$/, matchBrand: (b) => /signa/i.test(b) },
@@ -58,7 +51,51 @@ const SLUG_TESTIMONIAL_MATCH: { pattern: RegExp; matchBrand: (brand: string) => 
   { pattern: /^otex$/, matchBrand: (b) => /otex/i.test(b) },
 ];
 
+/** Inferir slug de portfolio a partir del nombre de marca (importación desde .md) */
+export function inferProjectSlugFromBrand(brand: string): string | null {
+  for (const row of SLUG_TESTIMONIAL_MATCH) {
+    if (row.matchBrand(brand)) {
+      const match = row.pattern.source.replace(/^\^|\$$/g, "");
+      return match;
+    }
+  }
+  return null;
+}
+
+async function getTestimonialsFromFile(): Promise<Testimonial[]> {
+  const filePath = path.join(process.cwd(), "testimonials", FILE);
+  try {
+    const raw = await readFile(filePath, "utf-8");
+    return parseTestimonialsMd(raw);
+  } catch {
+    return [];
+  }
+}
+
+export async function getTestimonials(): Promise<Testimonial[]> {
+  try {
+    const rows = await prisma.testimonial.findMany({
+      where: { published: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { brand: true, body: true, projectSlug: true },
+    });
+    if (rows.length > 0) {
+      return rows.map((r) => ({
+        brand: r.brand,
+        body: r.body,
+        projectSlug: r.projectSlug || undefined,
+      }));
+    }
+  } catch (error) {
+    console.warn("[testimonials] DB unavailable, falling back to file.", error);
+  }
+  return getTestimonialsFromFile();
+}
+
 export function findTestimonialForProjectSlug(slug: string, items: Testimonial[]): Testimonial | null {
+  const bySlug = items.find((t) => t.projectSlug === slug);
+  if (bySlug) return bySlug;
+
   const row = SLUG_TESTIMONIAL_MATCH.find((r) => r.pattern.test(slug));
   if (!row) return null;
   return items.find((t) => row.matchBrand(t.brand)) ?? null;
