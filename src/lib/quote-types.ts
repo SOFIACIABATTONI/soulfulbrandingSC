@@ -30,6 +30,7 @@ export const QUOTE_CONTENT_FORMATS = [
   "plain",
   "bbb-deck-2026",
   "bbb-deck-ht-2026",
+  "soul-brand-map-2026",
   "pdf",
 ] as const;
 export type QuoteContentFormat = (typeof QUOTE_CONTENT_FORMATS)[number];
@@ -66,9 +67,11 @@ export function normalizeQuoteContent(raw: unknown): QuoteContent {
         ? "bbb-deck-ht-2026"
         : formatRaw === "bbb-deck-2026"
           ? "bbb-deck-2026"
-          : formatRaw === "pdf"
-            ? "pdf"
-            : "markdown";
+          : formatRaw === "soul-brand-map-2026"
+            ? "soul-brand-map-2026"
+            : formatRaw === "pdf"
+              ? "pdf"
+              : "markdown";
 
   const pdfUrlRaw = o.pdfUrl;
   const pdfUrl = normalizeLegacyProposalPdfUrl(

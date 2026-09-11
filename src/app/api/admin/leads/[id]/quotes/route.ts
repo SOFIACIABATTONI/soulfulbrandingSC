@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
 import { generateQuoteToken, hashQuoteToken } from "@/lib/quote-token";
 import { buildQuoteContentForProposalOnServer } from "@/lib/quote-proposal-templates.server";
-import { defaultProposalIdForLead } from "@/lib/quote-proposal-templates";
+import { defaultProposalIdForLead, isQuoteProposalAvailable } from "@/lib/quote-proposal-templates";
 import type { QuoteProposalId } from "@/lib/quote-types";
 import { quoteContentSchema } from "@/lib/quote-types";
 import { quoteExpiryFromNow } from "@/lib/quote-service";
@@ -63,6 +63,9 @@ export async function POST(req: Request, ctx: RouteParams) {
   }
 
   const proposalId = (parsed.data.proposalId ?? defaultProposalIdForLead(lead)) as QuoteProposalId;
+  if (!isQuoteProposalAvailable(proposalId)) {
+    return NextResponse.json({ error: "Esa propuesta aún no está disponible." }, { status: 400 });
+  }
   const content = parsed.data.content ?? buildQuoteContentForProposalOnServer(proposalId, lead);
   const plain = generateQuoteToken();
 

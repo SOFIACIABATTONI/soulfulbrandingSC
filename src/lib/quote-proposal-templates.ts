@@ -2,7 +2,6 @@ import type { Lead } from "@prisma/client";
 import type { QuoteContent, QuoteProposalId } from "@/lib/quote-types";
 import { QUOTE_PROPOSAL_IDS } from "@/lib/quote-types";
 import { buildBornAndBeDeckContent } from "@/lib/quote-default-content";
-import { getQuoteProposalPdfPath } from "@/lib/quote-proposal-pdfs";
 
 type QuoteLead = Pick<
   Lead,
@@ -15,6 +14,8 @@ export type QuoteProposalTemplate = {
   description: string;
   /** Servicio ERP que preselecciona esta propuesta */
   serviceKey: string;
+  /** Plantilla aún no disponible (ej. esperando nuevo formato) */
+  available?: boolean;
   buildContent: (lead: QuoteLead) => QuoteContent;
 };
 
@@ -25,16 +26,13 @@ function optionalTotalFields(
   return { total: lead.estimatedValue, currency: "EUR" };
 }
 
-function buildPdfProposalContent(
-  proposalId: QuoteProposalId,
+function buildSoulBrandMapContent(
   lead: Pick<Lead, "name" | "estimatedValue">,
-  label: string,
 ): QuoteContent {
   return {
-    format: "pdf",
-    pdfUrl: getQuoteProposalPdfPath(proposalId),
-    body: `Propuesta ${label} — Soulful Branding® para ${lead.name.trim()}`,
-    proposalId,
+    format: "soul-brand-map-2026",
+    body: `Propuesta Soul Brand Map — Soulful Branding® para ${lead.name.trim()}`,
+    proposalId: "estrategia-visual",
     ...optionalTotalFields(lead),
   };
 }
@@ -53,18 +51,22 @@ export const QUOTE_PROPOSAL_TEMPLATES: QuoteProposalTemplate[] = [
   {
     id: "estrategia-visual",
     label: "Soul Brand Map",
-    description: "PDF — mapa estratégico de marca.",
+    description: "JPG — mapa estratégico de marca.",
     serviceKey: "estrategia-visual",
-    buildContent: (lead) =>
-      buildPdfProposalContent("estrategia-visual", lead, "Soul Brand Map"),
+    buildContent: (lead) => buildSoulBrandMapContent(lead),
   },
   {
     id: "diseno-editorial",
     label: "Identidad de Marca · BBB",
-    description: "PDF — propuesta de identidad de marca.",
+    description: "Próximamente — nuevo formato en camino.",
     serviceKey: "diseno-editorial",
-    buildContent: (lead) =>
-      buildPdfProposalContent("diseno-editorial", lead, "Identidad de Marca · BBB"),
+    available: false,
+    buildContent: (lead) => ({
+      format: "markdown",
+      body: `_Propuesta Identidad de Marca · BBB para ${lead.name.trim()} — plantilla pendiente de nuevo formato._`,
+      proposalId: "diseno-editorial",
+      ...optionalTotalFields(lead),
+    }),
   },
 ];
 
@@ -80,6 +82,9 @@ export function resolveProposalIdFromContent(content: QuoteContent): QuotePropos
   }
   if (content.format === "bbb-deck-ht-2026" || content.format === "bbb-deck-2026") {
     return "born-and-be";
+  }
+  if (content.format === "soul-brand-map-2026") {
+    return "estrategia-visual";
   }
   if (content.format === "pdf" && content.pdfUrl?.includes("soul-brand-map")) {
     return "estrategia-visual";
@@ -97,8 +102,14 @@ export function resolveProposalIdFromContent(content: QuoteContent): QuotePropos
 export function defaultProposalIdForLead(
   lead: Pick<Lead, "service">,
 ): QuoteProposalId {
-  const match = QUOTE_PROPOSAL_TEMPLATES.find((t) => t.serviceKey === lead.service);
+  const match = QUOTE_PROPOSAL_TEMPLATES.find(
+    (t) => t.serviceKey === lead.service && t.available !== false,
+  );
   return match?.id ?? "born-and-be";
+}
+
+export function isQuoteProposalAvailable(id: QuoteProposalId): boolean {
+  return getQuoteProposalTemplate(id).available !== false;
 }
 
 export function buildQuoteContentForProposal(

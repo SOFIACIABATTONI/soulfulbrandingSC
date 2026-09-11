@@ -16,11 +16,13 @@ import {
   buildQuoteContentForProposal,
   defaultProposalIdForLead,
   getQuoteProposalTemplate,
+  isQuoteProposalAvailable,
   resolveProposalIdFromContent,
   type QuoteProposalTemplate,
 } from "@/lib/quote-proposal-templates";
 import type { QuoteProposalId } from "@/lib/quote-types";
 import { bbbDeckSlideCount, isBbbDeckFormat } from "@/lib/quote-bbb-deck";
+import { isSoulBrandMapFormat } from "@/lib/quote-soul-brand-map";
 import { isQuotePdfFormat } from "@/lib/quote-proposal-pdfs";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 
@@ -126,7 +128,11 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
   }
 
   const isDeck = isBbbDeckFormat(format);
+  const isSoulBrandMap = isSoulBrandMapFormat(format);
   const isPdf = isQuotePdfFormat(format);
+  const isVisualProposal = isDeck || isSoulBrandMap || isPdf;
+  const selectedTemplate = getQuoteProposalTemplate(selectedProposalId);
+  const canLoadSelectedTemplate = selectedTemplate.available !== false;
 
   function selectQuote(q: QuoteRow) {
     setActiveId(q.id);
@@ -148,6 +154,10 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
   }
 
   async function createQuote() {
+    if (!isQuoteProposalAvailable(selectedProposalId)) {
+      setMessage("Esa propuesta aún no está disponible. Elegí otra plantilla.");
+      return;
+    }
     setSaving(true);
     setMessage(null);
     const res = await fetch(`/api/admin/leads/${leadId}/quotes`, {
@@ -310,17 +320,20 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
         <div className="grid gap-3 sm:grid-cols-3">
           {QUOTE_PROPOSAL_TEMPLATES.map((template) => {
             const selected = selectedProposalId === template.id;
+            const available = template.available !== false;
             return (
               <button
                 key={template.id}
                 type="button"
+                disabled={!available}
                 onClick={() => {
+                  if (!available) return;
                   setSelectedProposalId(template.id);
                   if (active?.status === "borrador") {
                     applyProposalTemplate(template);
                   }
                 }}
-                className="rounded-lg border px-3 py-3 text-left transition hover:border-[#F03172]/40"
+                className="rounded-lg border px-3 py-3 text-left transition hover:border-[#F03172]/40 disabled:cursor-not-allowed disabled:opacity-55"
                 style={{
                   borderColor: selected ? "#F03172" : "rgba(13,13,13,0.12)",
                   background: selected ? "rgba(240,49,114,0.06)" : "#fff",
@@ -337,18 +350,23 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                     {bbbDeckSlideCount("bbb-deck-ht-2026")} diapositivas JPG — no hace falta PDF.
                   </p>
                 )}
+                {template.id === "estrategia-visual" && (
+                  <p className="mt-2 text-[10px] leading-relaxed" style={{ color: "rgba(19,25,69,0.55)" }}>
+                    1 imagen JPG — no hace falta PDF.
+                  </p>
+                )}
               </button>
             );
           })}
         </div>
-        {(!active || active.status === "borrador") && (
+        {(!active || active.status === "borrador") && canLoadSelectedTemplate && (
           <button
             type="button"
-            onClick={() => applyProposalTemplate(getQuoteProposalTemplate(selectedProposalId))}
+            onClick={() => applyProposalTemplate(selectedTemplate)}
             className="mt-2 text-xs hover:underline"
             style={{ color: "#323FF6" }}
           >
-            Cargar plantilla «{getQuoteProposalTemplate(selectedProposalId).label}»
+            Cargar plantilla «{selectedTemplate.label}»
             {active?.status === "borrador" ? " en este borrador" : ""}
           </button>
         )}
@@ -448,7 +466,9 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                       ? `El cliente verá el PDF «${activeProposal.label}» en el link del mail. Ingresá el total acordado abajo antes de enviar.`
                       : isDeck
                         ? `Deck JPG «${activeProposal.label}» (${bbbDeckSlideCount(format)} diapositivas). Ingresá el total acordado abajo antes de enviar.`
-                        : `Propuesta «${activeProposal.label}». Ingresá el total acordado abajo.`}
+                        : isSoulBrandMap
+                          ? `Imagen JPG «${activeProposal.label}». Ingresá el total acordado abajo antes de enviar.`
+                          : `Propuesta «${activeProposal.label}». Ingresá el total acordado abajo.`}
                   </p>
                   <div className="space-y-4">
                     <div className="flex flex-wrap gap-4 items-end">
@@ -496,12 +516,12 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                       {showPreview && (
                         <div
                           className={
-                            isDeck || isPdf
+                            isVisualProposal
                               ? "rounded-lg border overflow-hidden"
                               : "rounded-lg border max-h-[560px] overflow-y-auto px-5 py-6"
                           }
                           style={{
-                            background: isDeck || isPdf ? "#FFFFFF" : "#0D0D0D",
+                            background: isVisualProposal ? "#FFFFFF" : "#0D0D0D",
                             borderColor: "rgba(13,13,13,0.2)",
                           }}
                         >
@@ -531,7 +551,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                     <button
                       type="button"
                       onClick={() => setPendingConfirm("send")}
-                      disabled={sending || (!isDeck && !isPdf && !body.trim())}
+                      disabled={sending || (!isVisualProposal && !body.trim())}
                       className="rounded px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
                       style={{ background: "#F03172" }}
                     >
@@ -551,6 +571,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                 <div
                   className={
                     isBbbDeckFormat(normalizeQuoteContent(active.content).format) ||
+                    isSoulBrandMapFormat(normalizeQuoteContent(active.content).format) ||
                     isQuotePdfFormat(normalizeQuoteContent(active.content).format)
                       ? "rounded-lg border overflow-hidden"
                       : "rounded-lg border px-5 py-6"
@@ -558,6 +579,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                   style={{
                     background:
                       isBbbDeckFormat(normalizeQuoteContent(active.content).format) ||
+                      isSoulBrandMapFormat(normalizeQuoteContent(active.content).format) ||
                       isQuotePdfFormat(normalizeQuoteContent(active.content).format)
                         ? "#FFFFFF"
                         : "#0D0D0D",
