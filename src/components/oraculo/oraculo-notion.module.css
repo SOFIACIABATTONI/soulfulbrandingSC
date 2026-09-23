@@ -1,11 +1,11 @@
 .oraculoPage {
   min-height: 100vh;
   background: #fff;
-  color: rgb(55, 53, 47);
-  font-family: Helvetica Neue, Helvetica, Segoe UI, Roboto, Arial, sans-serif;
+  color: #131945;
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
   font-size: 16px;
   line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
 }
 
 .notionBody {
@@ -21,14 +21,17 @@
 }
 
 .title {
+  font-family: var(--font-garamond), "Apple Garamond", Georgia, serif;
+  color: #131945;
   font-size: 2.5rem;
   font-weight: 700;
   line-height: 1.2;
   margin: 0 0 0.25em;
-  color: rgb(55, 53, 47);
 }
 
 .subHeader {
+  font-family: var(--font-garamond), "Apple Garamond", Georgia, serif;
+  color: #131945;
   font-size: 1.5rem;
   font-weight: 600;
   line-height: 1.3;
@@ -37,6 +40,8 @@
 }
 
 .subSubHeader {
+  font-family: var(--font-garamond), "Apple Garamond", Georgia, serif;
+  color: #131945;
   font-size: 1.25rem;
   font-weight: 600;
   line-height: 1.3;
@@ -44,7 +49,35 @@
   white-space: pre-wrap;
 }
 
+.subSubHeaderCenter {
+  text-align: center;
+}
+
+.stanzaGap {
+  display: block;
+  height: 1.65em;
+}
+
+.blockGap {
+  height: 1.65em;
+}
+
+.blockGapLg {
+  height: 3.1em;
+}
+
+.blockGap + .subHeader,
+.blockGap + .textBlock,
+.blockGapLg + .subHeader,
+.blockGapLg + .textBlock,
+.blockGap + .bulletItem,
+.blockGapLg + .bulletItem {
+  margin-top: 0;
+}
+
 .textBlock {
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #131945;
   margin: 1px 0;
   padding: 3px 2px;
   white-space: pre-wrap;
@@ -55,6 +88,35 @@
   font-weight: 600;
 }
 
+.textBlock u {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.textBlock em {
+  font-style: italic;
+  font-weight: 400;
+}
+
+.textBlockCenter {
+  text-align: center;
+}
+
+.textBlockSmall {
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.textBlockBrandLines {
+  font-family: var(--font-garamond), "Apple Garamond", Georgia, serif;
+  color: #131945;
+  margin-top: 0;
+  font-size: 0.625rem;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
 .textBlock a {
   color: inherit;
   text-decoration: underline;
@@ -62,25 +124,42 @@
 }
 
 .bulletItem {
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #131945;
   display: flex;
-  gap: 2px;
+  align-items: flex-start;
+  gap: 10px;
   margin: 1px 0;
-  padding: 3px 2px;
+  padding: 3px 2px 3px 8px;
 }
 
 .bulletItem::before {
-  content: "•";
-  user-select: none;
-  width: 24px;
+  content: "";
   flex-shrink: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  line-height: 1.5;
+  width: 7px;
+  height: 7px;
+  margin-top: 0.45em;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+  box-sizing: border-box;
 }
 
 .mediaBlock {
   margin: 8px 0 12px;
+}
+
+.mediaBlockCompact {
+  margin: 12px 0 8px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.mediaImageCompact {
+  width: 100%;
+  max-width: 88px;
+  height: auto;
+  display: block;
 }
 
 .mediaBlock img,
@@ -91,25 +170,348 @@
 }
 
 .caption {
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif;
   margin-top: 6px;
   font-size: 14px;
-  color: rgba(55, 53, 47, 0.65);
+  color: rgba(19, 25, 69, 0.65);
   text-align: center;
   white-space: pre-wrap;
 }
 
 .formSection {
-  margin: 2em 0;
+  margin: 2.5em 0 0;
+}
+
+.formFlorWrap {
+  width: 100%;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .formTitle {
-  font-size: 2.5rem;
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #131945;
+  font-size: 2.25rem;
   font-weight: 700;
-  line-height: 1.2;
-  margin: 0 0 1rem;
+  line-height: 1.15;
+  margin: 0 0 1.75rem;
+}
+
+.orderForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.orderField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.orderLabel {
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #131945;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.orderRequired {
+  margin-left: 2px;
+}
+
+.orderMailNote {
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #131945;
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+  font-style: italic;
+  line-height: 1.45;
+}
+
+.orderMailHighlight {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.orderInput {
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #131945;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid rgba(19, 25, 69, 0.2);
+  background: transparent;
+  padding: 0.5rem 0;
+  font-size: 1rem;
+  outline: none;
+}
+
+.orderInput::placeholder {
+  color: rgba(19, 25, 69, 0.38);
+}
+
+.orderInput:focus {
+  border-bottom-color: rgba(19, 25, 69, 0.55);
+}
+
+.orderUploadBox {
+  position: relative;
+  margin-top: 0.35rem;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: rgba(19, 25, 69, 0.06);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.orderUploadButton {
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #131945;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid rgba(19, 25, 69, 0.12);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.orderUploadIcon {
+  font-size: 0.85rem;
+}
+
+.orderUploadHint {
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif;
+  margin: 0;
+  font-size: 0.8rem;
+  color: rgba(19, 25, 69, 0.55);
+  flex: 1;
+  min-width: 140px;
+}
+
+.orderFileInput {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.orderSubmit {
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif;
+  align-self: flex-start;
+  margin-top: 0.25rem;
+  padding: 10px 22px;
+  border-radius: 8px;
+  border: none;
+  background: #2b2b2b;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.orderSubmit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.orderMsgOk {
+  font-size: 0.9rem;
+  color: #1a6b1a;
+}
+
+.orderMsgErr {
+  font-size: 0.9rem;
+  color: #9f2024;
 }
 
 .audio {
   width: 100%;
   margin: 8px 0 12px;
+}
+
+.paymentCard {
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #131945;
+  margin: 1.5em 0 2em;
+  padding: 28px 24px 32px;
+  border: 1px solid rgba(19, 25, 69, 0.12);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(19, 25, 69, 0.06);
+}
+
+.florMark {
+  display: flex;
+  justify-content: center;
+}
+
+.florMarkImg {
+  width: 52px;
+  height: auto;
+  display: block;
+}
+
+.paymentCardLogoWrap {
+  margin-bottom: 20px;
+}
+
+.paymentFlagImg {
+  width: 22px;
+  height: auto;
+  display: block;
+  flex-shrink: 0;
+}
+
+.paymentColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(5, auto);
+  column-gap: 24px;
+  align-items: stretch;
+}
+
+.paymentColumn {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: 1 / -1;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .paymentColumns {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    row-gap: 28px;
+  }
+
+  .paymentColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    grid-row: auto;
+  }
+}
+
+.paymentCountry {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 0;
+  min-height: 1.35em;
+}
+
+.paymentRule {
+  border: none;
+  border-top: 1px solid rgba(19, 25, 69, 0.14);
+  margin: 0 0 4px;
+  width: 100%;
+}
+
+.paymentRuleFull {
+  border: none;
+  border-top: 1px solid rgba(19, 25, 69, 0.14);
+  margin: 24px 0 20px;
+}
+
+.paymentPrice {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  min-height: 1.5em;
+}
+
+.paymentMethodBox {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border: 1px solid rgba(19, 25, 69, 0.12);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 0;
+  min-height: 4.75rem;
+  text-align: center;
+}
+
+.paymentMethodLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.paymentMethodValue {
+  margin: 6px 0 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.paymentLink {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  color: inherit;
+}
+
+.paymentLinkMuted {
+  display: inline-block;
+  margin-top: 6px;
+  text-decoration: underline;
+  opacity: 0.7;
+}
+
+.paymentImportantTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 16px;
+  letter-spacing: 0.02em;
+}
+
+.paymentCheckList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.paymentCheckItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.paymentCheckIcon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border-radius: 3px;
+  background: #1a8f3a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
 }

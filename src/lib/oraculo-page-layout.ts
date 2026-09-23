@@ -9,22 +9,21 @@ export function getOraculoPageLayout(paymentLink?: string): OraculoBlock[] {
   const out: OraculoBlock[] = [];
 
   for (const b of blocks) {
+    if (b.kind === "title") continue;
+
     if (b.kind === "image" && b.src.includes("img-07.gif")) {
-      out.push({ kind: "image", src: "/oraculo/notion-export/img-00.png" });
-      out.push({ kind: "image", src: "/oraculo/notion-export/img-01.gif" });
+      out.push({
+        kind: "image",
+        src: "/gateway/oraculo-raiz.gif",
+        alt: "Oráculo Raíz — Soulful Branding",
+      });
       continue;
     }
     if (b.kind === "image" && b.src.includes("img-08.bin")) continue;
 
-    if (b.kind === "image" && b.src.includes("img-11.bin")) {
-      out.push({ kind: "image", src: "/oraculo/salpicado-cartas.gif", alt: "" });
-      continue;
-    }
+    if (b.kind === "image" && b.src.includes("img-11.bin")) continue;
 
-    if (b.kind === "image" && b.src.includes("img-17.bin")) {
-      out.push({ kind: "image", src: "/oraculo/notion-export/img-03.jpg", alt: "" });
-      continue;
-    }
+    if (b.kind === "image" && b.src.includes("img-17.bin")) continue;
 
     if (b.kind === "image" && b.alt?.startsWith("Una vez realizado")) {
       out.push({ kind: "text", html: "Una vez realizado el pago, completá el formulario a continuación." });
@@ -43,15 +42,7 @@ export function getOraculoPageLayout(paymentLink?: string): OraculoBlock[] {
       continue;
     }
 
-    if (b.kind === "image" && b.alt === "Método Soulful Branding") {
-      out.push({
-        kind: "image",
-        src: "/oraculo/notion-export/img-10.png",
-        alt: "Método Soulful Branding",
-        href: "/creative-studio",
-      });
-      continue;
-    }
+    if (b.kind === "image" && b.src.includes("img-34.bin")) continue;
 
     if (b.kind === "image" && b.alt?.startsWith("Mi nombre es Sofia")) {
       out.push({

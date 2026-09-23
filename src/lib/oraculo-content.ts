@@ -1,20 +1,31 @@
 /** Textos y datos de la landing Oráculo Raíz (réplica del Notion original). */
 
+/** En local sirve el .mov desde `assets/oraculo/`; en prod usar Blob (`scripts/upload-oraculo-video.ts`). */
+export function getOraculoPresentationVideoUrl(): string {
+  const fromEnv =
+    process.env.NEXT_PUBLIC_ORACULO_PRESENTATION_VIDEO_URL?.trim() ||
+    process.env.ORACULO_PRESENTATION_VIDEO_URL?.trim();
+  if (fromEnv) return fromEnv;
+  if (process.env.NODE_ENV === "development") {
+    return "/api/oraculo/presentation-video";
+  }
+  return "";
+}
+
 export const ORACULO_MEDIA = {
   bienvenidaAudio: "/oraculo/bienvenida.m4a",
   salpicadoCartas: "/oraculo/salpicado-cartas.gif",
   footerImage: "/oraculo/footer-sc.png",
-  /** Definir en Vercel tras subir el .mov a Blob (`scripts/upload-oraculo-video.ts`). */
-  presentationVideo:
-    process.env.NEXT_PUBLIC_ORACULO_PRESENTATION_VIDEO_URL?.trim() ||
-    process.env.ORACULO_PRESENTATION_VIDEO_URL?.trim() ||
-    "",
+  florNegra: "/oraculo/so-flor-negra.png",
+  flagAr: "/oraculo/notion-export/img-18.gif",
+  flagEs: "/oraculo/notion-export/img-22.gif",
 } as const;
 
 export const ORACULO_PAYMENT = {
   ar: {
     label: "ARGENTINA",
     price: "$44.000",
+    alias: "sofia.ciabattoni",
     cvu: "0000003100025235499782",
     cvuLabel: "Cvu Mercado Pago",
   },

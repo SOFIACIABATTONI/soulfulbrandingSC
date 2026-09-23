@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { ORACULO_PAYMENT } from "@/lib/oraculo-content";
+import styles from "./oraculo-notion.module.css";
 
 const RECEIPT_MAX_BYTES = 10 * 1024 * 1024;
 
@@ -56,32 +57,47 @@ export function OraculoOrderForm() {
   }
 
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="space-y-4">
-      <div>
-        <h2 className="text-xl font-semibold text-[rgb(55,53,47)]">Nombre y Apellido</h2>
+    <form onSubmit={(e) => void onSubmit(e)} className={styles.orderForm}>
+      <div className={styles.orderField}>
+        <label className={styles.orderLabel} htmlFor="oraculo-name">
+          Nombre y Apellido<span className={styles.orderRequired}>*</span>
+        </label>
         <input
+          id="oraculo-name"
           required
-          className="mt-1 w-full border-b border-black/20 bg-transparent py-2 text-base text-[rgb(55,53,47)] outline-none focus:border-black/50"
+          placeholder="Tu respuesta"
+          className={styles.orderInput}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
       </div>
 
-      <div>
-        <h2 className="text-xl font-semibold text-[rgb(55,53,47)]">Mail</h2>
+      <div className={styles.orderField}>
+        <label className={styles.orderLabel} htmlFor="oraculo-email">
+          Mail<span className={styles.orderRequired}>*</span>
+        </label>
+        <p className={styles.orderMailNote}>
+          Importante (!!!) En este correo{" "}
+          <span className={styles.orderMailHighlight}>recibirás el material de descarga</span>
+        </p>
         <input
+          id="oraculo-email"
           type="email"
           required
-          className="mt-1 w-full border-b border-black/20 bg-transparent py-2 text-base text-[rgb(55,53,47)] outline-none focus:border-black/50"
+          placeholder="Tu respuesta"
+          className={styles.orderInput}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
       </div>
 
-      <div>
-        <label className="block text-base text-[rgb(55,53,47)]">País de pago</label>
+      <div className={styles.orderField}>
+        <label className={styles.orderLabel} htmlFor="oraculo-country">
+          País de pago<span className={styles.orderRequired}>*</span>
+        </label>
         <select
-          className="mt-1 w-full border-b border-black/20 bg-transparent py-2 text-base text-[rgb(55,53,47)] outline-none"
+          id="oraculo-country"
+          className={styles.orderInput}
           value={country}
           onChange={(e) => setCountry(e.target.value as "ar" | "es")}
         >
@@ -90,29 +106,36 @@ export function OraculoOrderForm() {
         </select>
       </div>
 
-      <div>
-        <label className="block text-base text-[rgb(55,53,47)]">Comprobante de pago</label>
-        <p className="text-sm text-[rgb(55,53,47)]/65">JPG, PNG o PDF · máx. 10 MB</p>
-        <input
-          ref={fileRef}
-          type="file"
-          required
-          accept="image/jpeg,image/png,image/webp,application/pdf"
-          className="mt-2 block w-full text-sm text-[rgb(55,53,47)]"
-          onChange={(e) => setReceipt(e.target.files?.[0] ?? null)}
-        />
+      <div className={styles.orderField}>
+        <label className={styles.orderLabel} htmlFor="oraculo-receipt">
+          Comprobante de pago<span className={styles.orderRequired}>*</span>
+        </label>
+        <div className={styles.orderUploadBox}>
+          <label className={styles.orderUploadButton} htmlFor="oraculo-receipt">
+            <span className={styles.orderUploadIcon} aria-hidden="true">📄</span>
+            Subir
+          </label>
+          <p className={styles.orderUploadHint}>
+            Límite de tamaño: 10 MB. {receipt ? receipt.name : "Ningún archivo seleccionado"}
+          </p>
+          <input
+            ref={fileRef}
+            id="oraculo-receipt"
+            type="file"
+            required
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            className={styles.orderFileInput}
+            onChange={(e) => setReceipt(e.target.files?.[0] ?? null)}
+          />
+        </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="rounded-md bg-[rgb(55,53,47)] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
-      >
-        {submitting ? "Enviando…" : "Enviar comprobante"}
+      <button type="submit" disabled={submitting} className={styles.orderSubmit}>
+        {submitting ? "Enviando…" : "Enviar"}
       </button>
 
       {msg && (
-        <p className={`text-sm ${msg.type === "ok" ? "text-green-800" : "text-red-700"}`}>{msg.text}</p>
+        <p className={msg.type === "ok" ? styles.orderMsgOk : styles.orderMsgErr}>{msg.text}</p>
       )}
     </form>
   );

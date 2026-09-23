@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getOraculoPageLayout } from "@/lib/oraculo-page-layout";
+import { getOraculoPresentationVideoUrl } from "@/lib/oraculo-content";
 import { OraculoNotionReplica } from "@/components/oraculo/OraculoNotionReplica";
 import { buildPageMetadata } from "@/lib/site-metadata";
 
@@ -11,10 +12,7 @@ export const metadata = buildPageMetadata({
 });
 
 export default function OraculoPage() {
-  const videoUrl =
-    process.env.NEXT_PUBLIC_ORACULO_PRESENTATION_VIDEO_URL?.trim() ||
-    process.env.ORACULO_PRESENTATION_VIDEO_URL?.trim() ||
-    "";
+  const videoUrl = getOraculoPresentationVideoUrl();
 
   const paymentLink = process.env.NEXT_PUBLIC_ORACULO_ES_PAYMENT_URL?.trim() || "";
 
@@ -23,7 +21,7 @@ export default function OraculoPage() {
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-black/10 bg-white/95 px-4 py-3 backdrop-blur">
-        <div className="mx-auto flex max-w-[708px] items-center justify-between gap-4 text-sm text-[rgb(55,53,47)]">
+        <div className="mx-auto flex max-w-[708px] items-center justify-between gap-4 font-sans text-sm text-brand-navy">
           <Link href="/" className="hover:opacity-70">
             ← Inicio
           </Link>
@@ -32,7 +30,7 @@ export default function OraculoPage() {
           </Link>
         </div>
       </header>
-      <OraculoNotionReplica blocks={blocks} videoUrl={videoUrl} />
+      <OraculoNotionReplica blocks={blocks} videoUrl={videoUrl} paymentLink={paymentLink} />
     </>
   );
 }

@@ -22,12 +22,16 @@ const nextConfig: NextConfig = {
   },
   /** Evita 404 si alguien escribe /login/admin/... en lugar de /admin/... */
   async redirects() {
-    return [
+    const redirects = [
       { source: "/login/admin", destination: "/admin/login", permanent: false },
       { source: "/login/admin/:path*", destination: "/admin/:path*", permanent: false },
       { source: "/studio", destination: "/creative-studio", permanent: true },
-      { source: "/oraculo", destination: "/", permanent: false },
     ];
+    // En local se puede abrir /oraculo para revisar la landing; en prod sigue oculta.
+    if (process.env.NODE_ENV !== "development") {
+      redirects.push({ source: "/oraculo", destination: "/", permanent: false });
+    }
+    return redirects;
   },
 };
 
