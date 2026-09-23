@@ -37,6 +37,17 @@ function buildSoulBrandMapContent(
   };
 }
 
+function buildBbbBrandContent(
+  lead: Pick<Lead, "name" | "estimatedValue">,
+): QuoteContent {
+  return {
+    format: "bbb-brand-2026",
+    body: `Propuesta Brand — Soulful Branding® para ${lead.name.trim()}`,
+    proposalId: "diseno-editorial",
+    ...optionalTotalFields(lead),
+  };
+}
+
 export const QUOTE_PROPOSAL_TEMPLATES: QuoteProposalTemplate[] = [
   {
     id: "born-and-be",
@@ -57,16 +68,10 @@ export const QUOTE_PROPOSAL_TEMPLATES: QuoteProposalTemplate[] = [
   },
   {
     id: "diseno-editorial",
-    label: "Identidad de Marca · BBB",
-    description: "Próximamente — nuevo formato en camino.",
+    label: "Brand",
+    description: "JPG — propuesta Born & Be (low ticket).",
     serviceKey: "diseno-editorial",
-    available: false,
-    buildContent: (lead) => ({
-      format: "markdown",
-      body: `_Propuesta Identidad de Marca · BBB para ${lead.name.trim()} — plantilla pendiente de nuevo formato._`,
-      proposalId: "diseno-editorial",
-      ...optionalTotalFields(lead),
-    }),
+    buildContent: (lead) => buildBbbBrandContent(lead),
   },
 ];
 
@@ -85,6 +90,9 @@ export function resolveProposalIdFromContent(content: QuoteContent): QuotePropos
   }
   if (content.format === "soul-brand-map-2026") {
     return "estrategia-visual";
+  }
+  if (content.format === "bbb-brand-2026") {
+    return "diseno-editorial";
   }
   if (content.format === "pdf" && content.pdfUrl?.includes("soul-brand-map")) {
     return "estrategia-visual";

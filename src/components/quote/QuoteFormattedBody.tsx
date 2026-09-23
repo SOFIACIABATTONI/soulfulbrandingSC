@@ -5,7 +5,9 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { QuoteBBBDeck } from "@/components/quote/QuoteBBBDeck";
 import { QuotePdfViewer } from "@/components/quote/QuotePdfViewer";
+import { QuoteBBBBrand } from "@/components/quote/QuoteBBBBrand";
 import { QuoteSoulBrandMap } from "@/components/quote/QuoteSoulBrandMap";
+import { isBbbBrandFormat } from "@/lib/quote-bbb-brand";
 import { isBbbDeckFormat } from "@/lib/quote-bbb-deck";
 import { isSoulBrandMapFormat } from "@/lib/quote-soul-brand-map";
 import { isQuotePdfFormat } from "@/lib/quote-proposal-pdfs";
@@ -199,6 +201,15 @@ export function QuoteFormattedBody({
       <div>
         <QuoteVideoEmbed videoUrl={videoUrl} theme={theme} />
         <QuoteSoulBrandMap variant={deckVariant} />
+      </div>
+    );
+  }
+
+  if (isBbbBrandFormat(format)) {
+    return (
+      <div>
+        <QuoteVideoEmbed videoUrl={videoUrl} theme={theme} />
+        <QuoteBBBBrand variant={deckVariant} />
       </div>
     );
   }

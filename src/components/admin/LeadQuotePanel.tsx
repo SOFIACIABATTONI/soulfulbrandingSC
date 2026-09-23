@@ -22,6 +22,7 @@ import {
 } from "@/lib/quote-proposal-templates";
 import type { QuoteProposalId } from "@/lib/quote-types";
 import { bbbDeckSlideCount, isBbbDeckFormat } from "@/lib/quote-bbb-deck";
+import { isBbbBrandFormat } from "@/lib/quote-bbb-brand";
 import { isSoulBrandMapFormat } from "@/lib/quote-soul-brand-map";
 import { isQuotePdfFormat } from "@/lib/quote-proposal-pdfs";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
@@ -129,8 +130,9 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
 
   const isDeck = isBbbDeckFormat(format);
   const isSoulBrandMap = isSoulBrandMapFormat(format);
+  const isBbbBrand = isBbbBrandFormat(format);
   const isPdf = isQuotePdfFormat(format);
-  const isVisualProposal = isDeck || isSoulBrandMap || isPdf;
+  const isVisualProposal = isDeck || isSoulBrandMap || isBbbBrand || isPdf;
   const selectedTemplate = getQuoteProposalTemplate(selectedProposalId);
   const canLoadSelectedTemplate = selectedTemplate.available !== false;
 
@@ -355,6 +357,11 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                     1 imagen JPG — no hace falta PDF.
                   </p>
                 )}
+                {template.id === "diseno-editorial" && (
+                  <p className="mt-2 text-[10px] leading-relaxed" style={{ color: "rgba(19,25,69,0.55)" }}>
+                    1 imagen JPG — no hace falta PDF.
+                  </p>
+                )}
               </button>
             );
           })}
@@ -466,7 +473,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                       ? `El cliente verá el PDF «${activeProposal.label}» en el link del mail. Ingresá el total acordado abajo antes de enviar.`
                       : isDeck
                         ? `Deck JPG «${activeProposal.label}» (${bbbDeckSlideCount(format)} diapositivas). Ingresá el total acordado abajo antes de enviar.`
-                        : isSoulBrandMap
+                        : isSoulBrandMap || isBbbBrand
                           ? `Imagen JPG «${activeProposal.label}». Ingresá el total acordado abajo antes de enviar.`
                           : `Propuesta «${activeProposal.label}». Ingresá el total acordado abajo.`}
                   </p>
@@ -572,6 +579,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                   className={
                     isBbbDeckFormat(normalizeQuoteContent(active.content).format) ||
                     isSoulBrandMapFormat(normalizeQuoteContent(active.content).format) ||
+                    isBbbBrandFormat(normalizeQuoteContent(active.content).format) ||
                     isQuotePdfFormat(normalizeQuoteContent(active.content).format)
                       ? "rounded-lg border overflow-hidden"
                       : "rounded-lg border px-5 py-6"
@@ -580,6 +588,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                     background:
                       isBbbDeckFormat(normalizeQuoteContent(active.content).format) ||
                       isSoulBrandMapFormat(normalizeQuoteContent(active.content).format) ||
+                      isBbbBrandFormat(normalizeQuoteContent(active.content).format) ||
                       isQuotePdfFormat(normalizeQuoteContent(active.content).format)
                         ? "#FFFFFF"
                         : "#0D0D0D",
