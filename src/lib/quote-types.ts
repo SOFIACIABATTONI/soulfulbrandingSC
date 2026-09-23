@@ -54,6 +54,45 @@ export const quoteContentSchema = z.object({
 
 export type QuoteContent = z.infer<typeof quoteContentSchema>;
 
+function isLegacyBrandProposalPdf(pdfUrl: string | undefined): boolean {
+  const pdf = pdfUrl?.trim() ?? "";
+  if (!pdf) return false;
+  return (
+    pdf.includes("bbb-identidad") ||
+    pdf.includes("mid-ticket") ||
+    pdf.includes("bbb-born-and-be")
+  );
+}
+
+/** PDF o markdown placeholder → JPG Brand (BBB Low Ticket). */
+export function upgradeLegacyBrandQuoteContent(content: QuoteContent): QuoteContent {
+  if (content.format === "bbb-brand-2026") return content;
+
+  const legacyPdf =
+    content.format === "pdf" &&
+    (content.proposalId === "diseno-editorial" || isLegacyBrandProposalPdf(content.pdfUrl));
+
+  const legacyPlaceholder =
+    content.proposalId === "diseno-editorial" &&
+    content.format === "markdown" &&
+    /plantilla pendiente|Identidad de Marca · BBB/i.test(content.body);
+
+  if (!legacyPdf && !legacyPlaceholder) return content;
+
+  const body =
+    legacyPlaceholder || !content.body.trim()
+      ? "Propuesta Brand — Soulful Branding®"
+      : content.body;
+
+  return {
+    ...content,
+    format: "bbb-brand-2026",
+    proposalId: "diseno-editorial",
+    pdfUrl: undefined,
+    body,
+  };
+}
+
 /** Acepta JSON guardado antes del campo video/format */
 export function normalizeQuoteContent(raw: unknown): QuoteContent {
   if (!raw || typeof raw !== "object") {
@@ -97,11 +136,13 @@ export function normalizeQuoteContent(raw: unknown): QuoteContent {
     total: typeof o.total === "number" ? o.total : undefined,
     currency: typeof o.currency === "string" ? o.currency : undefined,
   });
-  if (parsed.success) return parsed.data;
-  return {
+  if (parsed.success) return upgradeLegacyBrandQuoteContent(parsed.data);
+  return upgradeLegacyBrandQuoteContent({
     body: typeof o.body === "string" ? o.body : "",
     format,
-  };
+    proposalId,
+    pdfUrl,
+  });
 }
 
 export const QUOTE_STATUS_LABELS: Record<string, string> = {

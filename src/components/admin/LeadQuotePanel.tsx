@@ -146,13 +146,18 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
   function buildContentPayload(): QuoteContent {
     const base = buildQuoteContentForProposal(selectedProposalId, lead);
     const totalNum = total.trim() ? Number(total) : undefined;
-    return {
+    const payload: QuoteContent = {
       ...base,
+      format: base.format,
+      proposalId: base.proposalId ?? selectedProposalId,
       body: body.trim() || base.body,
-      ...(pdfUrl.trim() && isQuotePdfFormat(base.format) ? { pdfUrl: pdfUrl.trim() } : {}),
       ...(videoUrl.trim() ? { videoUrl: videoUrl.trim() } : {}),
       ...(totalNum != null ? { total: totalNum, currency: "EUR" } : {}),
     };
+    if (isQuotePdfFormat(base.format) && pdfUrl.trim()) {
+      payload.pdfUrl = pdfUrl.trim();
+    }
+    return payload;
   }
 
   async function createQuote() {
@@ -333,6 +338,8 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                   setSelectedProposalId(template.id);
                   if (active?.status === "borrador") {
                     applyProposalTemplate(template);
+                  } else {
+                    applyContent(template.buildContent(lead));
                   }
                 }}
                 className="rounded-lg border px-3 py-3 text-left transition hover:border-[#F03172]/40 disabled:cursor-not-allowed disabled:opacity-55"
@@ -520,29 +527,37 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
                           {showPreview ? "Ocultar" : "Mostrar"}
                         </button>
                       </div>
-                      {showPreview && (
+                      {showPreview && (() => {
+                        const preview = buildContentPayload();
+                        const previewVisual =
+                          isBbbDeckFormat(preview.format) ||
+                          isSoulBrandMapFormat(preview.format) ||
+                          isBbbBrandFormat(preview.format) ||
+                          isQuotePdfFormat(preview.format);
+                        return (
                         <div
                           className={
-                            isVisualProposal
+                            previewVisual
                               ? "rounded-lg border overflow-hidden"
                               : "rounded-lg border max-h-[560px] overflow-y-auto px-5 py-6"
                           }
                           style={{
-                            background: isVisualProposal ? "#FFFFFF" : "#0D0D0D",
+                            background: previewVisual ? "#FFFFFF" : "#0D0D0D",
                             borderColor: "rgba(13,13,13,0.2)",
                           }}
                         >
                           <QuoteFormattedBody
-                            body={body || "…"}
-                            format={format}
-                            pdfUrl={pdfUrl || undefined}
-                            videoUrl={videoUrl || undefined}
-                            total={total.trim() ? Number(total) : undefined}
-                            currency="EUR"
+                            body={preview.body || "…"}
+                            format={preview.format}
+                            pdfUrl={preview.pdfUrl}
+                            videoUrl={preview.videoUrl}
+                            total={preview.total}
+                            currency={preview.currency ?? "EUR"}
                             deckVariant="preview"
                           />
                         </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 pt-2">
