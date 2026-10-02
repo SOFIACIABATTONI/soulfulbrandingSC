@@ -20,8 +20,9 @@ import {
 import { assertPublicUploadUrl } from "@/lib/admin-media-url";
 
 const BLOB_UPLOAD_URL = "/api/admin/blob-upload";
+const R2_PRESIGN_URL = "/api/admin/object-storage-presign";
 const LARGE_UPLOAD_HINT =
-  "Si el archivo pesa más de 4 MB, se sube directo a Blob. Verificá que el store esté conectado al proyecto en Vercel (Preview + Production).";
+  "Si el archivo pesa más de 4 MB, se sube directo al almacenamiento (R2 o Blob). En Vercel Preview/Production configurá R2 o Blob según docs/almacenamiento-r2.md.";
 
 type UploadPayload = {
   kind: "brand" | "manual" | "image";
@@ -103,6 +104,100 @@ async function postFormUpload(
     }
     xhr.send(fd);
   });
+}
+
+async function putViaPresignedUrl(
+  uploadUrl: string,
+  file: File,
+  headers: Record<string, string>,
+  onProgress?: (event: UploadProgressEvent) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", uploadUrl);
+
+    for (const [key, value] of Object.entries(headers)) {
+      xhr.setRequestHeader(key, value);
+    }
+
+    xhr.upload.onprogress = (event) => {
+      if (!onProgress || !event.lengthComputable) return;
+      const ratio = event.total > 0 ? event.loaded / event.total : 0;
+      onProgress({
+        loaded: event.loaded,
+        total: event.total,
+        percentage: Math.min(88, Math.round(ratio * 88)),
+        phase: "upload",
+      });
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+        return;
+      }
+      reject(new Error(`Error al subir el archivo (HTTP ${xhr.status}). Revisá CORS en R2.`));
+    };
+    xhr.timeout = 600_000;
+    xhr.ontimeout = () => reject(new Error("La subida tardó demasiado."));
+    xhr.onerror = () => reject(new Error("Error de red al subir el archivo."));
+    xhr.send(file);
+  });
+}
+
+async function uploadViaR2Presign(
+  pathname: string,
+  file: File,
+  payload: UploadPayload,
+  opts?: { contentType?: string; onProgress?: (event: UploadProgressEvent) => void },
+): Promise<{ url: string; fileName: string; mime: string } | null> {
+  const contentType = opts?.contentType ?? payload.mime;
+  const res = await fetch(R2_PRESIGN_URL, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      pathname,
+      contentType,
+      contentLength: file.size,
+      clientPayload: JSON.stringify(payload),
+      kind: payload.kind,
+    }),
+  });
+
+  if (res.status === 503) {
+    return null;
+  }
+
+  const json = (await res.json().catch(() => ({}))) as {
+    uploadUrl?: string;
+    publicUrl?: string;
+    requiredHeaders?: Record<string, string>;
+    error?: string;
+  };
+
+  if (!res.ok || !json.uploadUrl || !json.publicUrl) {
+    throw new Error(json.error ?? "No se pudo preparar la subida directa (R2).");
+  }
+
+  await putViaPresignedUrl(json.uploadUrl, file, json.requiredHeaders ?? { "Content-Type": contentType }, opts?.onProgress);
+
+  return {
+    url: assertPublicUploadUrl(json.publicUrl),
+    fileName: payload.fileName,
+    mime: payload.mime,
+  };
+}
+
+async function uploadViaDirectStorage(
+  pathname: string,
+  file: File,
+  payload: UploadPayload,
+  opts?: { multipart?: boolean; contentType?: string; onProgress?: (event: UploadProgressEvent) => void },
+): Promise<{ url: string; fileName: string; mime: string }> {
+  const r2 = await uploadViaR2Presign(pathname, file, payload, opts);
+  if (r2) return r2;
+  return uploadViaBlobClient(pathname, file, payload, opts);
 }
 
 async function uploadViaBlobClient(
@@ -289,7 +384,7 @@ export async function uploadBrandAssetFile(
   }
 
   const pathname = buildBrandAssetPathname(file.name, mime);
-  const uploaded = await uploadViaBlobClient(
+  const uploaded = await uploadViaDirectStorage(
     pathname,
     file,
     { kind: "brand", fileName: file.name, mime },
@@ -316,7 +411,7 @@ export async function uploadManualPdfFile(
     result = { url: j.url, fileName: j.fileName ?? file.name, mime: j.mime ?? "application/pdf" };
   } else {
     const pathname = buildManualPdfPathname(file.name);
-    result = await uploadViaBlobClient(
+    result = await uploadViaDirectStorage(
       pathname,
       file,
       { kind: "manual", fileName: file.name, mime: "application/pdf" },
@@ -422,7 +517,7 @@ export async function uploadAdminImageFile(
   }
 
   const pathname = buildAdminImagePathname(prepared.name, mime);
-  const uploaded = await uploadViaBlobClient(
+  const uploaded = await uploadViaDirectStorage(
     pathname,
     prepared,
     { kind: "image", fileName: prepared.name, mime },

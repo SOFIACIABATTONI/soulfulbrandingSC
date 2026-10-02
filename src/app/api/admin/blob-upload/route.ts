@@ -8,68 +8,17 @@ import {
 } from "@vercel/blob/client";
 import { isAdminRequest } from "@/lib/auth-api";
 import {
-  ADMIN_IMAGE_ALLOWED_CONTENT_TYPES,
-  ADMIN_IMAGE_MAX_BYTES,
-  assertAllowedBlobPrefix,
   blobClientUploadUnavailableMessage,
   blobStorageDiagnostics,
-  BRAND_ASSET_ALLOWED_CONTENT_TYPES,
-  BRAND_ASSET_MAX_BYTES,
-  MANUAL_PDF_MAX_BYTES,
+  resolveAdminUploadConstraints,
   resolveBlobSignedTokenAuth,
 } from "@/lib/admin-blob-upload";
+import { hasR2Configured } from "@/lib/object-storage";
 
 export const runtime = "nodejs";
 
-type ClientPayload = {
-  kind?: "brand" | "manual" | "image";
-  fileName?: string;
-  mime?: string;
-};
-
-type UploadConstraints = {
-  allowedPrefixes: readonly string[];
-  maximumSizeInBytes: number;
-  allowedContentTypes: string[];
-};
-
-function parseClientPayload(raw: string | null): ClientPayload {
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw) as ClientPayload;
-  } catch {
-    return {};
-  }
-}
-
-function constraintsForKind(kind: ClientPayload["kind"]): UploadConstraints {
-  if (kind === "manual") {
-    return {
-      allowedPrefixes: ["manual/"],
-      maximumSizeInBytes: MANUAL_PDF_MAX_BYTES,
-      allowedContentTypes: ["application/pdf", "application/x-google-chrome-pdf"],
-    };
-  }
-  if (kind === "image") {
-    return {
-      allowedPrefixes: ["uploads/"],
-      maximumSizeInBytes: ADMIN_IMAGE_MAX_BYTES,
-      allowedContentTypes: ADMIN_IMAGE_ALLOWED_CONTENT_TYPES,
-    };
-  }
-  return {
-    allowedPrefixes: ["brand/"],
-    maximumSizeInBytes: BRAND_ASSET_MAX_BYTES,
-    allowedContentTypes: BRAND_ASSET_ALLOWED_CONTENT_TYPES,
-  };
-}
-
-function resolveUploadConstraints(pathname: string, clientPayload: string | null): UploadConstraints {
-  const payload = parseClientPayload(clientPayload);
-  const kind = payload.kind ?? "brand";
-  const constraints = constraintsForKind(kind);
-  assertAllowedBlobPrefix(pathname, constraints.allowedPrefixes);
-  return constraints;
+function resolveUploadConstraints(pathname: string, clientPayload: string | null) {
+  return resolveAdminUploadConstraints(pathname, clientPayload, "brand");
 }
 
 export async function POST(request: Request) {
@@ -87,6 +36,16 @@ export async function POST(request: Request) {
   const readWriteToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
 
   try {
+    if (hasR2Configured()) {
+      return NextResponse.json(
+        {
+          error:
+            "Este entorno usa Cloudflare R2. Actualizá la página del admin (subida presignada R2).",
+        },
+        { status: 400 },
+      );
+    }
+
     if (body.type === "blob.generate-presigned-url") {
       const auth = await resolveBlobSignedTokenAuth();
       if (!auth.token && !auth.storeId) {

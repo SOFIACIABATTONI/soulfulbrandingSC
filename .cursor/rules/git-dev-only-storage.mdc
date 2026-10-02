@@ -1,0 +1,7 @@
+# Git — cambios de almacenamiento / R2: solo `dev`
+
+Cuando el trabajo incluya migración R2, Blob o `docs/almacenamiento-r2.md`:
+
+- **Nunca** ejecutar `git push sofia master` ni merge a `master` sin pedido **explícito** de Sofía.
+- Publicar con: `git push sofia dev` (rama `dev` únicamente).
+- Production cutover es decisión humana después de probar Preview con variables `R2_*`.

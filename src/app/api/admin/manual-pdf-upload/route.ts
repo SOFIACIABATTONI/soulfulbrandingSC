@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import path from "path";
-import { put } from "@vercel/blob";
 import { isAdminRequest } from "@/lib/auth-api";
 import {
   blobStorageDiagnostics,
-  blobStorageErrorMessage,
   buildManualPdfPathname,
-  hasBlobCredentials,
   isPdfFile,
   MANUAL_PDF_MAX_BYTES,
-  resolveBlobPutOptions,
 } from "@/lib/admin-blob-upload";
+import {
+  NoRemoteStorageError,
+  putPublicFile,
+  shouldUseRemoteStorage,
+  storageUploadErrorMessage,
+} from "@/lib/admin-upload-put";
 import { saveLocalDevUpload } from "@/lib/local-dev-upload-store";
 
 export const runtime = "nodejs";
@@ -40,28 +42,25 @@ export async function POST(req: Request) {
     const name = buildManualPdfPathname(file.name);
 
     const onVercel = process.env.VERCEL === "1";
-    const useBlob = onVercel || hasBlobCredentials();
-    if (useBlob) {
+    if (shouldUseRemoteStorage()) {
       try {
-        const blob = await put(
-          name,
-          buf,
-          await resolveBlobPutOptions({
-            access: "public",
-            contentType: "application/pdf",
-            multipart: file.size > 20 * 1024 * 1024,
-          }),
-        );
+        const uploaded = await putPublicFile(name, buf, "application/pdf", {
+          multipart: file.size > 20 * 1024 * 1024,
+        });
         return NextResponse.json({
-          url: blob.url,
+          url: uploaded.url,
           fileName: file.name,
           mime: "application/pdf",
         });
       } catch (error) {
-        const cause = error instanceof Error ? error.message : String(error);
-        console.error("[api/admin/manual-pdf-upload] blob put failed", cause, blobStorageDiagnostics());
-        if (onVercel) {
-          return NextResponse.json({ error: blobStorageErrorMessage(cause) }, { status: 500 });
+        if (error instanceof NoRemoteStorageError) {
+          // local fallback below
+        } else {
+          const cause = error instanceof Error ? error.message : String(error);
+          console.error("[api/admin/manual-pdf-upload] remote put failed", cause, blobStorageDiagnostics());
+          if (onVercel) {
+            return NextResponse.json({ error: storageUploadErrorMessage(cause) }, { status: 500 });
+          }
         }
       }
     }

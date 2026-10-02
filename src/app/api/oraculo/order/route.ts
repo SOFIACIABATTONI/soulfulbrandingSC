@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
+import { putPublicFile, shouldUseRemoteStorage, storageUploadErrorMessage } from "@/lib/admin-upload-put";
 import { checkRateLimit, requestClientIp } from "@/lib/rate-limit";
 import { sendContactEmailNotification } from "@/lib/send-contact-email";
 import { ORACULO_PAYMENT } from "@/lib/oraculo-content";
@@ -48,25 +48,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Formato de comprobante no permitido" }, { status: 400 });
   }
 
-  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-  if (!token) {
+  if (!shouldUseRemoteStorage()) {
     return NextResponse.json({ error: "Subida temporalmente no disponible." }, { status: 503 });
   }
 
   const safeName = receipt.name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80);
-  const blobPath = `oraculo/receipts/${Date.now()}-${safeName}`;
+  const objectPath = `oraculo/receipts/${Date.now()}-${safeName}`;
+  const buf = Buffer.from(await receipt.arrayBuffer());
 
   let receiptUrl: string;
   try {
-    const blob = await put(blobPath, receipt, {
-      access: "public",
-      token,
-      contentType: mime,
-    });
-    receiptUrl = blob.url;
+    const uploaded = await putPublicFile(objectPath, buf, mime);
+    receiptUrl = uploaded.url;
   } catch (error) {
-    console.error("[api/oraculo/order] blob upload failed", error);
-    return NextResponse.json({ error: "No se pudo subir el comprobante." }, { status: 503 });
+    const cause = error instanceof Error ? error.message : String(error);
+    console.error("[api/oraculo/order] upload failed", error);
+    return NextResponse.json(
+      { error: storageUploadErrorMessage(cause) || "No se pudo subir el comprobante." },
+      { status: 503 },
+    );
   }
 
   const price = country === "ar" ? ORACULO_PAYMENT.ar.price : ORACULO_PAYMENT.es.price;

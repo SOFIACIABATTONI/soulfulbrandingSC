@@ -231,12 +231,70 @@ export async function resolveBlobPutOptions(extra: BlobPutExtra): Promise<
 }
 
 export function blobStorageDiagnostics(): string {
+  const r2 =
+    Boolean(process.env.R2_ACCOUNT_ID?.trim()) &&
+    Boolean(process.env.R2_BUCKET_NAME?.trim()) &&
+    Boolean(process.env.R2_PUBLIC_BASE_URL?.trim());
   const parts = [
     `vercel=${process.env.VERCEL === "1" ? "sí" : "no"}`,
+    `R2=${r2 ? "sí" : "no"}`,
     `BLOB_STORE_ID=${hasBlobStoreConnected() ? "sí" : "no"}`,
     `BLOB_READ_WRITE_TOKEN=${hasBlobReadWriteToken() ? "sí" : "no"}`,
   ];
   return parts.join(", ");
+}
+
+export type AdminUploadKind = "brand" | "manual" | "image";
+
+export type AdminUploadConstraints = {
+  allowedPrefixes: readonly string[];
+  maximumSizeInBytes: number;
+  allowedContentTypes: string[];
+};
+
+export function adminUploadConstraintsForKind(kind: AdminUploadKind): AdminUploadConstraints {
+  if (kind === "manual") {
+    return {
+      allowedPrefixes: ["manual/"],
+      maximumSizeInBytes: MANUAL_PDF_MAX_BYTES,
+      allowedContentTypes: ["application/pdf", "application/x-google-chrome-pdf"],
+    };
+  }
+  if (kind === "image") {
+    return {
+      allowedPrefixes: ["uploads/"],
+      maximumSizeInBytes: ADMIN_IMAGE_MAX_BYTES,
+      allowedContentTypes: ADMIN_IMAGE_ALLOWED_CONTENT_TYPES,
+    };
+  }
+  return {
+    allowedPrefixes: ["brand/"],
+    maximumSizeInBytes: BRAND_ASSET_MAX_BYTES,
+    allowedContentTypes: BRAND_ASSET_ALLOWED_CONTENT_TYPES,
+  };
+}
+
+type ClientPayload = {
+  kind?: AdminUploadKind;
+};
+
+export function resolveAdminUploadConstraints(
+  pathname: string,
+  clientPayload: string | null,
+  kindFallback: AdminUploadKind = "brand",
+): AdminUploadConstraints {
+  let kind = kindFallback;
+  if (clientPayload) {
+    try {
+      const payload = JSON.parse(clientPayload) as ClientPayload;
+      if (payload.kind) kind = payload.kind;
+    } catch {
+      // ignore
+    }
+  }
+  const constraints = adminUploadConstraintsForKind(kind);
+  assertAllowedBlobPrefix(pathname, constraints.allowedPrefixes);
+  return constraints;
 }
 
 export function blobStorageErrorMessage(cause?: string): string {

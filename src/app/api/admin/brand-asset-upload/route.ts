@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import path from "path";
-import { put } from "@vercel/blob";
 import { isAdminRequest } from "@/lib/auth-api";
 import {
   blobStorageDiagnostics,
-  blobStorageErrorMessage,
   BRAND_ASSET_MAX_BYTES,
   buildBrandAssetPathname,
-  hasBlobCredentials,
-  resolveBlobPutOptions,
   resolveBrandAssetMime,
 } from "@/lib/admin-blob-upload";
+import {
+  NoRemoteStorageError,
+  putPublicFile,
+  shouldUseRemoteStorage,
+  storageUploadErrorMessage,
+} from "@/lib/admin-upload-put";
 import { saveLocalDevUpload } from "@/lib/local-dev-upload-store";
 
 export const runtime = "nodejs";
@@ -42,27 +44,23 @@ export async function POST(req: Request) {
     const name = buildBrandAssetPathname(file.name, resolvedMime);
 
     const onVercel = process.env.VERCEL === "1";
-    const useBlob = onVercel || hasBlobCredentials();
-    if (useBlob) {
+    if (shouldUseRemoteStorage()) {
       try {
-        const blob = await put(
-          name,
-          buf,
-          await resolveBlobPutOptions({
-            access: "public",
-            contentType: resolvedMime || "application/octet-stream",
-          }),
-        );
+        const uploaded = await putPublicFile(name, buf, resolvedMime || "application/octet-stream");
         return NextResponse.json({
-          url: blob.url,
+          url: uploaded.url,
           fileName: file.name,
           mime: resolvedMime,
         });
       } catch (error) {
-        const cause = error instanceof Error ? error.message : String(error);
-        console.error("[api/admin/brand-asset-upload] blob put failed", cause, blobStorageDiagnostics());
-        if (onVercel) {
-          return NextResponse.json({ error: blobStorageErrorMessage(cause) }, { status: 500 });
+        if (error instanceof NoRemoteStorageError) {
+          // local fallback below
+        } else {
+          const cause = error instanceof Error ? error.message : String(error);
+          console.error("[api/admin/brand-asset-upload] remote put failed", cause, blobStorageDiagnostics());
+          if (onVercel) {
+            return NextResponse.json({ error: storageUploadErrorMessage(cause) }, { status: 500 });
+          }
         }
       }
     }

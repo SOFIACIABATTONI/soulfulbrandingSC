@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import path from "path";
-import { put } from "@vercel/blob";
 import { imageSize } from "image-size";
 import { isAdminRequest } from "@/lib/auth-api";
 import {
   blobStorageDiagnostics,
-  blobStorageErrorMessage,
   BRAND_ASSET_MAX_BYTES,
-  hasBlobCredentials,
-  resolveBlobPutOptions,
   resolveBrandAssetMime,
 } from "@/lib/admin-blob-upload";
+import {
+  NoRemoteStorageError,
+  putPublicFile,
+  shouldUseRemoteStorage,
+  storageUploadErrorMessage,
+} from "@/lib/admin-upload-put";
 import { saveLocalDevUpload } from "@/lib/local-dev-upload-store";
 
 export const runtime = "nodejs";
@@ -71,25 +73,21 @@ export async function POST(req: Request) {
     const ext = path.extname(file.name) || (resolvedMime === "image/png" ? ".png" : ".jpg");
     const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
     const onVercel = process.env.VERCEL === "1";
-    const useBlob = onVercel || hasBlobCredentials();
-    if (useBlob) {
+    if (shouldUseRemoteStorage()) {
       try {
-        const blob = await put(
-          `uploads/${name}`,
-          buf,
-          await resolveBlobPutOptions({
-            access: "public",
-            contentType: resolvedMime || "application/octet-stream",
-          }),
-        );
-        return NextResponse.json({ url: blob.url });
+        const uploaded = await putPublicFile(`uploads/${name}`, buf, resolvedMime || "application/octet-stream");
+        return NextResponse.json({ url: uploaded.url });
       } catch (error) {
-        const cause = error instanceof Error ? error.message : String(error);
-        console.error("[api/upload] blob put failed", cause, blobStorageDiagnostics());
-        if (onVercel) {
-          return NextResponse.json({ error: blobStorageErrorMessage(cause) }, { status: 500 });
+        if (error instanceof NoRemoteStorageError) {
+          console.warn("[api/upload] remote storage unavailable in dev, using temp storage (outside repo)");
+        } else {
+          const cause = error instanceof Error ? error.message : String(error);
+          console.error("[api/upload] remote put failed", cause, blobStorageDiagnostics());
+          if (onVercel) {
+            return NextResponse.json({ error: storageUploadErrorMessage(cause) }, { status: 500 });
+          }
+          console.warn("[api/upload] remote unavailable in dev, using temp storage (outside repo)");
         }
-        console.warn("[api/upload] blob unavailable in dev, using temp storage (outside repo)");
       }
     }
 
