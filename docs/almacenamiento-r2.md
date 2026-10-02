@@ -57,6 +57,7 @@ Blob (`BLOB_*`) queda como **fallback** solo si R2 no está configurado (transic
 - `manual/…` — manual PDF  
 - `uploads/…` — portfolio / imágenes admin  
 - `oraculo/receipts/…`, `oraculo/presentacion.mov` — oráculo  
+- Mail de entrega al cliente: `ORACULO_DELIVERY_ATTACHMENT_URLS` (URLs públicas R2, separadas por coma) + `ORACULO_DELIVERY_YOUTUBE_URL`  
 
 ---
 
@@ -84,26 +85,25 @@ Blob (`BLOB_*`) queda como **fallback** solo si R2 no está configurado (transic
 
 ---
 
-## Git y despliegue — **solo `dev` hasta acordar producción**
+## Git y despliegue — publica **Sofía** (no el agente)
 
-Regla explícita para agentes y equipo:
+Reglas en `.cursor/rules/git-human-publish-only.mdc` y `git-dev-only-storage.mdc`:
 
-| Permitido | Prohibido sin pedido explícito de Sofía |
-|-----------|----------------------------------------|
-| Trabajar en rama **`dev`** | `git push sofia master` |
-| `git push sofia dev` | Merge a `master` / deploy Production |
-| Preview Vercel de la rama `dev` | Publicar este cambio en producción |
+- Cursor **no** ejecuta `git push` ni merge a `master` salvo que Sofía lo pida en ese mensaje.
+- Sofía sube los cambios cuando quiera.
 
-### Comandos habituales
+### Comandos habituales (vos)
 
 ```bash
 git checkout dev
 git pull sofia dev
-# … commits …
+git status
+git add docs/ .cursor/rules/ src/ package.json package-lock.json .env.example scripts/
+git commit -m "Tu mensaje"
 git push sofia dev
 ```
 
-**Producción (`master`):** solo cuando R2 esté probado en preview, migración hecha (si aplica) y Sofía confirme el cutover.
+**Producción (`master`):** solo cuando R2 esté probado en preview, migración hecha (si aplica) y vos confirmes cutover → `git push sofia master` (y backup Neon si toca BD).
 
 ---
 

@@ -54,7 +54,6 @@ export function getOraculoPageLayout(paymentLink?: string): OraculoBlock[] {
     }
 
     if (b.kind === "image" && b.src.endsWith(".bin")) continue;
-    if (b.kind === "form") continue;
 
     if (b.kind === "text" && b.html.includes("Transferencia")) {
       out.push({

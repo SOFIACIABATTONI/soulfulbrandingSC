@@ -3,7 +3,7 @@ export type OraculoBlock =
   | { kind: "sub_sub_header"; lines: string[]; boldFromLine?: number; align?: "center" }
   | { kind: "sub_header"; lines: string[] }
   | { kind: "text"; html: string; align?: "center"; size?: "sm"; variant?: "brandLines" }
-  | { kind: "bulleted_list"; text: string }
+  | { kind: "bulleted_list"; text: string; size?: "sm" }
   | { kind: "image"; src: string; alt?: string; href?: string; scale?: "compact" }
   | { kind: "audio" }
   | { kind: "video"; caption: string }

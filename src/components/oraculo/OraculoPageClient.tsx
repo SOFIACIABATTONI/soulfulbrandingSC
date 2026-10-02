@@ -1,15 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ORACULO_PAYMENT } from "@/lib/oraculo-content";
 import styles from "./oraculo-notion.module.css";
 
-const RECEIPT_MAX_BYTES = 10 * 1024 * 1024;
+const RECEIPT_MAX_BYTES = 5 * 1024 * 1024;
 
 export function OraculoOrderForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [country, setCountry] = useState<"ar" | "es">("ar");
   const [receipt, setReceipt] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -22,7 +20,7 @@ export function OraculoOrderForm() {
       return;
     }
     if (receipt.size > RECEIPT_MAX_BYTES) {
-      setMsg({ type: "err", text: "El comprobante no puede superar 10 MB." });
+      setMsg({ type: "err", text: "El comprobante no puede superar 5 MB." });
       return;
     }
 
@@ -31,7 +29,6 @@ export function OraculoOrderForm() {
     const fd = new FormData();
     fd.set("name", name.trim());
     fd.set("email", email.trim());
-    fd.set("country", country);
     fd.set("receipt", receipt);
 
     try {
@@ -92,21 +89,6 @@ export function OraculoOrderForm() {
       </div>
 
       <div className={styles.orderField}>
-        <label className={styles.orderLabel} htmlFor="oraculo-country">
-          País de pago<span className={styles.orderRequired}>*</span>
-        </label>
-        <select
-          id="oraculo-country"
-          className={styles.orderInput}
-          value={country}
-          onChange={(e) => setCountry(e.target.value as "ar" | "es")}
-        >
-          <option value="ar">{ORACULO_PAYMENT.ar.label}</option>
-          <option value="es">{ORACULO_PAYMENT.es.label}</option>
-        </select>
-      </div>
-
-      <div className={styles.orderField}>
         <label className={styles.orderLabel} htmlFor="oraculo-receipt">
           Comprobante de pago<span className={styles.orderRequired}>*</span>
         </label>
@@ -116,7 +98,8 @@ export function OraculoOrderForm() {
             Subir
           </label>
           <p className={styles.orderUploadHint}>
-            Límite de tamaño: 10 MB. {receipt ? receipt.name : "Ningún archivo seleccionado"}
+            Límite de tamaño: 5 MB. Límite de archivos: 1.
+            {receipt ? ` ${receipt.name}` : ""}
           </p>
           <input
             ref={fileRef}

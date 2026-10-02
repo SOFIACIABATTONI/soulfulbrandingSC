@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CONTACT_FORM_LABELS } from "@/lib/contact-form-keys";
+import { isOraculoOrderMessage, stripOraculoDeliveryRecord } from "@/lib/oraculo-order-parse";
 import { FormMessageViewer } from "./FormMessageViewer";
+import { OraculoOrderPanel } from "./OraculoOrderPanel";
 
 // ── tipos ──────────────────────────────────────────────────
 type ContactMessage = {
@@ -16,12 +19,7 @@ type ContactMessage = {
 };
 
 // ── helpers ────────────────────────────────────────────────
-const FORM_KEY_LABELS: Record<string, string> = {
-  "contacto-corto": "Contacto corto",
-  "aplicacion-inicio": "Aplicación Inicio",
-  "contacto-evolucion": "Contacto Evolución",
-  "aplicacion-expansion": "Aplicación Expansión",
-};
+const FORM_KEY_LABELS: Record<string, string> = { ...CONTACT_FORM_LABELS };
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
   nuevo: { bg: "rgba(240,49,114,0.1)", color: "#F03172", label: "Nuevo" },
@@ -256,10 +254,30 @@ export function ContactInbox({ onNewCountChange }: { onNewCountChange?: (n: numb
 
                   {/* Mensaje */}
                   <FormMessageViewer
-                    message={msg.message}
+                    message={
+                      isOraculoOrderMessage(msg.formKey, msg.message)
+                        ? stripOraculoDeliveryRecord(msg.message)
+                        : msg.message
+                    }
                     expanded={!!expanded[msg.id]}
                     onToggle={() => toggleExpanded(msg.id)}
                   />
+                  {isOraculoOrderMessage(msg.formKey, msg.message) && (
+                    <OraculoOrderPanel
+                      messageId={msg.id}
+                      messageBody={msg.message}
+                      clientEmail={msg.email}
+                      onMessageUpdate={(nextMessage) => {
+                        setItems((all) =>
+                          all.map((m) =>
+                            m.id === msg.id
+                              ? { ...m, message: nextMessage, status: "contactado" }
+                              : m,
+                          ),
+                        );
+                      }}
+                    />
+                  )}
                   <p className="text-[10px] mt-1.5" style={{ color: "rgba(19,25,69,0.35)" }}>
                     {formatDate(msg.createdAt)}
                   </p>

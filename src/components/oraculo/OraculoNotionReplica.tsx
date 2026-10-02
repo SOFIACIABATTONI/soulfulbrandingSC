@@ -126,7 +126,12 @@ export function OraculoNotionReplica({ blocks, videoUrl, paymentLink }: Props) {
               );
             case "bulleted_list":
               return (
-                <div key={index} className={styles.bulletItem}>
+                <div
+                  key={index}
+                  className={[styles.bulletItem, block.size === "sm" ? styles.bulletItemSmall : ""]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
                   <span>{block.text}</span>
                 </div>
               );
@@ -156,8 +161,13 @@ export function OraculoNotionReplica({ blocks, videoUrl, paymentLink }: Props) {
                   {videoUrl ? (
                     <video controls playsInline className="w-full bg-black" preload="metadata">
                       <source src={videoUrl} type="video/quicktime" />
+                      <source src={videoUrl} type="video/mp4" />
                     </video>
-                  ) : null}
+                  ) : (
+                    <p className={styles.videoMissing} role="status">
+                      El video de presentación no está disponible en este momento.
+                    </p>
+                  )}
                   <p className={styles.caption}>{block.caption}</p>
                 </div>
               );

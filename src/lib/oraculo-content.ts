@@ -1,6 +1,10 @@
 /** Textos y datos de la landing Oráculo Raíz (réplica del Notion original). */
 
-/** En local sirve el .mov desde `assets/oraculo/`; en prod usar Blob (`scripts/upload-oraculo-video.ts`). */
+/**
+ * Local: `/api/oraculo/presentation-video` (archivo en `assets/oraculo/`, ~560 MB .mov).
+ * Preview/Production: URL pública en R2 vía `scripts/upload-oraculo-video.ts` +
+ * `NEXT_PUBLIC_ORACULO_PRESENTATION_VIDEO_URL` (preferir .mp4 para Chrome).
+ */
 export function getOraculoPresentationVideoUrl(): string {
   const fromEnv =
     process.env.NEXT_PUBLIC_ORACULO_PRESENTATION_VIDEO_URL?.trim() ||

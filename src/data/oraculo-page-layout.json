@@ -76,40 +76,46 @@
   { "kind": "spacer" },
   {
     "kind": "text",
-    "html": "👁️✨👁️",
-    "align": "center"
+    "html": "👁️✨👁️"
   },
   { "kind": "spacer", "size": "lg" },
   {
     "kind": "text",
-    "html": "<strong><u>La edición incluye:</u></strong>"
+    "html": "<strong><u>La edición incluye:</u></strong>",
+    "size": "sm"
   },
   { "kind": "spacer" },
   {
     "kind": "bulleted_list",
-    "text": "23 cartas imprimibles en PDF (Formato A3 · blanco y negro · listas para intervenir)."
+    "text": "23 cartas imprimibles en PDF (Formato A3 · blanco y negro · listas para intervenir).",
+    "size": "sm"
   },
   { "kind": "spacer" },
   {
     "kind": "bulleted_list",
-    "text": "Instructivo de materialización paso a paso"
+    "text": "Instructivo de materialización paso a paso",
+    "size": "sm"
   },
   { "kind": "spacer" },
   {
     "kind": "bulleted_list",
-    "text": "PDF con profundización y exploración del mensaje"
+    "text": "PDF con profundización y exploración del mensaje",
+    "size": "sm"
   },
   { "kind": "spacer" },
   {
     "kind": "bulleted_list",
-    "text": "Grabación de profundización con Arcanos Mayores del Tarot"
+    "text": "Grabación de profundización con Arcanos Mayores del Tarot",
+    "size": "sm"
   },
   { "kind": "spacer" },
   {
     "kind": "text",
-    "html": "<em>(*) Las 23 cartas no son un número al azar. Son un espejo de los 23 arcanos mayores del Tarot, El Viaje del Loco —el mapa simbólico completo del viaje interior.</em>"
+    "html": "<em>(*) Las 23 cartas no son un número al azar. Son un espejo de los 23 arcanos mayores del Tarot, El Viaje del Loco —el mapa simbólico completo del viaje interior.</em>",
+    "size": "sm"
   },
   { "kind": "payment_card" },
+  { "kind": "form" },
   {
     "kind": "sub_sub_header",
     "lines": [
@@ -186,8 +192,5 @@
   {
     "kind": "text",
     "html": "XOXO, SO."
-  },
-  {
-    "kind": "form"
   }
 ]
