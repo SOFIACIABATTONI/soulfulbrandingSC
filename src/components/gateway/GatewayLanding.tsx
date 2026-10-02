@@ -10,7 +10,7 @@ export function GatewayLanding() {
 
   const oraculoImage = (
     <Image
-      src="/gateway/oraculo-raiz.gif"
+      src="/gateway/oraculo-raiz-transparent.gif"
       alt="Oráculo Raíz — Soulful Branding"
       fill
       unoptimized

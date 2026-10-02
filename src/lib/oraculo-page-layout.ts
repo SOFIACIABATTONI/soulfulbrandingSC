@@ -14,7 +14,7 @@ export function getOraculoPageLayout(paymentLink?: string): OraculoBlock[] {
     if (b.kind === "image" && b.src.includes("img-07.gif")) {
       out.push({
         kind: "image",
-        src: "/gateway/oraculo-raiz.gif",
+        src: "/gateway/oraculo-raiz-transparent.gif",
         alt: "Oráculo Raíz — Soulful Branding",
       });
       continue;
