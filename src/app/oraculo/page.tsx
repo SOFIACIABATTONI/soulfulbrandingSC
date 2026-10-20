@@ -11,8 +11,7 @@ export const metadata = buildPageMetadata({
 });
 
 export default async function OraculoPage() {
-  const paymentLink = process.env.NEXT_PUBLIC_ORACULO_ES_PAYMENT_URL?.trim() || "";
-  const { blocks, videoUrl, media } = await getOraculoPublicPageData(paymentLink);
+  const { blocks, videoUrl, media, payment } = await getOraculoPublicPageData();
 
   return (
     <>
@@ -29,7 +28,7 @@ export default async function OraculoPage() {
       <OraculoNotionReplica
         blocks={blocks}
         videoUrl={videoUrl}
-        paymentLink={paymentLink}
+        payment={payment}
         media={media}
       />
     </>

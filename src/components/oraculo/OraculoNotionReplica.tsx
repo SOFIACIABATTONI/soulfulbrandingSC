@@ -5,7 +5,7 @@ import { OraculoOrderForm } from "@/components/oraculo/OraculoPageClient";
 import { OraculoPaymentCard } from "@/components/oraculo/OraculoPaymentCard";
 import { OraculoFlorMark } from "@/components/oraculo/OraculoFlorMark";
 import { ORACULO_MEDIA } from "@/lib/oraculo-content";
-import type { OraculoMediaUrls } from "@/lib/oraculo-page-content";
+import type { OraculoMediaUrls, OraculoPaymentSettings } from "@/lib/oraculo-page-content";
 import styles from "./oraculo-notion.module.css";
 
 function Lines({ lines, boldFromLine }: { lines: string[]; boldFromLine?: number }) {
@@ -85,11 +85,11 @@ function BlockImage({
 type Props = {
   blocks: OraculoBlock[];
   videoUrl: string;
-  paymentLink?: string;
+  payment?: OraculoPaymentSettings;
   media?: OraculoMediaUrls;
 };
 
-export function OraculoNotionReplica({ blocks, videoUrl, paymentLink, media }: Props) {
+export function OraculoNotionReplica({ blocks, videoUrl, payment, media }: Props) {
   const m = media ?? ORACULO_MEDIA;
   return (
     <article className={styles.oraculoPage}>
@@ -135,7 +135,7 @@ export function OraculoNotionReplica({ blocks, videoUrl, paymentLink, media }: P
                     .filter(Boolean)
                     .join(" ")}
                 >
-                  <span>{block.text}</span>
+                  <span dangerouslySetInnerHTML={{ __html: block.text.replace(/\n/g, "<br />") }} />
                 </div>
               );
             case "image":
@@ -175,7 +175,7 @@ export function OraculoNotionReplica({ blocks, videoUrl, paymentLink, media }: P
                 </div>
               );
             case "payment_card":
-              return <OraculoPaymentCard key={index} paymentLink={paymentLink} media={m} />;
+              return <OraculoPaymentCard key={index} payment={payment} media={m} />;
             case "form":
               return (
                 <section key={index} className={styles.formSection} id="comprar">

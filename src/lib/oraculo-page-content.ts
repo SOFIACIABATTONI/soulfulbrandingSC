@@ -1,6 +1,6 @@
 import type { OraculoBlock } from "@/lib/oraculo-page-layout-types";
 import { getOraculoPageLayout } from "@/lib/oraculo-page-layout";
-import { ORACULO_MEDIA, getOraculoPresentationVideoUrl } from "@/lib/oraculo-content";
+import { ORACULO_MEDIA, ORACULO_PAYMENT, getOraculoPresentationVideoUrl } from "@/lib/oraculo-content";
 
 export type OraculoMediaUrls = {
   bienvenidaAudio: string;
@@ -11,11 +11,29 @@ export type OraculoMediaUrls = {
   flagEs: string;
 };
 
+export type OraculoPaymentSettings = {
+  ar: {
+    label: string;
+    price: string;
+    alias: string;
+    cvu: string;
+    cvuLabel: string;
+  };
+  es: {
+    label: string;
+    price: string;
+    phone: string;
+    /** Link transferencia España (Stripe, etc.) */
+    paymentLink: string;
+  };
+};
+
 export type OraculoPageContentData = {
   version: 1;
   /** URL pública del video de presentación (mp4/mov). Vacío = usar env o dev local. */
   presentationVideoUrl: string;
   media: OraculoMediaUrls;
+  payment: OraculoPaymentSettings;
   blocks: OraculoBlock[];
 };
 
@@ -23,12 +41,59 @@ export function defaultOraculoMedia(): OraculoMediaUrls {
   return { ...ORACULO_MEDIA };
 }
 
+export function defaultOraculoPayment(envPaymentLink?: string): OraculoPaymentSettings {
+  const link =
+    envPaymentLink?.trim() ||
+    process.env.NEXT_PUBLIC_ORACULO_ES_PAYMENT_URL?.trim() ||
+    ORACULO_PAYMENT.es.paymentLink ||
+    "";
+  return {
+    ar: {
+      label: ORACULO_PAYMENT.ar.label,
+      price: ORACULO_PAYMENT.ar.price,
+      alias: ORACULO_PAYMENT.ar.alias,
+      cvu: ORACULO_PAYMENT.ar.cvu,
+      cvuLabel: ORACULO_PAYMENT.ar.cvuLabel,
+    },
+    es: {
+      label: ORACULO_PAYMENT.es.label,
+      price: ORACULO_PAYMENT.es.price,
+      phone: ORACULO_PAYMENT.es.phone,
+      paymentLink: link,
+    },
+  };
+}
+
+export function parseOraculoPayment(raw: unknown, envPaymentLink?: string): OraculoPaymentSettings {
+  const d = defaultOraculoPayment(envPaymentLink);
+  if (!isRecord(raw)) return d;
+  const ar = isRecord(raw.ar) ? raw.ar : {};
+  const es = isRecord(raw.es) ? raw.es : {};
+  return {
+    ar: {
+      label: asString(ar.label, d.ar.label),
+      price: asString(ar.price, d.ar.price),
+      alias: asString(ar.alias, d.ar.alias),
+      cvu: asString(ar.cvu, d.ar.cvu),
+      cvuLabel: asString(ar.cvuLabel, d.ar.cvuLabel),
+    },
+    es: {
+      label: asString(es.label, d.es.label),
+      price: asString(es.price, d.es.price),
+      phone: asString(es.phone, d.es.phone),
+      paymentLink: asString(es.paymentLink, d.es.paymentLink),
+    },
+  };
+}
+
 export function buildDefaultOraculoPageContent(paymentLink?: string): OraculoPageContentData {
+  const payment = defaultOraculoPayment(paymentLink);
   return {
     version: 1,
     presentationVideoUrl: "",
     media: defaultOraculoMedia(),
-    blocks: getOraculoPageLayout(paymentLink),
+    payment,
+    blocks: getOraculoPageLayout(payment.es.paymentLink),
   };
 }
 
@@ -125,6 +190,7 @@ export function parseOraculoPageContent(raw: unknown, paymentLink?: string): Ora
     version: 1,
     presentationVideoUrl: asString(raw.presentationVideoUrl),
     media: parseMedia(raw.media),
+    payment: parseOraculoPayment(raw.payment, paymentLink),
     blocks: blocks.length > 0 ? blocks : fallback.blocks,
   };
 }

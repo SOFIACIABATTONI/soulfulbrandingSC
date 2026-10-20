@@ -6,7 +6,7 @@ import {
 } from "@/lib/oraculo-receipt-upload";
 import { checkRateLimit, requestClientIp } from "@/lib/rate-limit";
 import { sendOraculoOrderAdminNotification } from "@/lib/send-oraculo-order-admin-email";
-import { ORACULO_PAYMENT } from "@/lib/oraculo-content";
+import { getOraculoPaymentForOrder } from "@/lib/oraculo-content-store";
 
 export const runtime = "nodejs";
 
@@ -64,14 +64,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: msg }, { status: 503 });
   }
 
+  const oraculoPayment = await getOraculoPaymentForOrder();
   const countryLabel =
     country === "ar"
-      ? ORACULO_PAYMENT.ar.label
+      ? oraculoPayment.ar.label
       : country === "es"
-        ? ORACULO_PAYMENT.es.label
+        ? oraculoPayment.es.label
         : "No indicado en el formulario";
   const price =
-    country === "ar" ? ORACULO_PAYMENT.ar.price : country === "es" ? ORACULO_PAYMENT.es.price : "—";
+    country === "ar" ? oraculoPayment.ar.price : country === "es" ? oraculoPayment.es.price : "—";
 
   const message = [
     "Pedido Oráculo Raíz",

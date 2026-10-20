@@ -106,10 +106,15 @@ export function RichTextEditor({
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => onChange(html), 600);
     },
-    onBlur: () => {
+    onBlur: ({ editor: ed }) => {
       if (saveTimer.current) {
         clearTimeout(saveTimer.current);
         saveTimer.current = null;
+      }
+      const html = ed.getHTML();
+      if (html !== lastEmitted.current) {
+        lastEmitted.current = html;
+        onChange(html);
       }
       onBlur?.();
     },

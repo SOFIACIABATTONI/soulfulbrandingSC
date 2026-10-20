@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ORACULO_MEDIA, ORACULO_PAYMENT } from "@/lib/oraculo-content";
-import type { OraculoMediaUrls } from "@/lib/oraculo-page-content";
+import { ORACULO_MEDIA } from "@/lib/oraculo-content";
+import { defaultOraculoPayment, type OraculoMediaUrls, type OraculoPaymentSettings } from "@/lib/oraculo-page-content";
 import { OraculoFlorMark } from "@/components/oraculo/OraculoFlorMark";
 import styles from "./oraculo-notion.module.css";
 
 type Props = {
-  paymentLink?: string;
+  payment?: OraculoPaymentSettings;
   media?: OraculoMediaUrls;
 };
 
@@ -46,9 +46,9 @@ function CheckItem({ children }: { children: ReactNode }) {
   );
 }
 
-export function OraculoPaymentCard({ paymentLink, media }: Props) {
-  const { ar, es } = ORACULO_PAYMENT;
-  const esLink = paymentLink?.trim() || es.paymentLink;
+export function OraculoPaymentCard({ payment, media }: Props) {
+  const { ar, es } = payment ?? defaultOraculoPayment();
+  const esLink = es.paymentLink.trim();
   const m = media ?? ORACULO_MEDIA;
 
   return (
