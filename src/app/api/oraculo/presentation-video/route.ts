@@ -12,9 +12,11 @@ const VIDEO_PATH = path.join(process.cwd(), "assets", "oraculo", "Oraculo-raiz-p
 function fileToWebStream(nodeStream: ReadStream): ReadableStream<Uint8Array> {
   return new ReadableStream({
     start(controller) {
-      nodeStream.on("data", (chunk: Buffer) => {
+      nodeStream.on("data", (chunk: string | Buffer) => {
         try {
-          controller.enqueue(new Uint8Array(chunk));
+          const bytes =
+            typeof chunk === "string" ? new TextEncoder().encode(chunk) : new Uint8Array(chunk);
+          controller.enqueue(bytes);
         } catch {
           nodeStream.destroy();
         }
