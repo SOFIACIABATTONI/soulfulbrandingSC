@@ -5,7 +5,23 @@ import {
   parseOraculoPageContent,
   type OraculoPageContentData,
 } from "@/lib/oraculo-page-content";
-import { getOraculoPageContentRow, saveOraculoPageContent } from "@/lib/oraculo-content-store";
+import {
+  getOraculoPageContentRow,
+  isOraculoContentPersistenceReady,
+  saveOraculoPageContent,
+} from "@/lib/oraculo-content-store";
+
+function saveErrorMessage(error: unknown): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === "P2021"
+  ) {
+    return "Falta crear la tabla en la base de datos (migración OraculoPageContent). En Vercel, redeployá la rama dev o ejecutá prisma migrate deploy contra la BD de Preview.";
+  }
+  return "No se pudo guardar. Revisá la conexión a la base de datos.";
+}
 
 export async function GET() {
   if (!(await isAdminRequest())) {
@@ -20,10 +36,12 @@ export async function GET() {
     console.error("[oraculo-content][GET] read failed", error);
   }
   const data = stored ?? buildDefaultOraculoPageContent(paymentLink);
+  const canPersist = await isOraculoContentPersistenceReady();
 
   return NextResponse.json({
     data,
     fromDatabase: Boolean(stored),
+    canPersist,
   });
 }
 
@@ -45,9 +63,6 @@ export async function PUT(req: Request) {
     return NextResponse.json({ ok: true, data: parsed });
   } catch (error) {
     console.error("[oraculo-content][PUT]", error);
-    return NextResponse.json(
-      { error: "No se pudo guardar. Revisá la conexión a la base de datos." },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: saveErrorMessage(error) }, { status: 503 });
   }
 }

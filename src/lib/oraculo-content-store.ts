@@ -27,6 +27,27 @@ export async function getOraculoPaymentForOrder(): Promise<OraculoPaymentSetting
   return defaultOraculoPayment(envLink);
 }
 
+function isMissingOraculoTable(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === "P2021"
+  );
+}
+
+/** false si la tabla OraculoPageContent no existe (migración pendiente). */
+export async function isOraculoContentPersistenceReady(): Promise<boolean> {
+  try {
+    await prisma.oraculoPageContent.findFirst({ select: { id: true } });
+    return true;
+  } catch (error) {
+    if (isMissingOraculoTable(error)) return false;
+    console.warn("[oraculo-content] persistence check failed", error);
+    return false;
+  }
+}
+
 export async function getOraculoPageContentRow(): Promise<OraculoPageContentData | null> {
   try {
     const row = await prisma.oraculoPageContent.findUnique({ where: { id: 1 } });

@@ -190,6 +190,7 @@ export function OraculoContentEditor() {
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [tab, setTab] = useState<TabId>("media");
   const [previewKey, setPreviewKey] = useState(0);
+  const [canPersist, setCanPersist] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -199,6 +200,7 @@ export function OraculoContentEditor() {
       const json = (await res.json()) as {
         data?: OraculoPageContentData;
         fromDatabase?: boolean;
+        canPersist?: boolean;
         error?: string;
       };
       if (!res.ok || !json.data) {
@@ -206,6 +208,7 @@ export function OraculoContentEditor() {
       }
       setData(json.data);
       setFromDatabase(Boolean(json.fromDatabase));
+      setCanPersist(json.canPersist !== false);
     } catch (e) {
       setMessage({ type: "err", text: e instanceof Error ? e.message : "Error al cargar" });
     } finally {
@@ -373,6 +376,14 @@ export function OraculoContentEditor() {
           })}
         </nav>
       </header>
+
+      {!canPersist && (
+        <p className="mx-auto mt-4 max-w-6xl rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 md:px-8">
+          La base de datos de este entorno aún no tiene la tabla del CMS de Oráculo. Pedí un redeploy de{" "}
+          <strong>dev</strong> en Vercel (el build corre las migraciones) o aplicá la migración{" "}
+          <code className="text-xs">20261020153000_add_oraculo_page_content</code> en Neon.
+        </p>
+      )}
 
       {message && (
         <p
