@@ -1,5 +1,7 @@
 ﻿"use client";
 
+import { isOraculoReceiptUrl } from "@/lib/oraculo-order-parse";
+
 // ── parser ─────────────────────────────────────────────────
 type ParsedLine =
   | { type: "section"; text: string }
@@ -93,13 +95,21 @@ export function FormMessageViewer({
           );
         }
         const qa = line as { type: "qa"; label: string; value: string };
+        const receiptLink =
+          qa.label === "Comprobante" && isOraculoReceiptUrl(qa.value) ? qa.value.trim() : null;
         return (
           <div key={i} className="grid gap-1 text-xs" style={{ gridTemplateColumns: "minmax(0,160px) 1fr" }}>
             <span className="leading-relaxed" style={{ color: "rgba(19,25,69,0.42)" }}>
               {qa.label}
             </span>
             <span className="leading-relaxed font-medium" style={{ color: "#131945" }}>
-              {qa.value}
+              {receiptLink ? (
+                <a href={receiptLink} target="_blank" rel="noopener noreferrer" className="underline">
+                  Abrir comprobante →
+                </a>
+              ) : (
+                qa.value
+              )}
             </span>
           </div>
         );

@@ -7,13 +7,16 @@ import {
   isOraculoOrderMessage,
   parseOraculoDeliveryInfo,
 } from "@/lib/oraculo-order-parse";
-import { getOraculoDeliveryYoutubeUrl } from "@/lib/oraculo-delivery-assets";
+import {
+  loadOraculoDeliveryFileAttachments,
+  resolveOraculoDeliveryYoutubeUrl,
+} from "@/lib/oraculo-delivery-assets";
 import { sendOraculoAccessEmailToClient } from "@/lib/send-oraculo-access-email";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 const bodySchema = z.object({
-  downloadLink: z.string().url().max(2000),
+  downloadLink: z.string().max(2000).optional(),
   youtubeLink: z.string().max(500).optional(),
   resend: z.boolean().optional(),
 });
@@ -27,7 +30,7 @@ export async function POST(req: Request, ctx: RouteParams) {
   const json = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Link de descarga inválido" }, { status: 400 });
+    return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
   }
 
   const msg = await prisma.contactMessage.findUnique({ where: { id } });
@@ -46,12 +49,26 @@ export async function POST(req: Request, ctx: RouteParams) {
     );
   }
 
-  const downloadLink = parsed.data.downloadLink.trim();
+  const downloadRaw = parsed.data.downloadLink?.trim() || "";
+  if (downloadRaw && !/^https?:\/\//i.test(downloadRaw)) {
+    return NextResponse.json({ error: "Link de descarga inválido" }, { status: 400 });
+  }
+  const attachments = await loadOraculoDeliveryFileAttachments();
+  if (!downloadRaw && attachments.length === 0) {
+    return NextResponse.json(
+      {
+        error:
+          "No hay PDFs para adjuntar ni link de descarga. Agregá archivos en assets/oraculo/descargables, ORACULO_DELIVERY_ATTACHMENT_URLS o un link de carpeta.",
+      },
+      { status: 400 },
+    );
+  }
+  const downloadLink = downloadRaw || "adjuntos";
   const youtubeRaw = parsed.data.youtubeLink?.trim() || "";
   if (youtubeRaw && !/^https?:\/\//i.test(youtubeRaw)) {
     return NextResponse.json({ error: "Link de YouTube inválido" }, { status: 400 });
   }
-  const youtubeLink = youtubeRaw || getOraculoDeliveryYoutubeUrl() || null;
+  const youtubeLink = youtubeRaw || (await resolveOraculoDeliveryYoutubeUrl()) || null;
   const sent = await sendOraculoAccessEmailToClient({
     toEmail: msg.email,
     toName: msg.name,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./oraculo-notion.module.css";
 
 const RECEIPT_MAX_BYTES = 5 * 1024 * 1024;
@@ -12,6 +12,13 @@ export function OraculoOrderForm() {
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const feedbackRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (msg && feedbackRef.current) {
+      feedbackRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [msg]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -118,7 +125,17 @@ export function OraculoOrderForm() {
       </button>
 
       {msg && (
-        <p className={msg.type === "ok" ? styles.orderMsgOk : styles.orderMsgErr}>{msg.text}</p>
+        <div
+          ref={feedbackRef}
+          role="alert"
+          aria-live="polite"
+          className={msg.type === "ok" ? styles.orderFeedbackOk : styles.orderFeedbackErr}
+        >
+          <p className={styles.orderFeedbackTitle}>
+            {msg.type === "ok" ? "Envío recibido" : "No se pudo enviar"}
+          </p>
+          <p className={styles.orderFeedbackText}>{msg.text}</p>
+        </div>
       )}
     </form>
   );

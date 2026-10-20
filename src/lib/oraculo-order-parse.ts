@@ -3,10 +3,15 @@ const DELIVERY_SENT_RE = /^ENTREGA_ENVIADA:\s*(.+)$/m;
 const CLIENT_LINK_RE = /^LINK_CLIENTE:\s*(.+)$/m;
 const YOUTUBE_LINK_RE = /^YOUTUBE:\s*(.+)$/m;
 
+export function isOraculoReceiptUrl(url: string): boolean {
+  const u = url.trim();
+  return /^https?:\/\//i.test(u) || u.startsWith("/api/admin/dev-upload/");
+}
+
 export function parseOraculoReceiptUrl(message: string): string | null {
   const m = message.match(RECEIPT_RE);
   const url = m?.[1]?.trim();
-  if (!url || !/^https?:\/\//i.test(url)) return null;
+  if (!url || !isOraculoReceiptUrl(url)) return null;
   return url;
 }
 

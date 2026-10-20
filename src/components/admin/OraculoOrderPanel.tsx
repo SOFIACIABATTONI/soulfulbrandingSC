@@ -37,21 +37,26 @@ export function OraculoOrderPanel({
   );
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successNote, setSuccessNote] = useState<string | null>(null);
+  const [attachmentCount, setAttachmentCount] = useState(0);
 
   async function sendAccess(isResend: boolean) {
     const link = downloadLink.trim();
-    if (!link) {
-      setError("Pegá el link de descarga (Drive, Dropbox, etc.).");
+    if (!link && attachmentCount === 0) {
+      setError(
+        "No hay PDFs para adjuntar. Agregá archivos en assets/oraculo/descargables o pegá un link de carpeta.",
+      );
       return;
     }
     setSending(true);
     setError(null);
+    setSuccessNote(null);
     const res = await fetch(`/api/admin/oraculo-orders/${messageId}/send-access`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        downloadLink: link,
+        downloadLink: link || undefined,
         youtubeLink: youtubeLink.trim() || undefined,
         resend: isResend,
       }),
@@ -60,6 +65,7 @@ export function OraculoOrderPanel({
     if (res.ok) {
       const j = (await res.json()) as { message?: string };
       setOpen(false);
+      setSuccessNote(`Mail de acceso enviado a ${clientEmail}.`);
       if (j.message) onMessageUpdate?.(j.message);
       return;
     }
@@ -73,10 +79,30 @@ export function OraculoOrderPanel({
     setError(msg);
   }
 
-  function openModal() {
+  async function openModal() {
     setError(null);
-    setDownloadLink(delivery.downloadLink || DEFAULT_DOWNLOAD_LINK);
-    setYoutubeLink(delivery.youtubeLink || DEFAULT_YOUTUBE_LINK);
+    setSuccessNote(null);
+    let dl = delivery.downloadLink || DEFAULT_DOWNLOAD_LINK;
+    let yt = delivery.youtubeLink || DEFAULT_YOUTUBE_LINK;
+    try {
+      const res = await fetch("/api/admin/oraculo-orders/delivery-defaults", {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const j = (await res.json()) as {
+          downloadLink?: string;
+          youtubeLink?: string;
+          attachmentCount?: number;
+        };
+        if (!delivery.downloadLink && j.downloadLink) dl = j.downloadLink;
+        if (!delivery.youtubeLink && j.youtubeLink) yt = j.youtubeLink;
+        if (typeof j.attachmentCount === "number") setAttachmentCount(j.attachmentCount);
+      }
+    } catch {
+      /* defaults locales */
+    }
+    setDownloadLink(dl);
+    setYoutubeLink(yt);
     setOpen(true);
   }
 
@@ -89,16 +115,33 @@ export function OraculoOrderPanel({
         Oráculo Raíz — pedido con comprobante
       </p>
 
-      {receiptUrl ? (
-        <a
-          href={receiptUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block text-xs font-medium underline"
-          style={{ color: "#131945" }}
+      {successNote && (
+        <p
+          className="text-xs font-medium rounded px-2 py-1.5"
+          style={{ background: "rgba(26,107,26,0.12)", color: "#1a6b1a" }}
+          role="status"
         >
-          Ver comprobante de pago →
-        </a>
+          {successNote}
+        </p>
+      )}
+
+      {receiptUrl ? (
+        <>
+          <a
+            href={receiptUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block text-xs font-medium underline"
+            style={{ color: "#131945" }}
+          >
+            Ver comprobante de pago →
+          </a>
+          {receiptUrl.startsWith("/api/admin/dev-upload/") && (
+            <p className="text-[10px] mt-1" style={{ color: "rgba(19,25,69,0.45)" }}>
+              Archivo de prueba en local: hace falta estar logueada en /admin en esta misma pestaña.
+            </p>
+          )}
+        </>
       ) : (
         <p className="text-xs text-amber-800">No se encontró URL del comprobante en el mensaje.</p>
       )}
@@ -121,7 +164,7 @@ export function OraculoOrderPanel({
 
       <button
         type="button"
-        onClick={openModal}
+        onClick={() => void openModal()}
         className="rounded px-3 py-1.5 text-[11px] font-medium text-white"
         style={{ background: "#323FF6" }}
       >
@@ -144,17 +187,26 @@ export function OraculoOrderPanel({
             <div className="p-5 space-y-4 text-sm">
               <p style={{ color: "rgba(19,25,69,0.65)" }}>
                 Se enviará a <strong>{clientEmail}</strong> con asunto:{" "}
-                <em>{ORACULO_ACCESS_EMAIL_SUBJECT}</em>. Incluye los PDFs configurados en{" "}
-                <code className="text-[10px]">ORACULO_DELIVERY_ATTACHMENT_URLS</code> como adjuntos.
+                <em>{ORACULO_ACCESS_EMAIL_SUBJECT}</em>. En el <strong>cuerpo del mail</strong> van el
+                link de descarga (💖💐🪞🌀), la lista «Lo que incluye» y el link de YouTube en el punto 4.
+                Los PDFs de <code className="text-[10px]">assets/oraculo/descargables</code> (local) o{" "}
+                <code className="text-[10px]">ORACULO_DELIVERY_ATTACHMENT_URLS</code> van como adjuntos.
               </p>
               <div>
+                {attachmentCount > 0 && (
+                  <p
+                    className="text-xs rounded px-2 py-1.5"
+                    style={{ background: "rgba(26,107,26,0.1)", color: "#1a6b1a" }}
+                  >
+                    Se adjuntarán <strong>{attachmentCount} PDF(s)</strong> al correo (pack Oráculo Raíz).
+                  </p>
+                )}
                 <label className="block text-xs font-medium mb-1" htmlFor="oraculo-dl-link">
-                  Link de descarga (pack / carpeta)
+                  Link de descarga (opcional si hay adjuntos)
                 </label>
                 <input
                   id="oraculo-dl-link"
                   type="url"
-                  required
                   className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
                   placeholder="https://…"
                   value={downloadLink}
@@ -174,7 +226,11 @@ export function OraculoOrderPanel({
                   onChange={(e) => setYoutubeLink(e.target.value)}
                 />
               </div>
-              {error && <p className="text-xs text-red-600">{error}</p>}
+              {error && (
+                <p className="text-xs text-red-600 font-medium" role="alert">
+                  {error}
+                </p>
+              )}
               <div className="flex gap-2 justify-end pt-2">
                 <button
                   type="button"

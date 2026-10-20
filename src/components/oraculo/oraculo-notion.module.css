@@ -341,14 +341,45 @@
   cursor: not-allowed;
 }
 
-.orderMsgOk {
-  font-size: 0.9rem;
+.orderFeedbackOk,
+.orderFeedbackErr {
+  margin-top: 1rem;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+}
+
+.orderFeedbackOk {
+  background: rgba(26, 107, 26, 0.08);
+  border-color: rgba(26, 107, 26, 0.25);
+}
+
+.orderFeedbackErr {
+  background: rgba(159, 32, 36, 0.08);
+  border-color: rgba(159, 32, 36, 0.3);
+}
+
+.orderFeedbackTitle {
+  margin: 0 0 6px;
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.orderFeedbackOk .orderFeedbackTitle {
   color: #1a6b1a;
 }
 
-.orderMsgErr {
-  font-size: 0.9rem;
+.orderFeedbackErr .orderFeedbackTitle {
   color: #9f2024;
+}
+
+.orderFeedbackText {
+  margin: 0;
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #131945;
 }
 
 .audio {

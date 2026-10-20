@@ -299,6 +299,14 @@ export function resolveAdminUploadConstraints(
 
 export function blobStorageErrorMessage(cause?: string): string {
   const detail = cause?.trim();
+  const suspended = detail?.toLowerCase().includes("suspended");
+  if (suspended) {
+    return (
+      "Vercel Blob está suspendido (suele ser por superar la cuota del plan). " +
+      "Rotar credenciales no lo reactiva. Configurá Cloudflare R2 en Vercel (variables R2_*) — ver docs/almacenamiento-r2.md — " +
+      "o liberá espacio / ampliá el store Blob en Vercel Storage."
+    );
+  }
   if (hasBlobReadWriteToken() || hasBlobStoreConnected()) {
     return detail
       ? `No se pudo subir a Blob (${detail}). En Ajustes del store probá «Rotate Credentials» y redeploy del preview.`

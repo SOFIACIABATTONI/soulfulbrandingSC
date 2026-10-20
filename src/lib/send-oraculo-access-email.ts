@@ -1,7 +1,7 @@
 import { buildOraculoAccessEmailContent } from "@/lib/oraculo-delivery-email";
 import {
-  getOraculoDeliveryYoutubeUrl,
   loadOraculoDeliveryFileAttachments,
+  resolveOraculoDeliveryYoutubeUrl,
 } from "@/lib/oraculo-delivery-assets";
 import { soLogoEmailAttachments } from "@/lib/invoice-logo.server";
 import { resolveResendFrom, sendResendMessage } from "@/lib/resend-mail";
@@ -17,7 +17,7 @@ export async function sendOraculoAccessEmailToClient(
   payload: SendOraculoAccessEmailPayload,
 ): Promise<boolean> {
   const youtubeUrl =
-    payload.youtubeLink?.trim() || getOraculoDeliveryYoutubeUrl() || null;
+    payload.youtubeLink?.trim() || (await resolveOraculoDeliveryYoutubeUrl()) || null;
 
   const fileAttachments = await loadOraculoDeliveryFileAttachments();
   const { subject, text, html } = buildOraculoAccessEmailContent(

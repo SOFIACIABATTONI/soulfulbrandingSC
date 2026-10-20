@@ -1,7 +1,12 @@
-# Git — cambios de almacenamiento / R2: solo `dev`
+---
+description: R2/Blob — cutover solo en dev hasta OK de Sofía; el agente no pushea (ver git-human-publish-only).
+alwaysApply: true
+---
+
+# Git — almacenamiento R2 / Blob
 
 Cuando el trabajo incluya migración R2, Blob o `docs/almacenamiento-r2.md`:
 
-- **Nunca** ejecutar `git push sofia master` ni merge a `master` sin pedido **explícito** de Sofía.
-- Publicar con: `git push sofia dev` (rama `dev` únicamente).
-- Production cutover es decisión humana después de probar Preview con variables `R2_*`.
+- El agente **no** hace `git push` (regla global: `git-human-publish-only.mdc`).
+- Sofía publica en **`dev`** primero: `git push sofia dev`.
+- **No** merge ni `git push sofia master` hasta cutover explícito y Preview con `R2_*` probado.

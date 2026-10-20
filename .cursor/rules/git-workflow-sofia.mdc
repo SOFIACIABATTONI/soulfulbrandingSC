@@ -23,6 +23,7 @@ alwaysApply: true
 - **`CLAUDE.md`** en la raíz suele estar **versionado** para que el equipo y Cursor compartan convenciones.
 
 ## Resumen para el agente
-- Push de publicación acordado: **`git push sofia master`** (u otra rama explícita).
+- **Publicación:** la hace Sofía. El agente **no** ejecuta `git push` ni merge a `master` salvo pedido explícito en ese mensaje → ver `git-human-publish-only.mdc`.
+- Cuando Sofía publique: remoto **`sofia`**; pruebas en **`dev`** (`git push sofia dev`); producción **`master`** solo cuando ella lo decida (`git push sofia master`).
 - No inventar `origin` como destino por defecto.
 - Respetar `CLAUDE.md` del proyecto salvo pedido explícito de migrar contenido a `private-notes/` o dejar de versionarlo.

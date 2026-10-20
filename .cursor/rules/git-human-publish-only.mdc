@@ -1,0 +1,50 @@
+---
+description: El agente no publica a remoto; commits y push solo cuando Sofía lo pide explícito en ese mensaje.
+alwaysApply: true
+---
+
+# Git — publicación solo humana (Sofía)
+
+## Regla principal
+
+**El agente no sube cambios al remoto.** Toda publicación la hace Sofía (o quien ella indique) desde su máquina.
+
+### Prohibido sin pedido explícito en el mensaje actual
+
+- `git push` (cualquier remoto: `sofia`, `origin`, `ailen`, etc.)
+- `git merge` hacia `master` / `main`
+- Crear PR, merge PR, o publicar en Vercel/Neon como “deploy a producción”
+- `git push --force` en cualquier rama
+
+### Commits
+
+- **No** crear commits salvo que Sofía lo pida **explícitamente** en ese mensaje (p. ej. “hacé commit”, “commiteá esto”).
+- Si terminó una tarea de código: indicar **qué archivos cambiaron** y los **comandos sugeridos** para que Sofía ejecute commit/push.
+
+### Cuándo sí puede el agente usar git remoto
+
+Solo si Sofía escribe en **ese mismo mensaje** algo inequívoco, por ejemplo:
+
+- “hacé push a `dev`”
+- “subí a `sofia dev`”
+- “mergeá a master y push” (entonces aplicar también backup Neon si toca BD)
+
+Si dice “ok”, “dale”, “armá todo” o “luego yo subo” **sin** mencionar push → **no** pushear.
+
+## Flujo recomendado para Sofía
+
+```bash
+git status
+git add <archivos relevantes>
+git commit -m "…"
+git push sofia dev    # pruebas / preview — habitual
+# master solo cuando ella decida cutover a producción:
+# git push sofia master
+```
+
+- Remoto de publicación del equipo: **`sofia`** (ver `git-workflow-sofia.mdc`).
+- Producción: rama **`master`** — el agente **nunca** asume que hay que pushearla.
+
+## Al cerrar una tarea
+
+Incluir un bloque corto **“Para publicar vos”** con rama sugerida (`dev`), archivos a incluir en `git add`, y el comando `git push sofia dev` — sin ejecutarlo.
