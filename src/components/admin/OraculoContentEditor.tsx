@@ -718,7 +718,7 @@ export function OraculoContentEditor() {
             <iframe
               key={previewKey}
               title="Vista previa Oráculo"
-              src="/oraculo"
+              src={`/oraculo?v=${previewKey}`}
               className="h-[min(70vh,640px)] w-full rounded-lg border border-neutral-100 bg-neutral-50"
             />
           </div>

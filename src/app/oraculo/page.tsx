@@ -3,6 +3,10 @@ import { getOraculoPublicPageData } from "@/lib/oraculo-content-store";
 import { OraculoNotionReplica } from "@/components/oraculo/OraculoNotionReplica";
 import { buildPageMetadata } from "@/lib/site-metadata";
 
+/** Contenido desde Neon — no cachear HTML del build. */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export const metadata = buildPageMetadata({
   title: "Oráculo Raíz | Soulful Branding®",
   description:

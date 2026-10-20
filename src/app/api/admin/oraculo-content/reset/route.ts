@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/auth-api";
 import { buildDefaultOraculoPageContent } from "@/lib/oraculo-page-content";
@@ -13,6 +14,7 @@ export async function POST() {
 
   try {
     await saveOraculoPageContent(data);
+    revalidatePath("/oraculo");
     return NextResponse.json({ ok: true, data });
   } catch (error) {
     console.error("[oraculo-content][reset]", error);

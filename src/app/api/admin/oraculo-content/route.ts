@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/auth-api";
 import {
@@ -60,6 +61,7 @@ export async function PUT(req: Request) {
 
   try {
     await saveOraculoPageContent(parsed);
+    revalidatePath("/oraculo");
     return NextResponse.json({ ok: true, data: parsed });
   } catch (error) {
     console.error("[oraculo-content][PUT]", error);

@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
   applyOraculoPaymentLinkToBlocks,
@@ -71,6 +72,7 @@ export async function saveOraculoPageContent(data: OraculoPageContentData): Prom
 }
 
 export async function getOraculoPublicPageData(envPaymentLink?: string): Promise<OraculoPublicPageData> {
+  noStore();
   const envLink = envPaymentLink?.trim() || process.env.NEXT_PUBLIC_ORACULO_ES_PAYMENT_URL?.trim() || "";
   const stored = await getOraculoPageContentRow();
   if (stored && stored.blocks.length > 0) {
