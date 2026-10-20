@@ -5,6 +5,7 @@ import { OraculoOrderForm } from "@/components/oraculo/OraculoPageClient";
 import { OraculoPaymentCard } from "@/components/oraculo/OraculoPaymentCard";
 import { OraculoFlorMark } from "@/components/oraculo/OraculoFlorMark";
 import { ORACULO_MEDIA } from "@/lib/oraculo-content";
+import type { OraculoMediaUrls } from "@/lib/oraculo-page-content";
 import styles from "./oraculo-notion.module.css";
 
 function Lines({ lines, boldFromLine }: { lines: string[]; boldFromLine?: number }) {
@@ -85,9 +86,11 @@ type Props = {
   blocks: OraculoBlock[];
   videoUrl: string;
   paymentLink?: string;
+  media?: OraculoMediaUrls;
 };
 
-export function OraculoNotionReplica({ blocks, videoUrl, paymentLink }: Props) {
+export function OraculoNotionReplica({ blocks, videoUrl, paymentLink, media }: Props) {
+  const m = media ?? ORACULO_MEDIA;
   return (
     <article className={styles.oraculoPage}>
       <div className={styles.notionBody}>
@@ -151,7 +154,7 @@ export function OraculoNotionReplica({ blocks, videoUrl, paymentLink }: Props) {
                   key={index}
                   controls
                   className={styles.audio}
-                  src={ORACULO_MEDIA.bienvenidaAudio}
+                  src={m.bienvenidaAudio}
                   preload="metadata"
                 />
               );
@@ -172,11 +175,11 @@ export function OraculoNotionReplica({ blocks, videoUrl, paymentLink }: Props) {
                 </div>
               );
             case "payment_card":
-              return <OraculoPaymentCard key={index} paymentLink={paymentLink} />;
+              return <OraculoPaymentCard key={index} paymentLink={paymentLink} media={m} />;
             case "form":
               return (
                 <section key={index} className={styles.formSection} id="comprar">
-                  <OraculoFlorMark className={styles.formFlorWrap} />
+                  <OraculoFlorMark className={styles.formFlorWrap} florSrc={m.florNegra} />
                   <h1 className={styles.formTitle}>Oráculo Raíz—</h1>
                   <OraculoOrderForm />
                 </section>

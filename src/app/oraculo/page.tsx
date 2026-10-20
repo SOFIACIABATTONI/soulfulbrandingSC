@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { getOraculoPageLayout } from "@/lib/oraculo-page-layout";
-import { getOraculoPresentationVideoUrl } from "@/lib/oraculo-content";
+import { getOraculoPublicPageData } from "@/lib/oraculo-content-store";
 import { OraculoNotionReplica } from "@/components/oraculo/OraculoNotionReplica";
 import { buildPageMetadata } from "@/lib/site-metadata";
 
@@ -11,12 +10,9 @@ export const metadata = buildPageMetadata({
   path: "/oraculo",
 });
 
-export default function OraculoPage() {
-  const videoUrl = getOraculoPresentationVideoUrl();
-
+export default async function OraculoPage() {
   const paymentLink = process.env.NEXT_PUBLIC_ORACULO_ES_PAYMENT_URL?.trim() || "";
-
-  const blocks = getOraculoPageLayout(paymentLink);
+  const { blocks, videoUrl, media } = await getOraculoPublicPageData(paymentLink);
 
   return (
     <>
@@ -30,7 +26,12 @@ export default function OraculoPage() {
           </Link>
         </div>
       </header>
-      <OraculoNotionReplica blocks={blocks} videoUrl={videoUrl} paymentLink={paymentLink} />
+      <OraculoNotionReplica
+        blocks={blocks}
+        videoUrl={videoUrl}
+        paymentLink={paymentLink}
+        media={media}
+      />
     </>
   );
 }

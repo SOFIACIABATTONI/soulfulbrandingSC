@@ -14,6 +14,12 @@ model SiteContent {
   data Json
 }
 
+/// Landing Oráculo Raíz — textos, bloques e URLs de media (CMS admin).
+model OraculoPageContent {
+  id   Int  @id @default(1)
+  data Json
+}
+
 model Project {
   id          String   @id @default(cuid())
   title       String

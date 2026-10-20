@@ -44,6 +44,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/projects", label: "Trabajos publicados" },
       { href: "/admin/content", label: "Contenido del sitio" },
+      { href: "/admin/oraculo", label: "Oráculo Raíz" },
     ],
   },
   {

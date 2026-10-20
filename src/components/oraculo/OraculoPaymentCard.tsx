@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ORACULO_MEDIA, ORACULO_PAYMENT } from "@/lib/oraculo-content";
+import type { OraculoMediaUrls } from "@/lib/oraculo-page-content";
 import { OraculoFlorMark } from "@/components/oraculo/OraculoFlorMark";
 import styles from "./oraculo-notion.module.css";
 
 type Props = {
   paymentLink?: string;
+  media?: OraculoMediaUrls;
 };
 
 function PaymentFlag({ src }: { src: string }) {
@@ -44,13 +46,14 @@ function CheckItem({ children }: { children: ReactNode }) {
   );
 }
 
-export function OraculoPaymentCard({ paymentLink }: Props) {
+export function OraculoPaymentCard({ paymentLink, media }: Props) {
   const { ar, es } = ORACULO_PAYMENT;
   const esLink = paymentLink?.trim() || es.paymentLink;
+  const m = media ?? ORACULO_MEDIA;
 
   return (
     <section className={styles.paymentCard} aria-labelledby="oraculo-payment-heading">
-      <OraculoFlorMark className={styles.paymentCardLogoWrap} />
+      <OraculoFlorMark className={styles.paymentCardLogoWrap} florSrc={m.florNegra} />
 
       <div className={styles.paymentColumns}>
         <div className={styles.paymentColumn}>
@@ -59,10 +62,10 @@ export function OraculoPaymentCard({ paymentLink }: Props) {
           <p className={styles.paymentPrice}>
             Valor oficial: <strong>{ar.price}</strong>
           </p>
-          <PaymentMethodBox flagSrc={ORACULO_MEDIA.flagAr} label="Alias:">
+          <PaymentMethodBox flagSrc={m.flagAr} label="Alias:">
             <p className={styles.paymentMethodValue}>{ar.alias}</p>
           </PaymentMethodBox>
-          <PaymentMethodBox flagSrc={ORACULO_MEDIA.flagAr} label={`${ar.cvuLabel}:`}>
+          <PaymentMethodBox flagSrc={m.flagAr} label={`${ar.cvuLabel}:`}>
             <p className={styles.paymentMethodValue}>{ar.cvu}</p>
           </PaymentMethodBox>
         </div>
@@ -73,11 +76,11 @@ export function OraculoPaymentCard({ paymentLink }: Props) {
           <p className={styles.paymentPrice}>
             Valor oficial: <strong>{es.price}</strong>
           </p>
-          <PaymentMethodBox flagSrc={ORACULO_MEDIA.flagEs} label={<strong>Bizum:</strong>}>
+          <PaymentMethodBox flagSrc={m.flagEs} label={<strong>Bizum:</strong>}>
             <p className={styles.paymentMethodValue}>{es.phone}</p>
           </PaymentMethodBox>
           <PaymentMethodBox
-            flagSrc={ORACULO_MEDIA.flagEs}
+            flagSrc={m.flagEs}
             label={
               <>
                 <strong>Transferencia</strong>:
