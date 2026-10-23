@@ -48,7 +48,7 @@ export async function GET() {
     return NextResponse.json(
       {
         error:
-          "No se pudieron cargar los testimonios. Si acabás de publicar, verificá que la migración de base de datos esté aplicada.",
+          "No se pudieron cargar los testimonios. Probá de nuevo en unos minutos.",
         items: [],
         portfolioOptions: PORTFOLIO_SHOWCASE_META.map((row) => ({ slug: row.slug, title: row.title })),
       },

@@ -1,0 +1,31 @@
+---
+description: Admin ERP — sin mensajes técnicos visibles para la clienta (Sofía)
+alwaysApply: true
+---
+
+# Admin / ERP — lenguaje para la clienta, no para desarrollo
+
+El panel `/admin`, portales `/cliente/*` y cualquier UI que use **Sofía Ciabattoni** en el día a día **no** debe mostrar información interna de desarrollo.
+
+## Prohibido en UI y en respuestas JSON que el admin muestra al usuario
+
+- Nombres de herramientas o proveedores: Vercel, Neon, Prisma, Blob, R2, OIDC, Resend (salvo que sea copy de negocio explícito).
+- Comandos o rutas de repo: `npx prisma migrate deploy`, `npm run dev`, redeploy, Rotate Credentials, rutas de `docs/…`.
+- Nombres de migraciones o tablas técnicas: `20261020153000_…`, `OraculoPageContent`, códigos Prisma `P2021` en el texto visible.
+- Instrucciones del tipo «pedí un redeploy», «aplicá la migración en Neon», «reiniciá el servidor».
+
+## Qué hacer en su lugar
+
+1. **Mensaje corto en español claro**, orientado a negocio: qué no puede hacer ahora y que el sitio público / clientes no se rompen si aplica.
+2. **Detalle técnico solo en servidor**: `console.error("[tag]", error)` en `route.ts`, `lib/*` server-side, o logs de Vercel.
+3. **Reutilizar** constantes de `src/lib/admin-user-messages.ts` en APIs admin y componentes bajo `src/components/admin/` cuando el error sea operativo (BD, storage, migración pendiente).
+4. **Excepción**: mensajes técnicos solo si `process.env.NODE_ENV === "development"` y la pantalla es claramente de prueba local (nunca en Production).
+
+## Alcance
+
+- Sí: `src/app/admin/**`, `src/components/admin/**`, `src/app/api/admin/**`, portales `src/app/cliente/**`, `src/app/presupuesto/**`.
+- Los errores del **sitio público** (`/`, `/oraculo`, portfolio) tampoco deben filtrar stack traces ni mensajes de migración; usar genéricos y log en servidor.
+
+## Antes de cerrar una tarea que toque errores o avisos
+
+Buscar en el diff cadenas como `Vercel`, `Neon`, `migrate`, `prisma`, `redeploy`, `npm run` en archivos de UI o en `{ error: "…" }` de APIs que consume el admin.

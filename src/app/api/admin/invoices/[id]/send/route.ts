@@ -72,8 +72,7 @@ export async function POST(req: Request, ctx: RouteParams) {
       {
         ok: false,
         emailed: false,
-        error:
-          "Falta aplicar la migración de base de datos. Reiniciá el servidor (npm run dev) después de npx prisma migrate deploy.",
+        error: "No se pudo enviar la factura. Probá de nuevo o avisá a quien mantiene el sitio.",
       },
       { status: 500 },
     );

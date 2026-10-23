@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { OraculoBlock } from "@/lib/oraculo-page-layout-types";
 import type { OraculoMediaUrls, OraculoPageContentData } from "@/lib/oraculo-page-content";
+import { ADMIN_ORACULO_CMS_NOT_READY } from "@/lib/admin-user-messages";
 import { brandUi } from "@/lib/brand-ui";
 import { RichTextEditor } from "@/components/admin/RichTextEditor";
 
@@ -379,9 +380,7 @@ export function OraculoContentEditor() {
 
       {!canPersist && (
         <p className="mx-auto mt-4 max-w-6xl rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 md:px-8">
-          La base de datos de este entorno aún no tiene la tabla del CMS de Oráculo. Pedí un redeploy de{" "}
-          <strong>dev</strong> en Vercel (el build corre las migraciones) o aplicá la migración{" "}
-          <code className="text-xs">20261020153000_add_oraculo_page_content</code> en Neon.
+          {ADMIN_ORACULO_CMS_NOT_READY}
         </p>
       )}
 

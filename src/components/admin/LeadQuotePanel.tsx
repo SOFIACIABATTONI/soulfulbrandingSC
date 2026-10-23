@@ -189,8 +189,7 @@ export function LeadQuotePanel({ leadId, lead, clientId = null }: LeadQuotePanel
         const j = (await res.json()) as { error?: string; details?: string };
         if (j.error) msg = j.error;
         if (res.status === 500 && !j.error) {
-          msg =
-            "Error del servidor. Probablemente falta aplicar la migración (npx prisma migrate deploy) y reiniciar npm run dev.";
+          msg = "No se pudo crear el presupuesto. Probá de nuevo en unos minutos.";
         }
       } catch {
         /* ignore */

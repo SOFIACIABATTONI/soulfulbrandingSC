@@ -11,6 +11,7 @@ import {
   isOraculoContentPersistenceReady,
   saveOraculoPageContent,
 } from "@/lib/oraculo-content-store";
+import { ADMIN_SAVE_FAILED } from "@/lib/admin-user-messages";
 
 function saveErrorMessage(error: unknown): string {
   if (
@@ -19,9 +20,10 @@ function saveErrorMessage(error: unknown): string {
     "code" in error &&
     (error as { code?: string }).code === "P2021"
   ) {
-    return "Falta crear la tabla en la base de datos (migración OraculoPageContent). En Vercel, redeployá la rama dev o ejecutá prisma migrate deploy contra la BD de Preview.";
+    console.error("[oraculo-content][PUT] OraculoPageContent table missing (P2021)");
+    return ADMIN_SAVE_FAILED;
   }
-  return "No se pudo guardar. Revisá la conexión a la base de datos.";
+  return ADMIN_SAVE_FAILED;
 }
 
 export async function GET() {
