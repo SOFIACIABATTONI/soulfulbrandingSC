@@ -1,7 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  normalizeEditorLinkHref,
+  RichTextEditorLinkDialog,
+} from "@/components/admin/RichTextEditorLinkDialog";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -76,6 +80,11 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastEmitted = useRef(value);
+  const linkSelectionRef = useRef<{ from: number; to: number } | null>(null);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkSelectedPreview, setLinkSelectedPreview] = useState("");
+  const [linkHadExisting, setLinkHadExisting] = useState(false);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -149,20 +158,49 @@ export function RichTextEditor({
   const ed = editor;
   const isClientFrame = frameVariant === "client";
 
-  function applyLink() {
+  function openLinkDialog() {
+    const { from, to } = ed.state.selection;
+    linkSelectionRef.current = { from, to };
+    const preview = ed.state.doc.textBetween(from, to, " ");
+    setLinkSelectedPreview(preview);
     const previous = (ed.getAttributes("link").href as string | undefined) ?? "";
-    const url = window.prompt(
-      "Pegá la URL del enlace (dejá vacío y Aceptar para quitar el link del texto seleccionado)",
-      previous || "https://",
-    );
-    if (url === null) return;
-    const trimmed = url.trim();
-    if (!trimmed) {
-      ed.chain().focus().extendMarkRange("link").unsetLink().run();
-      return;
+    setLinkUrl(previous || "https://");
+    setLinkHadExisting(ed.isActive("link") || Boolean(previous));
+    setLinkDialogOpen(true);
+  }
+
+  function closeLinkDialog(refocus = true) {
+    setLinkDialogOpen(false);
+    linkSelectionRef.current = null;
+    if (refocus) {
+      window.setTimeout(() => ed.commands.focus(), 0);
     }
-    const href = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-    ed.chain().focus().extendMarkRange("link").setLink({ href }).run();
+  }
+
+  function applyLinkFromDialog() {
+    const href = normalizeEditorLinkHref(linkUrl);
+    if (!href) return;
+    const sel = linkSelectionRef.current;
+    let chain = ed.chain().focus();
+    if (sel) {
+      chain = chain.setTextSelection(sel);
+    } else {
+      chain = chain.extendMarkRange("link");
+    }
+    chain.setLink({ href }).run();
+    closeLinkDialog(true);
+  }
+
+  function removeLinkFromDialog() {
+    const sel = linkSelectionRef.current;
+    let chain = ed.chain().focus();
+    if (sel) {
+      chain = chain.setTextSelection(sel);
+    } else {
+      chain = chain.extendMarkRange("link");
+    }
+    chain.unsetLink().run();
+    closeLinkDialog(true);
   }
 
   return (
@@ -205,7 +243,7 @@ export function RichTextEditor({
         <ToolbarButton
           title="Enlace — seleccioná texto y tocá acá"
           active={editor.isActive("link")}
-          onClick={applyLink}
+          onClick={openLinkDialog}
         >
           🔗
         </ToolbarButton>
@@ -324,6 +362,17 @@ export function RichTextEditor({
       <div className="rich-text-editor__scroll">
         <EditorContent editor={editor} />
       </div>
+
+      <RichTextEditorLinkDialog
+        open={linkDialogOpen}
+        selectedText={linkSelectedPreview}
+        initialUrl={linkUrl}
+        hasExistingLink={linkHadExisting}
+        onUrlChange={setLinkUrl}
+        onApply={applyLinkFromDialog}
+        onRemove={removeLinkFromDialog}
+        onCancel={() => closeLinkDialog(true)}
+      />
     </div>
   );
 }
