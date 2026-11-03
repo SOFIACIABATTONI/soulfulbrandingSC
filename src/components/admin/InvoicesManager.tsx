@@ -820,18 +820,28 @@ export function InvoicesManager({
 
   function renderInvoiceRow(row: InvoiceItem, grouped = false) {
     const cuota = cuotaLabelFromNotes(row.notes);
+    const { internalNotes } = splitInvoiceStoredNotes(row.notes);
     return (
       <tr
         key={row.id}
         className={`border-b border-neutral-100 hover:bg-brand-sky/30 transition-colors ${grouped ? "bg-white" : ""}`}
       >
-        <td className="px-2 py-2 font-mono text-xs whitespace-nowrap align-top">
+        <td className="px-2 py-2 font-mono text-xs align-top">
           {cuota && (
             <div className="text-[10px] font-medium mb-0.5" style={{ color: "rgba(19,25,69,0.45)" }}>
               {cuota}
             </div>
           )}
-          <span className="font-medium">{row.number}</span>
+          <span className="font-medium whitespace-nowrap">{row.number}</span>
+          {internalNotes ? (
+            <div
+              className="text-[10px] mt-1 leading-snug max-w-[160px] whitespace-normal"
+              style={{ color: "rgba(19,25,69,0.5)" }}
+              title="Nota interna — no va en el recibo ni en el mail al cliente"
+            >
+              {internalNotes}
+            </div>
+          ) : null}
         </td>
         {!initialClientId && (
           <td className="px-2 py-2 max-w-[140px] align-top">
@@ -944,7 +954,7 @@ export function InvoicesManager({
               rel="noopener noreferrer"
               className="text-xs font-medium hover:underline whitespace-nowrap"
               style={{ color: "#323FF6" }}
-              title="Vista previa del PDF que recibe el cliente. Las notas internas solo están en «Notas» del ERP."
+              title="Mismo PDF que recibe el cliente. Las notas internas no se imprimen acá."
             >
               PDF
             </a>
@@ -1575,7 +1585,7 @@ export function InvoicesManager({
               Notas internas — {notesEdit.number}
             </h3>
             <p className="text-xs leading-relaxed" style={{ color: "rgba(19,25,69,0.55)" }}>
-              Solo las ve el equipo en el ERP y en tu PDF de admin. No se envían al cliente.
+              Solo las ves vos en el ERP. No salen en el recibo, ni en el PDF, ni en el mail al cliente.
             </p>
             {notesEdit.cuotaSuffix ? (
               <p className="text-[11px] rounded-lg border px-3 py-2" style={{ borderColor: "rgba(19,25,69,0.12)", color: "rgba(19,25,69,0.65)" }}>

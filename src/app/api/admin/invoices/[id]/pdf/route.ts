@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth-api";
-import { buildInvoicePdf, invoicePdfFilename } from "@/lib/invoice-pdf";
+import { buildInvoicePdf, invoicePdfFilename, invoiceRecordForPdf } from "@/lib/invoice-pdf";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -27,17 +27,7 @@ export async function GET(_req: Request, ctx: RouteParams) {
     return NextResponse.json({ error: "Tipo de documento no soportado" }, { status: 400 });
   }
 
-  const pdfBytes = await buildInvoicePdf({
-    number: invoice.number,
-    type: invoice.type,
-    total: invoice.total,
-    status: invoice.status,
-    issuedAt: invoice.issuedAt,
-    paidAt: invoice.paidAt,
-    notes: invoice.notes,
-    client: invoice.client,
-    project: invoice.project,
-  });
+  const pdfBytes = await buildInvoicePdf(invoiceRecordForPdf(invoice));
 
   const filename = invoicePdfFilename({ type: invoice.type, number: invoice.number });
 
@@ -45,7 +35,7 @@ export async function GET(_req: Request, ctx: RouteParams) {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="${filename}"`,
-      "Cache-Control": "private, no-cache",
+      "Cache-Control": "private, no-store",
     },
   });
 }

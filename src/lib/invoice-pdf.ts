@@ -27,17 +27,35 @@ export type InvoicePdfRecord = {
   status: string;
   issuedAt: Date;
   paidAt: Date | null;
-  notes: string;
+  /** Solo «Cuota X/Y» del plan. Las notas internas del ERP nunca entran acá. */
+  installmentLabel?: string;
   client: { name: string; company: string };
   project: { title: string; value?: number } | null;
 };
 
-/** Las notas internas no van al PDF; opción conservada por compatibilidad. */
-export type InvoicePdfAudience = "admin" | "client";
-
-export type BuildInvoicePdfOptions = {
-  audience?: InvoicePdfAudience;
-};
+export function invoiceRecordForPdf(invoice: {
+  number: string;
+  type: string;
+  total: number;
+  status: string;
+  issuedAt: Date;
+  paidAt: Date | null;
+  notes?: string | null;
+  client: { name: string; company: string };
+  project: { title: string; value?: number } | null;
+}): InvoicePdfRecord {
+  return {
+    number: invoice.number,
+    type: invoice.type as "sena" | "final",
+    total: invoice.total,
+    status: invoice.status,
+    issuedAt: invoice.issuedAt,
+    paidAt: invoice.paidAt,
+    installmentLabel: invoiceNotesForClientPdf(invoice.notes ?? ""),
+    client: invoice.client,
+    project: invoice.project,
+  };
+}
 
 type PdfFont = Awaited<ReturnType<PDFDocument["embedFont"]>>;
 
@@ -140,7 +158,7 @@ function buildContentBlocks(record: InvoicePdfRecord): ContentBlock[] {
     });
   }
 
-  const cuotaLine = invoiceNotesForClientPdf(record.notes);
+  const cuotaLine = record.installmentLabel?.trim() ?? "";
   if (cuotaLine) {
     blocks.push({
       text: cuotaLine,
@@ -289,10 +307,7 @@ async function buildBrandedCardPdf(record: InvoicePdfRecord): Promise<Uint8Array
   return doc.save();
 }
 
-export async function buildInvoicePdf(
-  record: InvoicePdfRecord,
-  _options: BuildInvoicePdfOptions = {},
-): Promise<Uint8Array> {
+export async function buildInvoicePdf(record: InvoicePdfRecord): Promise<Uint8Array> {
   return buildBrandedCardPdf(record);
 }
 

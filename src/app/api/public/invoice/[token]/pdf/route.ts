@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashQuoteToken } from "@/lib/quote-token";
-import { buildInvoicePdf, invoicePdfFilename } from "@/lib/invoice-pdf";
+import { buildInvoicePdf, invoicePdfFilename, invoiceRecordForPdf } from "@/lib/invoice-pdf";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
@@ -27,17 +27,7 @@ export async function GET(_req: Request, ctx: RouteParams) {
     return NextResponse.json({ error: "Documento no disponible" }, { status: 400 });
   }
 
-  const pdfBytes = await buildInvoicePdf({
-    number: invoice.number,
-    type: invoice.type,
-    total: invoice.total,
-    status: invoice.status,
-    issuedAt: invoice.issuedAt,
-    paidAt: invoice.paidAt,
-    notes: invoice.notes,
-    client: invoice.client,
-    project: invoice.project,
-  });
+  const pdfBytes = await buildInvoicePdf(invoiceRecordForPdf(invoice));
 
   const filename = invoicePdfFilename({ type: invoice.type, number: invoice.number });
 
