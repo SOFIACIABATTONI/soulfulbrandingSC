@@ -7,6 +7,8 @@
   --sb-navy: #131945;
   --sb-sky: #c9e2ff;
   --sb-blue: #323ff6;
+  --brand-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --brand-serif: var(--font-garamond), "EB Garamond", "Apple Garamond", Georgia, serif;
 }
 
 html {

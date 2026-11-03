@@ -51,6 +51,7 @@
 /* Tipografía compartida: editor, vista previa admin y portal cliente */
 .rich-text-editor .tiptap,
 .phase-doc-html {
+  font-family: var(--brand-sans);
   font-size: 15px;
   line-height: 1.65;
   color: #131945;
@@ -63,7 +64,7 @@
 
 .rich-text-editor .tiptap h1,
 .phase-doc-html h1 {
-  font-family: var(--font-garamond), "Apple Garamond", Georgia, serif;
+  font-family: var(--brand-serif);
   font-size: 1.75rem;
   font-style: italic;
   font-weight: 400;
@@ -73,7 +74,7 @@
 
 .rich-text-editor .tiptap h2,
 .phase-doc-html h2 {
-  font-family: var(--font-garamond), "Apple Garamond", Georgia, serif;
+  font-family: var(--brand-serif);
   font-size: 1.35rem;
   font-style: italic;
   font-weight: 400;
@@ -83,7 +84,7 @@
 
 .rich-text-editor .tiptap h3,
 .phase-doc-html h3 {
-  font-family: var(--font-garamond), "Apple Garamond", Georgia, serif;
+  font-family: var(--brand-serif);
   font-size: 1.15rem;
   font-style: italic;
   font-weight: 400;

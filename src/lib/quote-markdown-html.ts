@@ -1,6 +1,7 @@
 import type { ParsedVideo } from "@/lib/quote-video";
 import { resolveSiteUrl } from "@/lib/site-metadata";
-import { brandSansStack, brandSerifStack, brandUi } from "@/lib/brand-ui";
+import { brandSansStack, brandSerifStackEmail, brandUi } from "@/lib/brand-ui";
+import { brandEmailTypographyHead } from "@/lib/brand-typography";
 import { SO_LOGO_EMAIL_CID } from "@/lib/brand-so-logo";
 
 /** Convierte markdown simple (###, **, listas) a HTML para correos — estilo sitio (claro). */
@@ -70,6 +71,7 @@ function emailHeadStyles(): string {
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+${brandEmailTypographyHead()}
 <style>
   @media only screen and (max-width: 620px) {
     .email-shell { padding: 12px 8px !important; }
@@ -139,7 +141,7 @@ export function wrapBrandEmailHtml(input: BrandEmailLayoutInput): string {
   const cardMaxWidth = isContractFrame ? 520 : 560;
 
   const titleBlock = title
-    ? `<h1 style="margin:0 0 20px;font-family:${brandSerifStack};font-size:24px;font-weight:400;font-style:italic;color:${brandUi.text};line-height:1.3;text-align:center;">${escapeHtml(title)}</h1>`
+    ? `<h1 class="brand-email-serif" style="margin:0 0 20px;font-family:${brandSerifStackEmail};font-size:24px;font-weight:400;font-style:italic;color:${brandUi.text};line-height:1.3;text-align:center;">${escapeHtml(title)}</h1>`
     : "";
 
   const footerNoteBlock = footerNote
@@ -150,7 +152,7 @@ export function wrapBrandEmailHtml(input: BrandEmailLayoutInput): string {
 
   return `${emailHeadStyles()}
 <body style="margin:0;padding:0;background:${EMAIL_CREAM};-webkit-text-size-adjust:100%;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${EMAIL_CREAM};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="brand-email-body" style="background:${EMAIL_CREAM};font-family:${brandSansStack};">
 <tr><td align="center" class="email-shell" style="padding:32px 16px;">
 <table role="presentation" width="100%" class="email-card" style="max-width:${cardMaxWidth}px;background:#FFFFFF;border-radius:12px;overflow:hidden;${cardBorderStyle}" cellpadding="0" cellspacing="0">
 <tr><td style="padding:0;">
@@ -204,7 +206,7 @@ export function markdownToQuoteHtml(markdown: string): string {
     if (line.startsWith("### ")) {
       closeList();
       parts.push(
-        `<h3 style="margin:28px 0 12px;font-family:${brandSerifStack};font-size:22px;font-weight:400;font-style:italic;color:${brandUi.text};line-height:1.3;">${inlineFormat(line.slice(4).trim())}</h3>`,
+        `<h3 class="brand-email-serif" style="margin:28px 0 12px;font-family:${brandSerifStackEmail};font-size:22px;font-weight:400;font-style:italic;color:${brandUi.text};line-height:1.3;">${inlineFormat(line.slice(4).trim())}</h3>`,
       );
       continue;
     }
@@ -212,7 +214,7 @@ export function markdownToQuoteHtml(markdown: string): string {
     if (line.startsWith("## ")) {
       closeList();
       parts.push(
-        `<h2 style="margin:32px 0 14px;font-family:${brandSerifStack};font-size:26px;font-weight:400;font-style:italic;color:${brandUi.text};">${inlineFormat(line.slice(3).trim())}</h2>`,
+        `<h2 class="brand-email-serif" style="margin:32px 0 14px;font-family:${brandSerifStackEmail};font-size:26px;font-weight:400;font-style:italic;color:${brandUi.text};">${inlineFormat(line.slice(3).trim())}</h2>`,
       );
       continue;
     }
@@ -295,7 +297,7 @@ export function wrapAdminNotificationEmailHtml(title: string, innerHtml: string)
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 </head>
-<body style="margin:0;padding:20px 16px;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.65;color:#131945;background:#ffffff;">
+<body style="margin:0;padding:20px 16px;font-family:${brandSansStack};font-size:15px;line-height:1.65;color:#131945;background:#ffffff;">
 <p style="margin:0 0 14px;font-size:13px;color:#666;">Soulful ERP</p>
 <p style="margin:0 0 16px;font-size:17px;font-weight:600;color:#131945;">${safeTitle}</p>
 <div style="margin:0 0 8px;">${innerHtml}</div>

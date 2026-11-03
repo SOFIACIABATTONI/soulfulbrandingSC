@@ -1,11 +1,12 @@
 import { buildBrandKitHtmlSection, type BrandKit } from "@/lib/brand-kit";
+import { brandEmailGaramondStylesheet, brandSansFamily, phaseDocTypographyCss } from "@/lib/brand-typography";
 
 const PHASE_DOC_STYLES = `
+${phaseDocTypographyCss}
 body {
   margin: 0;
   padding: 48px 32px;
   background: #f9f3db;
-  font-family: Helvetica, Arial, sans-serif;
 }
 .doc-header {
   max-width: 720px;
@@ -15,10 +16,7 @@ body {
 }
 .doc-header h1 {
   margin: 0 0 8px;
-  font-family: Georgia, "Times New Roman", serif;
   font-size: 1.75rem;
-  font-style: italic;
-  font-weight: 400;
   color: #131945;
 }
 .doc-header p {
@@ -41,26 +39,17 @@ body {
 }
 .phase-doc-html > * + * { margin-top: 0.65em; }
 .phase-doc-html h1 {
-  font-family: Georgia, "Times New Roman", serif;
   font-size: 1.75rem;
-  font-style: italic;
-  font-weight: 400;
   margin: 0 0 0.75rem;
   color: #131945;
 }
 .phase-doc-html h2 {
-  font-family: Georgia, "Times New Roman", serif;
   font-size: 1.35rem;
-  font-style: italic;
-  font-weight: 400;
   margin: 1.25rem 0 0.5rem;
   color: #131945;
 }
 .phase-doc-html h3 {
-  font-family: Georgia, "Times New Roman", serif;
   font-size: 1.15rem;
-  font-style: italic;
-  font-weight: 400;
   margin: 1rem 0 0.4rem;
   color: #131945;
 }
@@ -98,22 +87,16 @@ body {
 }
 .brand-kit { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(19, 25, 69, 0.12); }
 .brand-kit h2 {
-  font-family: Georgia, "Times New Roman", serif;
   font-size: 1.35rem;
-  font-style: italic;
-  font-weight: 400;
   margin: 0 0 1rem;
   color: #131945;
 }
 .brand-kit h3 {
-  font-family: Georgia, "Times New Roman", serif;
   font-size: 1.05rem;
-  font-style: italic;
-  font-weight: 400;
   margin: 1rem 0 0.5rem;
   color: #131945;
 }
-.brand-kit code { font-family: ui-monospace, monospace; font-size: 13px; }
+.brand-kit code { font-family: ${brandSansFamily}; font-size: 12px; letter-spacing: 0.02em; }
 .brand-kit a { color: #323FF6; }
 @media print {
   body { background: #fff; padding: 0; }
@@ -154,6 +137,7 @@ export function buildPhaseDocDownloadHtml(opts: {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${title.replace(/</g, "&lt;")}</title>
+  <link href="${brandEmailGaramondStylesheet}" rel="stylesheet" />
   <style>${PHASE_DOC_STYLES}</style>
 </head>
 <body>

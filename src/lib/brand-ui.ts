@@ -1,7 +1,8 @@
 /**
  * Tokens UI alineados al sitio público (minimal, aire, navy + acento rosa).
- * Sustituto temporal hasta fuentes del manual (.woff2).
  */
+export { brandSansStack, brandSerifStack, brandSerifStackEmail } from "@/lib/brand-typography";
+
 export const brandUi = {
   page: "#F2F2F2",
   surface: "#FFFFFF",
@@ -23,11 +24,3 @@ export const clientFrame = {
   background: "rgba(240, 49, 114, 0.02)",
   headerBackground: "rgba(240, 49, 114, 0.06)",
 } as const;
-
-/** Sans stack — Helvetica en Mac; fallbacks multiplataforma */
-export const brandSansStack =
-  '"Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif';
-
-/** Serif stack — EB Garamond cargada en layout; Apple Garamond en Mac */
-export const brandSerifStack =
-  'var(--font-garamond), "Apple Garamond", Georgia, serif';

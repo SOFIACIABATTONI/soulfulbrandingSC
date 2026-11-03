@@ -4,7 +4,7 @@ import { resolveContractHtml } from "@/lib/contract-html-templates";
 import type { ContractContent } from "@/lib/contract-types";
 import { normalizeContractContent } from "@/lib/contract-types";
 import { wrapContractEmailHtml } from "@/lib/quote-markdown-html";
-import { brandUi } from "@/lib/brand-ui";
+import { brandUi, brandSansStack } from "@/lib/brand-ui";
 import { soLogoEmailAttachments } from "@/lib/invoice-logo.server";
 
 export type SendContractEmailPayload = {
@@ -172,7 +172,7 @@ export async function sendContractAcceptedConfirmationToClient(payload: {
 <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:${brandUi.textMuted};"><strong style="color:${brandUi.text};">Nombre declarado:</strong> ${payload.typedName.replace(/</g, "&lt;")}<br /><strong style="color:${brandUi.text};">Fecha:</strong> ${acceptedLabel.replace(/</g, "&lt;")}</p>
 <div style="margin:0 0 16px;padding:14px 16px;border:1px solid rgba(240,49,114,0.35);background:#fff7fa;">
 <p style="margin:0 0 5px;font-size:12px;line-height:1.5;color:${brandUi.text};font-weight:700;">Huella digital SHA-256</p>
-<p style="margin:0;font-family:Consolas,Monaco,monospace;font-size:10px;line-height:1.55;color:${brandUi.textMuted};word-break:break-all;">${payload.contentHash.replace(/</g, "&lt;")}</p>
+<p style="margin:0;font-family:${brandSansStack};font-size:10px;line-height:1.55;letter-spacing:0.04em;color:${brandUi.textMuted};word-break:break-all;">${payload.contentHash.replace(/</g, "&lt;")}</p>
 </div>
 <p style="margin:0;font-size:14px;line-height:1.7;color:${brandUi.textMuted};">Adjuntamos un PDF con el registro de aceptación y el texto del contrato.</p>`;
 

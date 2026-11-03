@@ -30,8 +30,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["Helvetica Neue", "Helvetica", "Segoe UI", "Roboto", "Arial", "sans-serif"],
-        serif: ["var(--font-garamond)", "Apple Garamond", "Georgia", "serif"],
+        sans: ["Helvetica Neue", "Helvetica", "Arial", "sans-serif"],
+        serif: ["var(--font-garamond)", "EB Garamond", "Apple Garamond", "Georgia", "serif"],
       },
     },
   },
