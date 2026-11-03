@@ -24,12 +24,17 @@ import { ProjectTrackingFab } from "@/components/admin/ProjectTrackingFab";
 import { ProjectPhaseCoverEditor } from "@/components/admin/ProjectPhaseCoverEditor";
 import { GenericProjectPhasePanel } from "@/components/admin/GenericProjectPhasePanel";
 import type { ProjectPhaseDefinition } from "@/lib/project-phase-catalog";
+import { DEFAULT_PROJECT_PHASES, isCustomProjectPhaseKey } from "@/lib/project-phase-catalog";
 import {
   buildProjectPhaseList,
   createCustomProjectPhaseId,
+  defaultPhaseCoverAsset,
+  parseBuiltinPhaseOverrides,
   parseCustomPhaseDefinitions,
   PROJECT_LAYOUT_STORAGE_KEY,
+  serializeBuiltinPhaseOverrides,
   serializeCustomPhaseDefinitions,
+  type BuiltinPhaseOverride,
   type CustomPhaseDefinition,
 } from "@/lib/project-phase-layout";
 import { getPhaseClientMeta, type PhaseClientMeta } from "@/lib/phase-client-store";
@@ -112,7 +117,10 @@ type PhaseContent = {
 };
 
 function buildPhaseListFromRaw(raw: Record<string, Record<string, string>>): ProjectPhaseDefinition[] {
-  return buildProjectPhaseList(parseCustomPhaseDefinitions(raw));
+  return buildProjectPhaseList(
+    parseCustomPhaseDefinitions(raw),
+    parseBuiltinPhaseOverrides(raw),
+  );
 }
 
 const STATE_OPTIONS = [
@@ -248,15 +256,25 @@ function mergeSyncedPhaseContent(
 function phaseCoverImage(
   content?: Pick<PhaseContent, "coverUrl">,
   previewUrl?: string,
+  phaseDef?: Pick<ProjectPhaseDefinition, "cover" | "fallback">,
 ): string | undefined {
-  const url = previewUrl?.trim() || content?.coverUrl?.trim();
-  if (!url || isLegacyLocalUploadPath(url)) return undefined;
-  return cssBackgroundUrl(url);
+  const uploaded = previewUrl?.trim() || content?.coverUrl?.trim();
+  if (uploaded && !isLegacyLocalUploadPath(uploaded)) {
+    return cssBackgroundUrl(uploaded);
+  }
+  const catalogAsset = phaseDef ? defaultPhaseCoverAsset(phaseDef) : "";
+  if (catalogAsset) return cssBackgroundUrl(catalogAsset);
+  return undefined;
 }
 
-function phaseHasCover(content?: Pick<PhaseContent, "coverUrl">, previewUrl?: string): boolean {
-  const url = previewUrl?.trim() || content?.coverUrl?.trim();
-  return Boolean(url && !isLegacyLocalUploadPath(url));
+function phaseHasCover(
+  content?: Pick<PhaseContent, "coverUrl">,
+  previewUrl?: string,
+  phaseDef?: Pick<ProjectPhaseDefinition, "cover" | "fallback">,
+): boolean {
+  const uploaded = previewUrl?.trim() || content?.coverUrl?.trim();
+  if (uploaded && !isLegacyLocalUploadPath(uploaded)) return true;
+  return Boolean(phaseDef && defaultPhaseCoverAsset(phaseDef));
 }
 
 function formatPhaseDateLabel(iso: string): string {
@@ -670,15 +688,25 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
     [phases, savePhaseContent, phaseList],
   );
 
-  const saveCustomPhaseLayout = useCallback(
-    async (defs: CustomPhaseDefinition[]) => {
+  const saveProjectPhaseLayout = useCallback(
+    async (patch: {
+      customPhases?: CustomPhaseDefinition[];
+      builtinOverrides?: BuiltinPhaseOverride[];
+    }) => {
+      const content: Record<string, string> = {};
+      if (patch.customPhases !== undefined) {
+        content.customPhases = serializeCustomPhaseDefinitions(patch.customPhases);
+      }
+      if (patch.builtinOverrides !== undefined) {
+        content.builtinPhaseOverrides = serializeBuiltinPhaseOverrides(patch.builtinOverrides);
+      }
       const res = await fetch(`/api/admin/projects-erp/${project.id}/phases`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phase: PROJECT_LAYOUT_STORAGE_KEY,
-          content: { customPhases: serializeCustomPhaseDefinitions(defs) },
+          content,
         }),
       });
       if (res.ok) {
@@ -691,6 +719,11 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
       return res.ok;
     },
     [project.id],
+  );
+
+  const saveCustomPhaseLayout = useCallback(
+    async (defs: CustomPhaseDefinition[]) => saveProjectPhaseLayout({ customPhases: defs }),
+    [saveProjectPhaseLayout],
   );
 
   async function addCustomPhase() {
@@ -721,6 +754,36 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
       d.key === phaseKey ? { ...d, ...patch } : d,
     );
     await saveCustomPhaseLayout(defs);
+  }
+
+  async function updateBuiltinPhaseDef(
+    phaseKey: string,
+    patch: Partial<Pick<BuiltinPhaseOverride, "title" | "desc">>,
+  ) {
+    const catalog = DEFAULT_PROJECT_PHASES.find((p) => p.key === phaseKey);
+    if (!catalog) return;
+
+    let defs = [...parseBuiltinPhaseOverrides(rawPhases)];
+    const idx = defs.findIndex((d) => d.key === phaseKey);
+    const current: BuiltinPhaseOverride = idx >= 0 ? defs[idx]! : { key: phaseKey };
+    const merged = { ...current, ...patch };
+
+    const title = merged.title?.trim();
+    const desc = merged.desc?.trim();
+    const titleIsDefault = !title || title === catalog.title;
+    const descIsDefault = !desc || desc === catalog.desc;
+
+    if (titleIsDefault && descIsDefault) {
+      defs = defs.filter((d) => d.key !== phaseKey);
+    } else {
+      const cleaned: BuiltinPhaseOverride = { key: phaseKey };
+      if (!titleIsDefault && title) cleaned.title = title;
+      if (!descIsDefault && desc) cleaned.desc = desc;
+      if (idx >= 0) defs[idx] = cleaned;
+      else defs.push(cleaned);
+    }
+
+    await saveProjectPhaseLayout({ builtinOverrides: defs });
   }
 
   async function removeCustomPhase(phaseKey: string) {
@@ -964,7 +1027,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
             const stc = STATE_COLORS[pc.state] ?? STATE_COLORS.pending;
             const dateRange = formatPhaseDateRange(pc.startDate, pc.endDate);
             const previewCover = previewCoverByPhase[ph.key];
-            const hasCover = phaseHasCover(pc, previewCover);
+            const hasCover = phaseHasCover(pc, previewCover, ph);
             return (
               <a
                 key={ph.key}
@@ -979,7 +1042,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                   {hasCover ? (
                     <div className="relative h-[160px] overflow-hidden bg-neutral-50">
                       <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 ease-out group-hover:scale-105"
-                        style={{ backgroundImage: phaseCoverImage(pc, previewCover) }} />
+                        style={{ backgroundImage: phaseCoverImage(pc, previewCover, ph) }} />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/5 to-transparent" />
                       <div className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[10px] font-medium shadow-sm"
                         style={{ color: stc.color }}>
@@ -1043,8 +1106,9 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
           const pc = phases[ph.key] ?? emptyPhaseContent();
           const isSaving = savingPhase === ph.key;
           const isCustom = ph.genericClient === true;
+          const isRemovableCustom = isCustomProjectPhaseKey(ph.key);
           const previewCover = previewCoverByPhase[ph.key];
-          const hasCover = phaseHasCover(pc, previewCover);
+          const hasCover = phaseHasCover(pc, previewCover, ph);
           return (
             <section key={ph.key} id={`fase-${ph.key}`}
               className="scroll-mt-24 overflow-hidden rounded-[24px] border border-neutral-200 bg-white shadow-sm">
@@ -1052,7 +1116,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
               {hasCover ? (
                 <div className="relative h-[180px] overflow-hidden border-b border-neutral-200 bg-neutral-50">
                   <div className="absolute inset-0 bg-cover bg-center"
-                    style={{ backgroundImage: phaseCoverImage(pc, previewCover) }} />
+                    style={{ backgroundImage: phaseCoverImage(pc, previewCover, ph) }} />
                   <div className="absolute inset-0 bg-brand-navy/10" />
                   <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-3 px-5 pb-5">
                     <div className="max-w-2xl text-white">
@@ -1063,7 +1127,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                       <p className="mt-1 text-sm text-white/85">{ph.desc}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      {isCustom && (
+                      {isRemovableCustom && (
                         <button
                           type="button"
                           onClick={() => void removeCustomPhase(ph.key)}
@@ -1096,7 +1160,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                       <p className="mt-1 text-sm text-neutral-500">{ph.desc}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      {isCustom && (
+                      {isRemovableCustom && (
                         <button
                           type="button"
                           onClick={() => void removeCustomPhase(ph.key)}
@@ -1125,6 +1189,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                   label={ph.title}
                   phaseKey={ph.key}
                   coverUrl={pc.coverUrl}
+                  defaultCoverUrl={defaultPhaseCoverAsset(ph)}
                   onPreviewChange={(previewUrl) => {
                     setPreviewCoverByPhase((prev) => {
                       if (!previewUrl) {
@@ -1137,17 +1202,27 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                   }}
                   onSave={(coverUrl) => savePhaseCoverUrl(ph.key, coverUrl)}
                 />
-                {isCustom && (
+                {(isRemovableCustom || ph.builtin) && (
                   <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {ph.builtin && !isCustom ? (
+                      <p className="text-xs text-neutral-500 sm:col-span-2">
+                        Título y descripción vienen preestablecidos. Si cambiás el título, esta etapa
+                        pasa a documento genérico con envío por mail (igual que «Nueva etapa»).
+                      </p>
+                    ) : null}
                     <label className="block">
                       <span className="mb-1 block text-xs font-medium text-neutral-600">Título</span>
                       <input
+                        key={`${ph.key}-title-${ph.title}`}
                         className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
                         defaultValue={ph.title}
                         onBlur={(e) => {
                           const title = e.target.value.trim();
-                          if (title && title !== ph.title) {
+                          if (!title || title === ph.title) return;
+                          if (isRemovableCustom) {
                             void updateCustomPhaseDef(ph.key, { title });
+                          } else if (ph.builtin) {
+                            void updateBuiltinPhaseDef(ph.key, { title });
                           }
                         }}
                       />
@@ -1155,12 +1230,16 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                     <label className="block sm:col-span-2">
                       <span className="mb-1 block text-xs font-medium text-neutral-600">Descripción</span>
                       <textarea
+                        key={`${ph.key}-desc-${ph.desc}`}
                         className="w-full min-h-[64px] rounded-xl border border-neutral-200 px-3 py-2 text-sm"
                         defaultValue={ph.desc}
                         onBlur={(e) => {
                           const desc = e.target.value.trim();
-                          if (desc !== ph.desc) {
+                          if (desc === ph.desc) return;
+                          if (isRemovableCustom) {
                             void updateCustomPhaseDef(ph.key, { desc });
+                          } else if (ph.builtin) {
+                            void updateBuiltinPhaseDef(ph.key, { desc });
                           }
                         }}
                       />

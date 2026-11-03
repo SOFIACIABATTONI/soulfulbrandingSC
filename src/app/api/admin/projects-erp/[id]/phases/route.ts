@@ -38,6 +38,7 @@ const patchSchema = z.object({
       clientReceivedAt: z.string().optional(),
       coverUrl: z.string().optional(),
       customPhases: z.string().optional(),
+      builtinPhaseOverrides: z.string().optional(),
     })
     .optional(),
 });

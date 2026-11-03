@@ -1,9 +1,14 @@
 import type { AccessPurpose } from "@/lib/contract-types";
+import { isBuiltinProjectPhaseKey } from "@/lib/project-phase-catalog";
 import {
   customPhaseAccessPurpose,
   customPhaseSendLabels,
   findCustomPhaseTitle,
+  findPhaseDisplayTitle,
+  genericBuiltinAccessPurpose,
+  isBuiltinPhaseGenericMode,
   parseCustomPhaseKeyFromPurpose,
+  parseGenericBuiltinPhaseKeyFromPurpose,
 } from "@/lib/project-phase-layout";
 
 /** Fases cuyo documento HTML (phases.*.body) se envía al cliente por mail. */
@@ -69,10 +74,36 @@ export function buildCustomPhaseSendConfig(title: string, phaseKey: string): Pha
   };
 }
 
+export function buildGenericBuiltinSendConfig(title: string, phaseKey: string): PhaseSendConfig {
+  const labels = customPhaseSendLabels(title);
+  return {
+    purpose: genericBuiltinAccessPurpose(phaseKey),
+    phaseKey,
+    ...labels,
+  };
+}
+
+type PhaseMap = Record<string, Record<string, string>>;
+
 export function resolvePhaseSendConfig(
   purposeOrPhaseKey: string,
-  opts?: { customTitle?: string },
+  opts?: { customTitle?: string; genericBuiltin?: boolean },
 ): PhaseSendConfig | null {
+  if (opts?.genericBuiltin && isBuiltinProjectPhaseKey(purposeOrPhaseKey)) {
+    return buildGenericBuiltinSendConfig(
+      opts.customTitle ?? "Entrega",
+      purposeOrPhaseKey,
+    );
+  }
+
+  const genericFromPurpose = parseGenericBuiltinPhaseKeyFromPurpose(purposeOrPhaseKey);
+  if (genericFromPurpose) {
+    return buildGenericBuiltinSendConfig(
+      opts?.customTitle ?? "Entrega",
+      genericFromPurpose,
+    );
+  }
+
   const htmlKey = purposeToHtmlPhaseKey(purposeOrPhaseKey);
   if (htmlKey) return HTML_PHASE_SEND[htmlKey];
 
@@ -88,11 +119,11 @@ export function resolvePhaseSendConfig(
   return null;
 }
 
-export function isSendableClientPhaseKey(key: string): key is SendablePhaseKey {
-  return key === "identidad" || key === "manual" || key.startsWith("custom-");
+export function isSendableClientPhaseKey(key: string, phases?: PhaseMap): boolean {
+  if (key.startsWith("custom-")) return true;
+  if (phases && isBuiltinPhaseGenericMode(phases, key)) return true;
+  return key === "identidad" || key === "manual";
 }
-
-type PhaseMap = Record<string, Record<string, string>>;
 
 export type PhasePortalContext = {
   storageKey: string;
@@ -121,6 +152,19 @@ export function resolvePhasePortalContext(
     return {
       storageKey: customKey,
       config: buildCustomPhaseSendConfig(title, customKey),
+      isCustom: true,
+      htmlPhaseKey: null,
+    };
+  }
+
+  const genericBuiltinKey = parseGenericBuiltinPhaseKeyFromPurpose(purpose);
+  if (genericBuiltinKey) {
+    const title = phases
+      ? (findPhaseDisplayTitle(phases, genericBuiltinKey) ?? "Entrega")
+      : "Entrega";
+    return {
+      storageKey: genericBuiltinKey,
+      config: buildGenericBuiltinSendConfig(title, genericBuiltinKey),
       isCustom: true,
       htmlPhaseKey: null,
     };

@@ -14,14 +14,18 @@ import { applyPhaseClientSent, storageKeyForHtmlPhase } from "@/lib/phase-client
 import { parseProjectPhases } from "@/lib/prebrief-service";
 import { brandKitFromPhaseData, brandKitHasContent } from "@/lib/brand-kit";
 import { getManualPdfFromPhase, hasManualPdf } from "@/lib/manual-pdf";
-import { findCustomPhaseTitle } from "@/lib/project-phase-layout";
+import {
+  findCustomPhaseTitle,
+  findPhaseDisplayTitle,
+  isBuiltinPhaseGenericMode,
+} from "@/lib/project-phase-layout";
 import { syncProjectPhasesFromProgress } from "@/lib/project-phase-sync";
 import { sendPhaseDocEmailToClient } from "@/lib/send-phase-doc-email";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 const bodySchema = z.object({
-  phase: z.string().refine(isSendableClientPhaseKey, { message: "Fase no enviable" }),
+  phase: z.string().min(1),
   html: z.string().optional(),
   personalNote: z.string().optional(),
   customTitle: z.string().optional(),
@@ -44,7 +48,6 @@ export async function POST(req: Request, ctx: RouteParams) {
   }
 
   const phaseKey = parsed.data.phase;
-  const isCustom = phaseKey.startsWith("custom-");
 
   const project = await prisma.clientProject.findUnique({
     where: { id: projectId },
@@ -55,10 +58,19 @@ export async function POST(req: Request, ctx: RouteParams) {
   }
 
   const phases = parseProjectPhases(project.phases);
+  if (!isSendableClientPhaseKey(phaseKey, phases)) {
+    return NextResponse.json({ error: "Fase no enviable" }, { status: 400 });
+  }
+
+  const genericBuiltin = isBuiltinPhaseGenericMode(phases, phaseKey);
+  const isCustom = phaseKey.startsWith("custom-") || genericBuiltin;
   const customTitle = isCustom
-    ? (parsed.data.customTitle?.trim() || findCustomPhaseTitle(phases, phaseKey) || "Entrega")
+    ? (parsed.data.customTitle?.trim() ||
+        findPhaseDisplayTitle(phases, phaseKey) ||
+        findCustomPhaseTitle(phases, phaseKey) ||
+        "Entrega")
     : undefined;
-  const config = resolvePhaseSendConfig(phaseKey, { customTitle });
+  const config = resolvePhaseSendConfig(phaseKey, { customTitle, genericBuiltin });
   if (!config) {
     return NextResponse.json({ error: "Fase no enviable" }, { status: 400 });
   }

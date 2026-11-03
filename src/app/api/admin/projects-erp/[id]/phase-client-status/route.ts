@@ -12,7 +12,10 @@ import {
   syncProjectPhasesFromProgress,
   WORKSPACE_PHASE_KEYS,
 } from "@/lib/project-phase-sync";
-import { findCustomPhaseTitle } from "@/lib/project-phase-layout";
+import {
+  findPhaseDisplayTitle,
+  isBuiltinPhaseGenericMode,
+} from "@/lib/project-phase-layout";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -49,10 +52,12 @@ export async function POST(req: Request, ctx: RouteParams) {
 
   const phases = parseProjectPhases(project.phases);
   const now = new Date();
-  const customTitle = phase.startsWith("custom-")
-    ? findCustomPhaseTitle(phases, phase) ?? undefined
-    : undefined;
-  const htmlConfig = resolvePhaseSendConfig(phase, { customTitle });
+  const genericBuiltin = isBuiltinPhaseGenericMode(phases, phase);
+  const customTitle =
+    phase.startsWith("custom-") || genericBuiltin
+      ? (findPhaseDisplayTitle(phases, phase) ?? undefined)
+      : undefined;
+  const htmlConfig = resolvePhaseSendConfig(phase, { customTitle, genericBuiltin });
 
   if (parsed.data.action === "mark_received") {
     const nextPhases = applyPhaseClientReceived(phases, storageKey);

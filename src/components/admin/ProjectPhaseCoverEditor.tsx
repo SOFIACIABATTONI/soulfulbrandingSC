@@ -10,6 +10,8 @@ type ProjectPhaseCoverEditorProps = {
   label: string;
   coverUrl: string;
   phaseKey?: string;
+  /** Portada fija del catálogo cuando no hay imagen subida por proyecto */
+  defaultCoverUrl?: string;
   onPreviewChange?: (previewUrl: string | null) => void;
   onChange?: (coverUrl: string) => void;
   onSave?: (coverUrl: string) => Promise<boolean>;
@@ -19,6 +21,7 @@ export function ProjectPhaseCoverEditor({
   label,
   coverUrl,
   phaseKey,
+  defaultCoverUrl = "",
   onPreviewChange,
   onChange,
   onSave,
@@ -39,8 +42,9 @@ export function ProjectPhaseCoverEditor({
     onSaveRef.current = onSave;
   });
 
-  const displayUrl = coverUrl.trim() || localPreview || "";
+  const displayUrl = coverUrl.trim() || localPreview || defaultCoverUrl.trim() || "";
   const hasCover = Boolean(displayUrl);
+  const usingDefaultCover = !coverUrl.trim() && !localPreview && Boolean(defaultCoverUrl.trim());
 
   useEffect(() => {
     return () => {
@@ -150,9 +154,11 @@ export function ProjectPhaseCoverEditor({
         <p className="text-[10px] mt-0.5" style={{ color: brandUi.textMuted }}>
           {uploading
             ? "La vista previa se ve al instante; la barra indica el progreso real."
-            : hasCover
-              ? "Cambiá la imagen de la card y del encabezado de esta etapa en este proyecto."
-              : "Sin imagen — la card y el encabezado quedan en blanco hasta que subas una."}
+            : usingDefaultCover
+              ? "Portada preestablecida de esta etapa. Podés subir otra imagen solo para este proyecto."
+              : hasCover
+                ? "Cambiá la imagen de la card y del encabezado de esta etapa en este proyecto."
+                : "Sin imagen — subí una portada para esta etapa en este proyecto."}
         </p>
         {uploadProgress && (
           <AdminUploadProgress
