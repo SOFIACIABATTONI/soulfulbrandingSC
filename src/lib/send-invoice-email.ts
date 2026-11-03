@@ -83,7 +83,7 @@ export async function sendInvoiceEmailToClient(
     return false;
   }
 
-  const pdfBytes = await buildInvoicePdf(payload.invoice, { audience: "client" });
+  const pdfBytes = await buildInvoicePdf(payload.invoice);
   const filename = invoicePdfFilename(payload.invoice);
   const docTitle = invoiceDocumentTitle(payload.invoice);
   const projectTitle = payload.invoice.project?.title ?? "proyecto";

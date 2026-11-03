@@ -944,9 +944,9 @@ export function InvoicesManager({
               rel="noopener noreferrer"
               className="text-xs font-medium hover:underline whitespace-nowrap"
               style={{ color: "#323FF6" }}
-              title="Incluye notas internas — no es el PDF que recibe el cliente por mail"
+              title="Vista previa del PDF que recibe el cliente. Las notas internas solo están en «Notas» del ERP."
             >
-              PDF (admin)
+              PDF
             </a>
             {renderEmailAction(row)}
             {row.status === "pendiente" && (

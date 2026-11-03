@@ -32,7 +32,7 @@ export type InvoicePdfRecord = {
   project: { title: string; value?: number } | null;
 };
 
-/** admin = ERP (incluye notas internas). client = mail y enlace público (nunca notas privadas). */
+/** Las notas internas no van al PDF; opción conservada por compatibilidad. */
 export type InvoicePdfAudience = "admin" | "client";
 
 export type BuildInvoicePdfOptions = {
@@ -84,7 +84,7 @@ function colorFor(kind: ContentBlock["color"]) {
   return TEXT;
 }
 
-function buildContentBlocks(record: InvoicePdfRecord, audience: InvoicePdfAudience): ContentBlock[] {
+function buildContentBlocks(record: InvoicePdfRecord): ContentBlock[] {
   const projectTitle = record.project?.title ?? "tu proyecto";
   const isSena = record.type === "sena";
   const blocks: ContentBlock[] = [
@@ -140,15 +140,10 @@ function buildContentBlocks(record: InvoicePdfRecord, audience: InvoicePdfAudien
     });
   }
 
-  const notesForPdf =
-    audience === "admin" ? record.notes.trim() : invoiceNotesForClientPdf(record.notes);
-
-  if (notesForPdf) {
+  const cuotaLine = invoiceNotesForClientPdf(record.notes);
+  if (cuotaLine) {
     blocks.push({
-      text:
-        audience === "admin"
-          ? `Notas (solo internas): ${notesForPdf}`
-          : notesForPdf,
+      text: cuotaLine,
       font: "regular",
       size: 9,
       color: "muted",
@@ -233,10 +228,7 @@ function drawContentBlocks(
   }
 }
 
-async function buildBrandedCardPdf(
-  record: InvoicePdfRecord,
-  audience: InvoicePdfAudience,
-): Promise<Uint8Array> {
+async function buildBrandedCardPdf(record: InvoicePdfRecord): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const regular = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -250,7 +242,7 @@ async function buildBrandedCardPdf(
     color: PAGE_BG,
   });
 
-  const blocks = buildContentBlocks(record, audience);
+  const blocks = buildContentBlocks(record);
   const innerWidth = CARD_WIDTH - CARD_PAD_X * 2;
   const cardHeight = measureContentHeight(blocks, innerWidth, regular, bold);
   const cardX = (PAGE_WIDTH - CARD_WIDTH) / 2;
@@ -299,10 +291,9 @@ async function buildBrandedCardPdf(
 
 export async function buildInvoicePdf(
   record: InvoicePdfRecord,
-  options: BuildInvoicePdfOptions = {},
+  _options: BuildInvoicePdfOptions = {},
 ): Promise<Uint8Array> {
-  const audience = options.audience ?? "client";
-  return buildBrandedCardPdf(record, audience);
+  return buildBrandedCardPdf(record);
 }
 
 export function invoicePdfFilename(record: Pick<InvoicePdfRecord, "type" | "number">): string {
