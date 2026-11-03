@@ -5,6 +5,7 @@ import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { brandUi, clientFrame } from "@/lib/brand-ui";
 import { getPhaseClientMeta, type PhaseClientMeta } from "@/lib/phase-client-store";
 import { PhaseManualStatusBar } from "@/components/admin/PhaseManualStatusBar";
+import { PhaseClientPortalLink } from "@/components/admin/PhaseClientPortalLink";
 import "@/components/admin/rich-text-editor.css";
 
 const DEFAULT_GENERIC_HTML = `<h1>Documento para el cliente</h1>
@@ -38,6 +39,7 @@ export function GenericProjectPhasePanel({
 }: GenericProjectPhasePanelProps) {
   const [html, setHtml] = useState(saved.body?.trim() || DEFAULT_GENERIC_HTML);
   const [message, setMessage] = useState<string | null>(null);
+  const [portalLinkRefresh, setPortalLinkRefresh] = useState(0);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPersistedRef = useRef((saved.body?.trim() || DEFAULT_GENERIC_HTML).trim());
 
@@ -83,8 +85,15 @@ export function GenericProjectPhasePanel({
           </p>
           <p className="text-xs mt-1" style={{ color: brandUi.textMuted }}>
             Plantilla genérica: editá el contenido, enviá por mail y el cliente confirma recepción.
+            Lo que ves acá se incluye en el mail y en el portal del cliente.
           </p>
         </div>
+
+        <PhaseClientPortalLink
+          projectId={projectId}
+          phaseKey={phaseKey}
+          refreshToken={portalLinkRefresh}
+        />
 
         <RichTextEditor value={html} onChange={handleChange} />
 
@@ -112,7 +121,11 @@ export function GenericProjectPhasePanel({
           htmlBody={html}
           clientEmail={clientEmail}
           meta={meta}
-          onSent={onSent}
+          onBeforeSend={async () => persist(html, { silent: true })}
+          onSent={() => {
+            setPortalLinkRefresh((n) => n + 1);
+            onSent();
+          }}
         />
       </div>
 
@@ -134,6 +147,7 @@ function CustomPhaseClientSendBar({
   htmlBody,
   clientEmail,
   meta,
+  onBeforeSend,
   onSent,
 }: {
   projectId: string;
@@ -142,18 +156,21 @@ function CustomPhaseClientSendBar({
   htmlBody: string;
   clientEmail: string;
   meta: PhaseClientMeta;
+  onBeforeSend?: () => Promise<boolean | void>;
   onSent?: () => void;
 }) {
   const [personalNote, setPersonalNote] = useState("");
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [lastLink, setLastLink] = useState<string | null>(null);
   const canSend = Boolean(htmlBody.trim() && htmlBody !== "<p></p>");
 
   async function sendToClient() {
     setSending(true);
     setMessage(null);
-    setLastLink(null);
+
+    if (onBeforeSend) {
+      await onBeforeSend();
+    }
 
     const res = await fetch(`/api/admin/projects-erp/${projectId}/phase-send`, {
       method: "POST",
@@ -169,8 +186,7 @@ function CustomPhaseClientSendBar({
 
     setSending(false);
     if (res.ok) {
-      const j = (await res.json()) as { emailed?: boolean; publicUrl?: string };
-      setLastLink(j.publicUrl ?? null);
+      const j = (await res.json()) as { emailed?: boolean };
       setMessage(
         j.emailed
           ? `Enviado a ${clientEmail}. El cliente puede confirmar recepción desde el enlace.`
@@ -216,11 +232,6 @@ function CustomPhaseClientSendBar({
       {message && (
         <p className="text-xs" style={{ color: brandUi.textMuted }}>
           {message}
-        </p>
-      )}
-      {lastLink && (
-        <p className="text-[10px] break-all" style={{ color: brandUi.blue }}>
-          {lastLink}
         </p>
       )}
     </div>

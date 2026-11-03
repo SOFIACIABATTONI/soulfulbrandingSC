@@ -332,6 +332,7 @@ export function BrandKitPanel({
           projectId={projectId}
           phaseKey="identidad"
           refreshToken={portalLinkRefresh}
+          emptyHint="Todavía no hay enlace generado. Enviá la identidad al cliente con «Mensaje al cliente» más abajo para crear el link del portal."
         />
       ) : null}
 

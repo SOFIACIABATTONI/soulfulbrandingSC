@@ -10,6 +10,7 @@ type PhaseClientPortalLinkProps = {
   /** Incrementar tras un envío para volver a cargar el enlace. */
   refreshToken?: number;
   compact?: boolean;
+  emptyHint?: string;
 };
 
 export function PhaseClientPortalLink({
@@ -17,6 +18,7 @@ export function PhaseClientPortalLink({
   phaseKey,
   refreshToken = 0,
   compact = false,
+  emptyHint = "Todavía no hay enlace generado. Enviá el documento al cliente con el botón de abajo para crear el link del portal.",
 }: PhaseClientPortalLinkProps) {
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,9 +65,7 @@ export function PhaseClientPortalLink({
   if (!publicUrl) {
     return (
       <p className="text-[11px] leading-relaxed" style={{ color: brandUi.textMuted }}>
-        {compact
-          ? null
-          : "Todavía no hay enlace generado. Enviá la identidad al cliente (bloque «Mensaje al cliente» más abajo) para crear el link permanente del portal."}
+        {compact ? null : emptyHint}
       </p>
     );
   }
