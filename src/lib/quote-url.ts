@@ -1,5 +1,5 @@
-import { resolveSiteUrl } from "@/lib/site-metadata";
+import { resolveClientFacingSiteUrl } from "@/lib/site-metadata";
 
 export function quotePublicUrl(token: string): string {
-  return `${resolveSiteUrl()}/presupuesto/${encodeURIComponent(token)}`;
+  return `${resolveClientFacingSiteUrl()}/presupuesto/${encodeURIComponent(token)}`;
 }

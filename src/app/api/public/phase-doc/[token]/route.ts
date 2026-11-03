@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
   findAccessTokenByPlain,
-  isAccessTokenExpired,
   isAccessTokenUsed,
 } from "@/lib/access-service";
 import { resolvePhasePortalContext } from "@/lib/phase-client-flow";
@@ -40,23 +39,19 @@ export async function GET(_req: Request, ctx: RouteParams) {
     return NextResponse.json({ error: "Enlace no válido" }, { status: 404 });
   }
 
-  if (isAccessTokenExpired(record)) {
-    return NextResponse.json({ error: "Este enlace expiró." }, { status: 410 });
-  }
-
   const { storageKey, config, htmlPhaseKey, isCustom } = portal;
   const phaseData = phases[storageKey] ?? {};
   const meta = getPhaseClientMeta(phaseData);
+  const used = isAccessTokenUsed(record);
+  const alreadyReceived = meta.clientStatus === "recibido" || used;
   const html = phaseData.body ?? "";
   const brandKit = brandKitFromPhaseData(phaseData);
   const hasBrandKit = htmlPhaseKey === "identidad" && brandKitHasContent(brandKit);
   const clientHtmlBody = htmlPhaseKey
     ? resolveClientPortalHtmlBody(htmlPhaseKey, html, { hasBrandKit })
     : html;
-  const used = isAccessTokenUsed(record);
   const permanentLink = isPermanentAccessPurpose(record.purpose);
-  const received =
-    meta.clientStatus === "recibido" || (!permanentLink && used);
+  const received = alreadyReceived;
   const downloadUrl = `/api/public/phase-doc/${encodeURIComponent(token)}/download`;
   const brandKitZipUrl = `/api/public/phase-doc/${encodeURIComponent(token)}/download-zip`;
   const manualPdf = getManualPdfFromPhase(phaseData);
@@ -118,10 +113,6 @@ export async function POST(_req: Request, ctx: RouteParams) {
   const portal = resolvePhasePortalContext(record.purpose, phases);
   if (!portal) {
     return NextResponse.json({ error: "Enlace no válido" }, { status: 404 });
-  }
-
-  if (isAccessTokenExpired(record)) {
-    return NextResponse.json({ error: "Este enlace expiró." }, { status: 410 });
   }
 
   const { storageKey, config } = portal;

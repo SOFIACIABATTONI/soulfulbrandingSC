@@ -170,6 +170,16 @@ export function resolvePhasePortalContext(
     };
   }
 
+  if (purpose.startsWith("custom-")) {
+    const title = phases ? (findCustomPhaseTitle(phases, purpose) ?? "Entrega") : "Entrega";
+    return {
+      storageKey: purpose,
+      config: buildCustomPhaseSendConfig(title, purpose),
+      isCustom: true,
+      htmlPhaseKey: null,
+    };
+  }
+
   return null;
 }
 

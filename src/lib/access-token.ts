@@ -1,28 +1,26 @@
 import { randomBytes } from "crypto";
 import type { AccessPurpose } from "@/lib/contract-types";
-import { ACCESS_EXPIRY_DAYS } from "@/lib/contract-types";
+
+/** Fecha lejana: los enlaces del cliente no vencen. */
+const CLIENT_LINK_NEVER_EXPIRES = new Date("2099-12-31T23:59:59.999Z");
 
 /** Token público de portal cliente (se guarda en texto plano en ClientAccessToken). */
 export function generateAccessToken(): string {
   return randomBytes(24).toString("base64url");
 }
 
-export function accessExpiryFromNow(days = ACCESS_EXPIRY_DAYS): Date {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d;
+/** Los enlaces del cliente no caducan. El argumento se conserva por compatibilidad. */
+export function accessExpiryFromNow(_days?: number): Date {
+  return new Date(CLIENT_LINK_NEVER_EXPIRES);
 }
 
-const PERMANENT_ACCESS_PURPOSES = new Set<AccessPurpose>(["identidad", "manual"]);
-
-export function isPermanentAccessPurpose(purpose: string): boolean {
-  return PERMANENT_ACCESS_PURPOSES.has(purpose as AccessPurpose);
+/** Identidad, manual, etapas, contrato, pre-brief, narrativa: el cliente conserva el enlace. */
+export function isPermanentAccessPurpose(_purpose?: string): boolean {
+  return true;
 }
 
-/** Identidad y manual: enlace sin vencimiento para que el cliente conserve su marca. */
-export function accessExpiryForPurpose(purpose: string): Date {
-  if (isPermanentAccessPurpose(purpose)) {
-    return new Date("2099-12-31T23:59:59.999Z");
-  }
-  return accessExpiryFromNow();
+export function accessExpiryForPurpose(_purpose?: string): Date {
+  return new Date(CLIENT_LINK_NEVER_EXPIRES);
 }
+
+export type { AccessPurpose };

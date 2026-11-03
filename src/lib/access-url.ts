@@ -1,9 +1,9 @@
-import { resolveSiteUrl } from "@/lib/site-metadata";
+import { resolveClientFacingSiteUrl } from "@/lib/site-metadata";
 import type { AccessPurpose } from "@/lib/contract-types";
 import { isGenericPhasePortalPurpose } from "@/lib/project-phase-layout";
 
 export function accessPublicUrl(purpose: string, token: string): string {
-  const base = resolveSiteUrl();
+  const base = resolveClientFacingSiteUrl();
   if (isGenericPhasePortalPurpose(purpose)) {
     return `${base}/cliente/fase?token=${encodeURIComponent(token)}`;
   }

@@ -1,7 +1,6 @@
 import type { ClientAccessToken } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { AccessPurpose } from "@/lib/contract-types";
-import { isPermanentAccessPurpose } from "@/lib/access-token";
 
 export type AccessTokenWithRelations = ClientAccessToken & {
   client: { id: string; name: string; email: string; company: string };
@@ -16,10 +15,9 @@ export type AccessTokenWithRelations = ClientAccessToken & {
 };
 
 export function isAccessTokenExpired(
-  token: Pick<ClientAccessToken, "expiresAt" | "purpose">,
+  _token?: Pick<ClientAccessToken, "expiresAt" | "purpose">,
 ): boolean {
-  if (isPermanentAccessPurpose(token.purpose)) return false;
-  return new Date() > token.expiresAt;
+  return false;
 }
 
 export function isAccessTokenUsed(token: Pick<ClientAccessToken, "usedAt">): boolean {
@@ -53,6 +51,5 @@ export async function findAccessTokenByPlain(
 
 export function validateAccessToken(token: AccessTokenWithRelations): string | null {
   if (isAccessTokenUsed(token)) return "Este enlace ya fue utilizado.";
-  if (isAccessTokenExpired(token)) return "Este enlace expiró.";
   return null;
 }

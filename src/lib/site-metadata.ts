@@ -34,6 +34,22 @@ export function resolveSiteUrl(): string {
     : "http://localhost:3000";
 }
 
+/**
+ * Dominio de enlaces que recibe la clienta (mail, portal, PDF).
+ * Nunca usa un host de preview `*.vercel.app`: esos deploys se caen y el token
+ * queda en otra base. En local sigue localhost.
+ */
+export function resolveClientFacingSiteUrl(): string {
+  const canonical = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  if (canonical && !/\.vercel\.app$/i.test(canonical)) {
+    return canonical;
+  }
+  if (!process.env.VERCEL_ENV) {
+    return "http://localhost:3000";
+  }
+  return DEFAULT_SITE_URL;
+}
+
 export const SITE_URL = resolveSiteUrl();
 
 export const DEFAULT_DESCRIPTION =
