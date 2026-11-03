@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, startTransit
 import { brandUi, clientFrame } from "@/lib/brand-ui";
 import { uploadBrandAssetFile } from "@/lib/admin-client-upload";
 import { BrandKitCardCoverField } from "@/components/admin/BrandKitCardCoverField";
+import { PhaseClientPortalLink } from "@/components/admin/PhaseClientPortalLink";
 import { isLocalAdminUploadHost, isLocalDevUploadUrl, BRAND_ASSET_FORMAT_HINT } from "@/lib/admin-blob-upload";
 import { isLegacyLocalUploadPath } from "@/lib/admin-media-url";
 import {
@@ -40,6 +41,8 @@ import {
 type BrandKitPanelProps = {
   phaseLabel: string;
   brandKitJson: string;
+  projectId?: string;
+  portalLinkRefresh?: number;
   saving?: boolean;
   onSave: (brandKitJson: string) => Promise<boolean> | boolean;
   onUploadActivityChange?: (active: boolean) => void;
@@ -56,6 +59,8 @@ function brandKitUploadedFileCount(kit: BrandKit): number {
 export function BrandKitPanel({
   phaseLabel,
   brandKitJson,
+  projectId,
+  portalLinkRefresh = 0,
   saving = false,
   onSave,
   onUploadActivityChange,
@@ -317,9 +322,18 @@ export function BrandKitPanel({
         </p>
         <p className="text-xs mt-1" style={{ color: brandUi.textMuted }}>
           Cambiá la portada de cada card, subí archivos por sección y agregá cards propias del proyecto.
-          Tocá una card para editarla; volvé a tocarla para cerrarla.
+          Tocá una card para editarla; volvé a tocarla para cerrarla. Al enviar al cliente, el portal
+          muestra estas mismas portadas y archivos.
         </p>
       </div>
+
+      {projectId ? (
+        <PhaseClientPortalLink
+          projectId={projectId}
+          phaseKey="identidad"
+          refreshToken={portalLinkRefresh}
+        />
+      ) : null}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {kit.cards.map((card) => {

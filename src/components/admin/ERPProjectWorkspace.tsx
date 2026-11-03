@@ -332,6 +332,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
   const [preparingPortfolio, setPreparingPortfolio] = useState(false);
   const [portfolioPrepError, setPortfolioPrepError] = useState<string | null>(null);
   const [brandKitUploading, setBrandKitUploading] = useState(false);
+  const [identidadPortalRefresh, setIdentidadPortalRefresh] = useState(0);
   const brandKitBusyRef = useRef(false);
   const brandKitUploadingRef = useRef(false);
 
@@ -1380,6 +1381,8 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                       <AdminPanelErrorBoundary label="Brand ID — Identidad visual">
                         <BrandKitPanel
                           phaseLabel="Identidad visual"
+                          projectId={project.id}
+                          portalLinkRefresh={identidadPortalRefresh}
                           brandKitJson={pc.brandKit}
                           onUploadActivityChange={setBrandKitUploading}
                           onSave={(brandKit) => saveBrandKitJson(ph.key, brandKit)}
@@ -1448,6 +1451,7 @@ export function ERPProjectWorkspace({ project: initial }: { project: ClientProje
                           }),
                           onSent: () => {
                             const now = new Date().toISOString();
+                            setIdentidadPortalRefresh((n) => n + 1);
                             handlePhaseMetaChange(ph.key, {
                               clientStatus: "enviado",
                               clientSentAt: now,

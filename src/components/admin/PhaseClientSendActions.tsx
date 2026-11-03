@@ -10,6 +10,7 @@ import {
   type PhaseClientMeta,
 } from "@/lib/phase-client-store";
 import { brandUi } from "@/lib/brand-ui";
+import { PhaseClientPortalLink } from "@/components/admin/PhaseClientPortalLink";
 
 export type PhaseClientSendActionsProps = {
   projectId: string;
@@ -44,12 +45,11 @@ export function PhaseClientSendActions({
     : Boolean(htmlBody.trim()) || brandKitHasContent(parseBrandKit(brandKitJson));
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [lastLink, setLastLink] = useState<string | null>(null);
+  const [linkRefresh, setLinkRefresh] = useState(0);
 
   async function sendToClient() {
     setSending(true);
     setMessage(null);
-    setLastLink(null);
 
     const res = await fetch(`/api/admin/projects-erp/${projectId}/phase-send`, {
       method: "POST",
@@ -72,7 +72,7 @@ export function PhaseClientSendActions({
     setSending(false);
     if (res.ok) {
       const j = (await res.json()) as { emailed?: boolean; publicUrl?: string };
-      setLastLink(j.publicUrl ?? null);
+      setLinkRefresh((n) => n + 1);
       setMessage(
         j.emailed
           ? isManual
@@ -151,11 +151,11 @@ export function PhaseClientSendActions({
           {message}
         </p>
       )}
-      {lastLink && (
-        <p className="text-[10px] break-all" style={{ color: brandUi.blue }}>
-          {lastLink}
-        </p>
-      )}
+      <PhaseClientPortalLink
+        projectId={projectId}
+        phaseKey={phaseKey}
+        refreshToken={linkRefresh}
+      />
     </div>
   );
 }
