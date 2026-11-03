@@ -4,6 +4,7 @@ import { isAdminRequest } from "@/lib/auth-api";
 import { sendInvoiceEmailToClient } from "@/lib/send-invoice-email";
 import { generateQuoteToken, hashQuoteToken } from "@/lib/quote-token";
 import { invoicePublicPdfUrl } from "@/lib/invoice-public-url";
+import { invoiceNotesForClientPdf } from "@/lib/invoice-utils";
 import { z } from "zod";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -90,7 +91,7 @@ export async function POST(req: Request, ctx: RouteParams) {
       status: invoice.status,
       issuedAt: invoice.issuedAt,
       paidAt: invoice.paidAt,
-      notes: invoice.notes,
+      notes: invoiceNotesForClientPdf(invoice.notes),
       client: invoice.client,
       project: invoice.project,
     },

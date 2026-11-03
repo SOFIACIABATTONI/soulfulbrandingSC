@@ -134,8 +134,10 @@ function buildContentBlocks(record: InvoicePdfRecord): ContentBlock[] {
   }
 
   if (record.notes.trim()) {
+    const body = record.notes.trim();
+    const cuotaOnly = /^Cuota\s+\d+\s*\/\s*\d+(\s*·\s*Cuota\s+\d+\s*\/\s*\d+)*$/i.test(body);
     blocks.push({
-      text: `Notas: ${record.notes.trim()}`,
+      text: cuotaOnly ? body : `Notas: ${body}`,
       font: "regular",
       size: 9,
       color: "muted",

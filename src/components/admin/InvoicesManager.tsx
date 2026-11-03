@@ -4,7 +4,9 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   INVOICE_TYPE_SHORT,
+  mergeInvoiceStoredNotes,
   projectHasFinalInvoice,
+  splitInvoiceStoredNotes,
   suggestedFinalTotal,
   suggestedRemainingTotal,
   validateInvoiceCreate,
@@ -18,6 +20,7 @@ import type { InvoiceReminderKind } from "@/lib/invoice-due-dates";
 import {
   buildInvoiceReminderSummary,
 } from "@/lib/invoice-reminder-status";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 
 // ── tipos ──────────────────────────────────────────────────
 type InvoiceItem = {
@@ -254,6 +257,15 @@ export function InvoicesManager({
   const [linkingProject, setLinkingProject] = useState<string | null>(null);
   const [updatingDueAt, setUpdatingDueAt] = useState<string | null>(null);
   const [runningReminders, setRunningReminders] = useState(false);
+  const [notesEdit, setNotesEdit] = useState<{
+    id: string;
+    number: string;
+    internalNotes: string;
+    cuotaSuffix: string;
+  } | null>(null);
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<InvoiceItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const autoOpenedRef = useRef(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -648,6 +660,53 @@ export function InvoicesManager({
     await load();
   }
 
+  function openNotesEditor(row: InvoiceItem) {
+    const { internalNotes, cuotaSuffix } = splitInvoiceStoredNotes(row.notes);
+    setNotesEdit({
+      id: row.id,
+      number: row.number,
+      internalNotes,
+      cuotaSuffix,
+    });
+  }
+
+  async function saveNotesEdit() {
+    if (!notesEdit) return;
+    setSavingNotes(true);
+    const notes = mergeInvoiceStoredNotes(notesEdit.internalNotes, notesEdit.cuotaSuffix);
+    const res = await fetch(`/api/admin/invoices/${notesEdit.id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notes }),
+    });
+    setSavingNotes(false);
+    if (res.ok) {
+      setNotesEdit(null);
+      await load();
+    } else {
+      const j = (await res.json().catch(() => null)) as { error?: string } | null;
+      window.alert(j?.error ?? "No se pudieron guardar las notas.");
+    }
+  }
+
+  async function confirmDeleteInvoice() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const res = await fetch(`/api/admin/invoices/${deleteTarget.id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    setDeleting(false);
+    if (res.ok) {
+      setDeleteTarget(null);
+      await load();
+    } else {
+      const j = (await res.json().catch(() => null)) as { error?: string } | null;
+      window.alert(j?.error ?? "No se pudo eliminar el documento.");
+    }
+  }
+
   async function sendByEmail(id: string) {
     setEmailStatusById((prev) => ({ ...prev, [id]: "sending" }));
     const res = await fetch(`/api/admin/invoices/${id}/send`, {
@@ -900,6 +959,23 @@ export function InvoicesManager({
                 {markingPaid === row.id ? "…" : "Marcar pagada"}
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => openNotesEditor(row)}
+              className="text-xs font-medium hover:underline whitespace-nowrap text-left"
+              style={{ color: "#131945" }}
+              title="Notas internas (no van al cliente)"
+            >
+              Notas
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeleteTarget(row)}
+              className="text-xs font-medium hover:underline whitespace-nowrap text-left"
+              style={{ color: "#b91c1c" }}
+            >
+              Eliminar
+            </button>
           </div>
         </td>
       </tr>
@@ -1433,7 +1509,7 @@ export function InvoicesManager({
                   </p>
                 )}
                 <div className="col-span-2">
-                  <Field label="Notas">
+                  <Field label="Notas (solo internas)">
                     <textarea
                       className="fv w-full resize-y"
                       rows={2}
@@ -1441,6 +1517,10 @@ export function InvoicesManager({
                       value={form.notes}
                       onChange={(e) => setForm({ ...form, notes: e.target.value })}
                     />
+                    <p className="text-[10px] mt-1 leading-relaxed" style={{ color: "rgba(19,25,69,0.45)" }}>
+                      No van en el PDF ni en el mail al cliente. Si generás un plan de cuotas, en el recibo
+                      del cliente solo aparece «Cuota X/Y».
+                    </p>
                   </Field>
                 </div>
               </div>
@@ -1473,6 +1553,92 @@ export function InvoicesManager({
           </div>
         </div>
       )}
+
+      {notesEdit && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(19,25,69,0.2)" }}
+          onClick={(e) => e.target === e.currentTarget && !savingNotes && setNotesEdit(null)}
+        >
+          <div
+            className="w-full max-w-md rounded bg-white shadow-2xl p-5 space-y-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="invoice-notes-title"
+          >
+            <h3
+              id="invoice-notes-title"
+              className="font-serif text-lg italic"
+              style={{ color: "#131945" }}
+            >
+              Notas internas — {notesEdit.number}
+            </h3>
+            <p className="text-xs leading-relaxed" style={{ color: "rgba(19,25,69,0.55)" }}>
+              Solo las ve el equipo en el ERP y en tu PDF de admin. No se envían al cliente.
+            </p>
+            {notesEdit.cuotaSuffix ? (
+              <p className="text-[11px] rounded-lg border px-3 py-2" style={{ borderColor: "rgba(19,25,69,0.12)", color: "rgba(19,25,69,0.65)" }}>
+                En el recibo del cliente se mantiene:{" "}
+                <strong>{notesEdit.cuotaSuffix}</strong>
+              </p>
+            ) : null}
+            <textarea
+              className="fv w-full resize-y"
+              rows={4}
+              value={notesEdit.internalNotes}
+              onChange={(e) =>
+                setNotesEdit((prev) =>
+                  prev ? { ...prev, internalNotes: e.target.value } : prev,
+                )
+              }
+              placeholder="Notas internas sobre este documento…"
+            />
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                disabled={savingNotes}
+                onClick={() => setNotesEdit(null)}
+                className="rounded border border-neutral-200 px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={savingNotes}
+                onClick={() => void saveNotesEdit()}
+                className="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+                style={{ background: "#F03172" }}
+              >
+                {savingNotes ? "Guardando…" : "Guardar notas"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Eliminar documento"
+        confirmVariant="danger"
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        loading={deleting}
+        description={
+          deleteTarget ? (
+            <>
+              ¿Eliminar{" "}
+              <strong>
+                {INVOICE_TYPE_SHORT[deleteTarget.type] ?? deleteTarget.type} {deleteTarget.number}
+              </strong>
+              ? Esta acción no se puede deshacer.
+            </>
+          ) : (
+            ""
+          )
+        }
+        onCancel={() => !deleting && setDeleteTarget(null)}
+        onConfirm={() => void confirmDeleteInvoice()}
+      />
 
       <style>{`
         .fv {

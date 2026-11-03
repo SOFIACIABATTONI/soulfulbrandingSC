@@ -47,25 +47,48 @@ function ToolbarButton({
   onClick,
   title,
   children,
+  /** Botones de acción (p. ej. enlace): navy aunque no estén “activos”, no gris apagado. */
+  action = false,
 }: {
   active?: boolean;
   onClick: () => void;
   title: string;
   children: ReactNode;
+  action?: boolean;
 }) {
+  const idleColor = action ? brandUi.text : brandUi.textMuted;
   return (
     <button
       type="button"
       title={title}
       onClick={onClick}
-      className="min-w-[32px] h-8 px-2 rounded-lg text-sm font-semibold transition-colors"
+      className="min-w-[32px] h-8 px-2 rounded-lg text-sm font-semibold transition-colors hover:opacity-90"
       style={{
-        background: active ? brandUi.accentSoft : "transparent",
-        color: active ? brandUi.accent : brandUi.textMuted,
+        background: active ? brandUi.accentSoft : action ? "rgba(50, 63, 246, 0.08)" : "transparent",
+        color: active ? brandUi.accent : idleColor,
+        border: action ? `1px solid ${active ? "rgba(240, 49, 114, 0.35)" : "rgba(50, 63, 246, 0.25)"}` : "1px solid transparent",
       }}
     >
       {children}
     </button>
+  );
+}
+
+function ToolbarLinkIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className="w-4 h-4 mx-auto"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07l-1.66 1.66" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-2.92 2.92a5 5 0 0 0 7.07 7.07l1.66-1.66" />
+    </svg>
   );
 }
 
@@ -244,15 +267,17 @@ export function RichTextEditor({
         <ToolbarButton
           title="Enlace — seleccioná texto y tocá acá"
           active={editor.isActive("link")}
+          action
           onClick={openLinkDialog}
         >
-          🔗
+          <ToolbarLinkIcon />
         </ToolbarButton>
         <ToolbarButton
           title="Quitar enlace del texto seleccionado"
+          action
           onClick={() => editor.chain().focus().unsetLink().run()}
         >
-          ⊗
+          <span className="text-xs font-bold tracking-tight">Sin link</span>
         </ToolbarButton>
         <ToolbarButton
           title="Tachado"

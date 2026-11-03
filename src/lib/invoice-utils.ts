@@ -189,3 +189,45 @@ export function invoiceOnboardingPaymentDone(
     (i) => match(i) && (i.type === "sena" || i.type === "final"),
   );
 }
+
+const CUOTA_SEGMENT = /Cuota\s+\d+\s*\/\s*\d+/gi;
+
+/**
+ * Notas del ERP en facturas/recibos: internas para admin.
+ * En PDF y mail al cliente solo se expone la cuota del plan (ej. «Cuota 2/3»), si existe.
+ */
+export function invoiceNotesForClientPdf(storedNotes: string): string {
+  const trimmed = storedNotes.trim();
+  if (!trimmed) return "";
+  const cuotas = trimmed.match(CUOTA_SEGMENT);
+  if (!cuotas?.length) return "";
+  return [...new Set(cuotas.map((c) => c.replace(/\s+/g, " ").trim()))].join(" · ");
+}
+
+/** Separa notas internas del sufijo «Cuota X/Y» generado por planes de seña. */
+export function splitInvoiceStoredNotes(storedNotes: string): {
+  internalNotes: string;
+  cuotaSuffix: string;
+} {
+  const trimmed = storedNotes.trim();
+  if (!trimmed) return { internalNotes: "", cuotaSuffix: "" };
+  const trailing = trimmed.match(/\s*·\s*(Cuota\s+\d+\s*\/\s*\d+)\s*$/i);
+  if (trailing && trailing.index !== undefined) {
+    return {
+      internalNotes: trimmed.slice(0, trailing.index).trim(),
+      cuotaSuffix: trailing[1].trim(),
+    };
+  }
+  if (/^Cuota\s+\d+\s*\/\s*\d+$/i.test(trimmed)) {
+    return { internalNotes: "", cuotaSuffix: trimmed };
+  }
+  return { internalNotes: trimmed, cuotaSuffix: "" };
+}
+
+export function mergeInvoiceStoredNotes(internalNotes: string, cuotaSuffix: string): string {
+  const internal = internalNotes.trim();
+  const cuota = cuotaSuffix.trim();
+  if (internal && cuota) return `${internal} · ${cuota}`;
+  if (cuota) return cuota;
+  return internal;
+}

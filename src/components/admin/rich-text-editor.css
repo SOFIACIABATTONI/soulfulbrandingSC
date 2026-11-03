@@ -111,6 +111,7 @@
 
 .rich-text-editor .tiptap a,
 .rich-text-editor .tiptap a[href],
+.rich-text-editor .ProseMirror a[href],
 .rich-text-editor .tiptap .phase-doc-link,
 .phase-doc-html a,
 .phase-doc-html a[href],
@@ -121,14 +122,16 @@
   text-decoration-color: #323ff6;
   text-underline-offset: 2px;
   cursor: pointer;
+  opacity: 1;
 }
 
-.rich-text-editor .tiptap a *,
+/* TipTap a veces envuelve el texto del link en <span style="color:…"> — el inline gana sobre inherit */
 .rich-text-editor .tiptap a[href] *,
-.phase-doc-html a *,
+.rich-text-editor .ProseMirror a[href] *,
 .phase-doc-html a[href] * {
-  color: inherit !important;
-  font-weight: inherit;
+  color: #323ff6 !important;
+  font-weight: 600;
+  opacity: 1;
 }
 
 .rich-text-editor .tiptap a:hover,
