@@ -98,6 +98,7 @@ export function RichTextEditor({
         HTMLAttributes: {
           rel: "noopener noreferrer",
           target: "_blank",
+          class: "phase-doc-link",
         },
       }),
       Underline,

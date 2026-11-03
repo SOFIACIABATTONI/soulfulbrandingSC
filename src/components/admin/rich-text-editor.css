@@ -110,10 +110,33 @@
 }
 
 .rich-text-editor .tiptap a,
-.phase-doc-html a {
-  color: #323ff6;
+.rich-text-editor .tiptap a[href],
+.rich-text-editor .tiptap .phase-doc-link,
+.phase-doc-html a,
+.phase-doc-html a[href],
+.phase-doc-html .phase-doc-link {
+  color: #323ff6 !important;
+  font-weight: 600;
   text-decoration: underline;
+  text-decoration-color: #323ff6;
   text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.rich-text-editor .tiptap a *,
+.rich-text-editor .tiptap a[href] *,
+.phase-doc-html a *,
+.phase-doc-html a[href] * {
+  color: inherit !important;
+  font-weight: inherit;
+}
+
+.rich-text-editor .tiptap a:hover,
+.rich-text-editor .tiptap a[href]:hover,
+.phase-doc-html a:hover,
+.phase-doc-html a[href]:hover {
+  color: #131945 !important;
+  text-decoration-color: #f03172;
 }
 
 .rich-text-editor .tiptap u,
