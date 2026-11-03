@@ -109,6 +109,19 @@
   font-style: italic;
 }
 
+.rich-text-editor .tiptap a,
+.phase-doc-html a {
+  color: #323ff6;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rich-text-editor .tiptap u,
+.phase-doc-html u {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .rich-text-editor .tiptap ul:not([data-type="taskList"]),
 .rich-text-editor .tiptap ol,
 .phase-doc-html ul:not([data-type="taskList"]),

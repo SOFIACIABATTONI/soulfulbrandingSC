@@ -20,6 +20,7 @@ import {
   isBuiltinPhaseGenericMode,
 } from "@/lib/project-phase-layout";
 import { syncProjectPhasesFromProgress } from "@/lib/project-phase-sync";
+import { getIdentidadClientIntroHtml } from "@/lib/phase-client-portal";
 import { sendPhaseDocEmailToClient } from "@/lib/send-phase-doc-email";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -173,6 +174,12 @@ export async function POST(req: Request, ctx: RouteParams) {
     projectTitle: project.title,
     token: clientToken,
     personalNote: parsed.data.personalNote,
+    htmlBody: hasDoc
+      ? html
+      : hasKit && phaseKey === "identidad"
+        ? getIdentidadClientIntroHtml()
+        : undefined,
+    hasBrandKit: hasKit,
   });
 
   return NextResponse.json({

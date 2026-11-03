@@ -6,6 +6,8 @@ import { generateAccessToken, accessExpiryFromNow } from "@/lib/access-token";
 import { ACCESS_EXPIRY_DAYS, ACCESS_PURPOSES } from "@/lib/contract-types";
 import { accessPublicUrl } from "@/lib/access-url";
 import { sendContractEmailToClient } from "@/lib/send-contract-email";
+import { brandKitFromPhaseData, brandKitHasContent } from "@/lib/brand-kit";
+import { getIdentidadClientIntroHtml } from "@/lib/phase-client-portal";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -92,7 +94,9 @@ export async function POST(req: Request, ctx: RouteParams) {
     const config = HTML_PHASE_SEND[purpose];
     const phases = parseProjectPhases(project.phases);
     const html = phases[purpose]?.body?.trim() ?? "";
-    if (html) {
+    const hasKit =
+      purpose === "identidad" && brandKitHasContent(brandKitFromPhaseData(phases[purpose] ?? {}));
+    if (html || purpose === "manual" || hasKit) {
       await prisma.clientProject.update({
         where: { id: projectId },
         data: { phases: applyPhaseClientSent(phases, purpose) },
@@ -104,6 +108,10 @@ export async function POST(req: Request, ctx: RouteParams) {
         projectTitle: project.title,
         token: plain,
         personalNote,
+        htmlBody:
+          html ||
+          (hasKit ? getIdentidadClientIntroHtml() : undefined),
+        hasBrandKit: hasKit,
       });
     }
   }

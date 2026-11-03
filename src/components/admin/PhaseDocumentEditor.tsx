@@ -130,7 +130,7 @@ export function PhaseDocumentEditor({
             Mensaje al cliente
           </p>
           <p className="text-[11px] mt-1 leading-relaxed" style={{ color: brandUi.textMuted }}>
-            {hint}
+            {hint} Lo que escribís acá (texto, subrayado y enlaces) se incluye en el mail y en el portal.
           </p>
         </div>
       )}
@@ -176,7 +176,13 @@ export function PhaseDocumentEditor({
       />
 
       {integratedSend && (
-        <PhaseClientSendActions {...clientSend} htmlBody={html} />
+        <PhaseClientSendActions
+          {...clientSend}
+          htmlBody={html}
+          onBeforeSend={async () => {
+            await persist(html, { silent: true });
+          }}
+        />
       )}
     </>
   );

@@ -6,6 +6,8 @@ import { markdownToQuoteHtml, wrapAdminNotificationEmailHtml, wrapPhaseDocumentE
 import { stripHtmlToPlainText } from "@/lib/contract-acceptance";
 import { brandUi } from "@/lib/brand-ui";
 import { soLogoEmailAttachments } from "@/lib/invoice-logo.server";
+import { resolveClientPortalHtmlBody } from "@/lib/phase-client-portal";
+import { phaseHtmlForEmail } from "@/lib/phase-html-email";
 
 export type SendPhaseDocEmailPayload = {
   config: PhaseSendConfig;
@@ -14,6 +16,9 @@ export type SendPhaseDocEmailPayload = {
   projectTitle: string;
   token: string;
   personalNote?: string;
+  /** Contenido del editor (mismo HTML que ve el cliente en el portal). */
+  htmlBody?: string;
+  hasBrandKit?: boolean;
 };
 
 export async function sendPhaseDocEmailToClient(
@@ -36,11 +41,21 @@ export async function sendPhaseDocEmailToClient(
     ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:${brandUi.textMuted};font-style:italic;">${payload.personalNote.trim().replace(/</g, "&lt;")}</p>`
     : "";
 
+  const rawDoc = payload.htmlBody?.trim() ?? "";
+  let portalDoc = rawDoc;
+  if (payload.config.phaseKey === "identidad" && payload.hasBrandKit) {
+    portalDoc = resolveClientPortalHtmlBody("identidad", rawDoc, { hasBrandKit: true });
+  }
+  const docBlock =
+    portalDoc && portalDoc !== "<p></p>"
+      ? `<div class="phase-doc-html" style="margin:20px 0 8px;text-align:left;">${phaseHtmlForEmail(portalDoc)}</div>`
+      : "";
+
   const introHtml = markdownToQuoteHtml(
     `${payload.config.emailIntro}\n\nProyecto: **${payload.projectTitle}**.`,
   );
 
-  const innerHtml = `${noteBlock}${introHtml}<p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:${brandUi.textMuted};">${
+  const innerHtml = `${noteBlock}${introHtml}${docBlock}<p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:${brandUi.textMuted};">${
     isPermanent && payload.config.phaseKey === "manual"
       ? "Guardá este enlace: no vence y podés descargar tu manual en PDF cuando quieras."
       : isPermanent
@@ -55,7 +70,9 @@ export async function sendPhaseDocEmailToClient(
     "",
     `${payload.config.title} — "${payload.projectTitle}"`,
     "",
-    "Ver documento:",
+    portalDoc && portalDoc !== "<p></p>" ? stripHtmlToPlainText(portalDoc) : "",
+    "",
+    "Ver documento completo:",
     link,
     "",
     isPermanent

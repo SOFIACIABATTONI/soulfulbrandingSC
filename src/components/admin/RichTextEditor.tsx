@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
+import Underline from "@tiptap/extension-underline";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
 import Highlight from "@tiptap/extension-highlight";
@@ -80,8 +82,16 @@ export function RichTextEditor({
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
-        link: { openOnClick: false },
+        link: false,
       }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          rel: "noopener noreferrer",
+          target: "_blank",
+        },
+      }),
+      Underline,
       TextStyle,
       Color,
       Highlight.configure({ multicolor: true }),
@@ -136,7 +146,24 @@ export function RichTextEditor({
 
   if (!editor) return null;
 
+  const ed = editor;
   const isClientFrame = frameVariant === "client";
+
+  function applyLink() {
+    const previous = (ed.getAttributes("link").href as string | undefined) ?? "";
+    const url = window.prompt(
+      "Pegá la URL del enlace (dejá vacío y Aceptar para quitar el link del texto seleccionado)",
+      previous || "https://",
+    );
+    if (url === null) return;
+    const trimmed = url.trim();
+    if (!trimmed) {
+      ed.chain().focus().extendMarkRange("link").unsetLink().run();
+      return;
+    }
+    const href = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    ed.chain().focus().extendMarkRange("link").setLink({ href }).run();
+  }
 
   return (
     <div
@@ -174,6 +201,19 @@ export function RichTextEditor({
           onClick={() => editor.chain().focus().toggleUnderline().run()}
         >
           <span className="underline">U</span>
+        </ToolbarButton>
+        <ToolbarButton
+          title="Enlace — seleccioná texto y tocá acá"
+          active={editor.isActive("link")}
+          onClick={applyLink}
+        >
+          🔗
+        </ToolbarButton>
+        <ToolbarButton
+          title="Quitar enlace del texto seleccionado"
+          onClick={() => editor.chain().focus().unsetLink().run()}
+        >
+          ⊗
         </ToolbarButton>
         <ToolbarButton
           title="Tachado"
@@ -288,7 +328,4 @@ export function RichTextEditor({
   );
 }
 
-/** HTML del editor listo para incrustar en un mail. */
-export function phaseHtmlForEmail(html: string): string {
-  return html;
-}
+export { phaseHtmlForEmail } from "@/lib/phase-html-email";

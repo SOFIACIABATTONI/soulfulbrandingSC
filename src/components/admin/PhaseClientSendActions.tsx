@@ -23,6 +23,8 @@ export type PhaseClientSendActionsProps = {
   clientEmail: string;
   meta: PhaseClientMeta;
   onSent?: () => void;
+  /** Guardar en BD justo antes del envío (mismo HTML que va en el mail). */
+  onBeforeSend?: () => Promise<void>;
 };
 
 export function PhaseClientSendActions({
@@ -36,6 +38,7 @@ export function PhaseClientSendActions({
   clientEmail,
   meta,
   onSent,
+  onBeforeSend,
 }: PhaseClientSendActionsProps) {
   const config = HTML_PHASE_SEND[phaseKey];
   const isPermanent = isPermanentAccessPurpose(config.purpose);
@@ -50,6 +53,10 @@ export function PhaseClientSendActions({
   async function sendToClient() {
     setSending(true);
     setMessage(null);
+
+    if (onBeforeSend) {
+      await onBeforeSend();
+    }
 
     const res = await fetch(`/api/admin/projects-erp/${projectId}/phase-send`, {
       method: "POST",
