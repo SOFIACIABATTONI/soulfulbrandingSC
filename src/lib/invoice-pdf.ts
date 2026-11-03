@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFPage } from "pdf-lib";
-import { getInvoiceDocumentTitle } from "@/lib/invoice-utils";
+import { getInvoiceDocumentTitle, invoiceNotesForClientPdf } from "@/lib/invoice-utils";
 import { embedSoLogoFuchsia, SO_LOGO_PDF_WIDTH } from "@/lib/invoice-logo.server";
 
 const PAGE_WIDTH = 595.28;
@@ -30,6 +30,13 @@ export type InvoicePdfRecord = {
   notes: string;
   client: { name: string; company: string };
   project: { title: string; value?: number } | null;
+};
+
+/** admin = ERP (incluye notas internas). client = mail y enlace público (nunca notas privadas). */
+export type InvoicePdfAudience = "admin" | "client";
+
+export type BuildInvoicePdfOptions = {
+  audience?: InvoicePdfAudience;
 };
 
 type PdfFont = Awaited<ReturnType<PDFDocument["embedFont"]>>;
@@ -77,7 +84,7 @@ function colorFor(kind: ContentBlock["color"]) {
   return TEXT;
 }
 
-function buildContentBlocks(record: InvoicePdfRecord): ContentBlock[] {
+function buildContentBlocks(record: InvoicePdfRecord, audience: InvoicePdfAudience): ContentBlock[] {
   const projectTitle = record.project?.title ?? "tu proyecto";
   const isSena = record.type === "sena";
   const blocks: ContentBlock[] = [
@@ -133,11 +140,15 @@ function buildContentBlocks(record: InvoicePdfRecord): ContentBlock[] {
     });
   }
 
-  if (record.notes.trim()) {
-    const body = record.notes.trim();
-    const cuotaOnly = /^Cuota\s+\d+\s*\/\s*\d+(\s*·\s*Cuota\s+\d+\s*\/\s*\d+)*$/i.test(body);
+  const notesForPdf =
+    audience === "admin" ? record.notes.trim() : invoiceNotesForClientPdf(record.notes);
+
+  if (notesForPdf) {
     blocks.push({
-      text: cuotaOnly ? body : `Notas: ${body}`,
+      text:
+        audience === "admin"
+          ? `Notas (solo internas): ${notesForPdf}`
+          : notesForPdf,
       font: "regular",
       size: 9,
       color: "muted",
@@ -222,7 +233,10 @@ function drawContentBlocks(
   }
 }
 
-async function buildBrandedCardPdf(record: InvoicePdfRecord): Promise<Uint8Array> {
+async function buildBrandedCardPdf(
+  record: InvoicePdfRecord,
+  audience: InvoicePdfAudience,
+): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const regular = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -236,7 +250,7 @@ async function buildBrandedCardPdf(record: InvoicePdfRecord): Promise<Uint8Array
     color: PAGE_BG,
   });
 
-  const blocks = buildContentBlocks(record);
+  const blocks = buildContentBlocks(record, audience);
   const innerWidth = CARD_WIDTH - CARD_PAD_X * 2;
   const cardHeight = measureContentHeight(blocks, innerWidth, regular, bold);
   const cardX = (PAGE_WIDTH - CARD_WIDTH) / 2;
@@ -283,8 +297,12 @@ async function buildBrandedCardPdf(record: InvoicePdfRecord): Promise<Uint8Array
   return doc.save();
 }
 
-export async function buildInvoicePdf(record: InvoicePdfRecord): Promise<Uint8Array> {
-  return buildBrandedCardPdf(record);
+export async function buildInvoicePdf(
+  record: InvoicePdfRecord,
+  options: BuildInvoicePdfOptions = {},
+): Promise<Uint8Array> {
+  const audience = options.audience ?? "client";
+  return buildBrandedCardPdf(record, audience);
 }
 
 export function invoicePdfFilename(record: Pick<InvoicePdfRecord, "type" | "number">): string {

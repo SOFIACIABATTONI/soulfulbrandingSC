@@ -27,17 +27,20 @@ export async function GET(_req: Request, ctx: RouteParams) {
     return NextResponse.json({ error: "Tipo de documento no soportado" }, { status: 400 });
   }
 
-  const pdfBytes = await buildInvoicePdf({
-    number: invoice.number,
-    type: invoice.type,
-    total: invoice.total,
-    status: invoice.status,
-    issuedAt: invoice.issuedAt,
-    paidAt: invoice.paidAt,
-    notes: invoice.notes,
-    client: invoice.client,
-    project: invoice.project,
-  });
+  const pdfBytes = await buildInvoicePdf(
+    {
+      number: invoice.number,
+      type: invoice.type,
+      total: invoice.total,
+      status: invoice.status,
+      issuedAt: invoice.issuedAt,
+      paidAt: invoice.paidAt,
+      notes: invoice.notes,
+      client: invoice.client,
+      project: invoice.project,
+    },
+    { audience: "admin" },
+  );
 
   const filename = invoicePdfFilename({ type: invoice.type, number: invoice.number });
 

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashQuoteToken } from "@/lib/quote-token";
 import { buildInvoicePdf, invoicePdfFilename } from "@/lib/invoice-pdf";
-import { invoiceNotesForClientPdf } from "@/lib/invoice-utils";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
@@ -35,7 +34,7 @@ export async function GET(_req: Request, ctx: RouteParams) {
     status: invoice.status,
     issuedAt: invoice.issuedAt,
     paidAt: invoice.paidAt,
-    notes: invoiceNotesForClientPdf(invoice.notes),
+    notes: invoice.notes,
     client: invoice.client,
     project: invoice.project,
   });
